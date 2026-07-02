@@ -99,8 +99,9 @@ create trigger trg_smark_project_phases_updated_at
 
 -- ============================================================================
 -- smark_project_documents — named uploads to R2 [R2-16]
---   Soft delete (owner or uploader — app rule); portal sees ONLY rows explicitly
---   flagged shared_to_portal (§11: opt-in per item, default OFF).
+--   Soft delete = owner or uploader — RLS-enforced (owner any row; employee only
+--   uploaded_by = auth.uid()); portal sees ONLY rows explicitly flagged
+--   shared_to_portal (§11: opt-in per item, default OFF).
 -- ============================================================================
 create table public.smark_project_documents (
   id               uuid primary key default gen_random_uuid(),
@@ -118,7 +119,7 @@ create table public.smark_project_documents (
 );
 
 comment on table public.smark_project_documents is
-  '[R2-16] Named per-project uploads (files in Cloudflare R2). Soft delete (deleted_at); portal sees only shared_to_portal rows via security-definer fns (0005).';
+  '[R2-16] Named per-project uploads (files in Cloudflare R2). Soft delete (deleted_at); portal sees only shared_to_portal rows via security-definer fns (deferred to Phase 4 — FEATURES.md §19).';
 comment on column public.smark_project_documents.shared_to_portal is
   'Portal shows only explicitly-shared documents (FEATURES §11; default OFF — nothing leaks by accident).';
 
@@ -293,8 +294,14 @@ create trigger trg_smark_bom_templates_updated_at
 --   · Deviations (documented): hard DELETE of smark_projects is owner-only
 --     (archive is the designed path; deletion cascades across domains) and
 --     DELETE of smark_project_activities is owner-only (append-only feed).
+--   · Author scoping (SCHEMA.md §7): the OWNER may edit/delete any row, but an
+--     EMPLOYEE only their OWN — smark_project_documents UPDATE/DELETE require
+--     uploaded_by = auth.uid() and smark_project_activities UPDATE requires
+--     created_by = auth.uid() on the employee branch. This enforces SCHEMA.md's
+--     "Delete = owner or uploader" (documents) and author-only edit (activities)
+--     at the DB, not just the app. (The 15-min edit window stays app-enforced.)
 --   · Client portal NEVER touches these tables directly — reads/comments go
---     through security-definer functions (defined with the views in 0005).
+--     through security-definer functions (DEFERRED to Phase 4 — FEATURES.md §19).
 --   · Worker/service-role traffic bypasses RLS by design.
 -- ============================================================================
 
@@ -349,16 +356,31 @@ create policy smark_project_documents_insert on public.smark_project_documents
   for insert to authenticated
   with check ((select public.smark_role()) in ('owner','employee'));
 
+-- Author scoping (SCHEMA.md §7 "Delete = owner or uploader"): owner touches any
+-- row; employee only their own upload. Soft delete travels through UPDATE
+-- (deleted_at), so both UPDATE and DELETE carry the uploaded_by restriction.
 create policy smark_project_documents_update on public.smark_project_documents
   for update to authenticated
-  using ((select public.smark_role()) in ('owner','employee'))
-  with check ((select public.smark_role()) in ('owner','employee'));
+  using (
+    (select public.smark_role()) = 'owner'
+    or ((select public.smark_role()) = 'employee' and uploaded_by = (select auth.uid()))
+  )
+  with check (
+    (select public.smark_role()) = 'owner'
+    or ((select public.smark_role()) = 'employee' and uploaded_by = (select auth.uid()))
+  );
 
 create policy smark_project_documents_delete on public.smark_project_documents
   for delete to authenticated
-  using ((select public.smark_role()) in ('owner','employee'));
+  using (
+    (select public.smark_role()) = 'owner'
+    or ((select public.smark_role()) = 'employee' and uploaded_by = (select auth.uid()))
+  );
 
--- ---- smark_project_activities (append-only: no employee hard-delete) --------
+-- ---- smark_project_activities (append-only feed) ----------------------------
+-- UPDATE is author-scoped (SCHEMA.md §7 author-only edit): owner edits any row,
+-- employee only their own (created_by = auth.uid()); the 15-min edit window is
+-- app-enforced on top. Hard DELETE stays owner-only (append-only).
 alter table public.smark_project_activities enable row level security;
 
 create policy smark_project_activities_select on public.smark_project_activities
@@ -371,8 +393,14 @@ create policy smark_project_activities_insert on public.smark_project_activities
 
 create policy smark_project_activities_update on public.smark_project_activities
   for update to authenticated
-  using ((select public.smark_role()) in ('owner','employee'))
-  with check ((select public.smark_role()) in ('owner','employee'));
+  using (
+    (select public.smark_role()) = 'owner'
+    or ((select public.smark_role()) = 'employee' and created_by = (select auth.uid()))
+  )
+  with check (
+    (select public.smark_role()) = 'owner'
+    or ((select public.smark_role()) = 'employee' and created_by = (select auth.uid()))
+  );
 
 create policy smark_project_activities_delete on public.smark_project_activities
   for delete to authenticated

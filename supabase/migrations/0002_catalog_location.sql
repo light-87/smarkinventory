@@ -309,6 +309,13 @@ create table public.smark_movements (
   reason     text not null
                constraint smark_movements_reason_check
                check (reason in ('pick', 'receive', 'adjust', 'bulk_pick', 'undo')),
+  -- [FEATURES.md §5.4 / §9] Guided box-audit variances are `adjust` movements
+  -- TAGGED `audit`. This nullable qualifier distinguishes them from manual
+  -- adjustments (queryable in Daily Reports / part history) WITHOUT adding a
+  -- sixth value to the reason enum — SCHEMA.md §6 keeps reason=adjust. The
+  -- cross-column CHECK (table level, below) pins the tag to adjust rows and to
+  -- the single documented value.
+  reason_detail text,
   bom_id     uuid,                                 -- → smark_boms (0003). Plain uuid ON PURPOSE: FK deferred to 0005.
   actor      uuid not null references public.smark_app_users (id),
   undo_of    uuid references public.smark_movements (id),
@@ -319,11 +326,17 @@ create table public.smark_movements (
   constraint smark_movements_undo_of_unique unique (undo_of),
   -- Pairing: undo rows point at their target; non-undo rows never carry undo_of.
   constraint smark_movements_undo_pairing
-    check ((reason = 'undo') = (undo_of is not null))
+    check ((reason = 'undo') = (undo_of is not null)),
+  -- [FEATURES.md §5.4/§9] the 'audit' tag is only valid on an adjust movement.
+  constraint smark_movements_reason_detail_check
+    check (reason_detail is null
+           or (reason_detail = 'audit' and reason = 'adjust'))
 );
 
 comment on table public.smark_movements is
-  'Audit trail of every stock mutation. Undo = a NEW row with reason=undo pointing at the original via undo_of (unique → undoable once). Guided-audit variances land as reason=adjust.';
+  'Audit trail of every stock mutation. Undo = a NEW row with reason=undo pointing at the original via undo_of (unique → undoable once). Guided box-audit variances land as reason=adjust tagged reason_detail=''audit'' (FEATURES.md §5.4/§9) — distinguishable from manual adjusts in Daily Reports/history.';
+comment on column public.smark_movements.reason_detail is
+  '[FEATURES.md §5.4/§9] Nullable qualifier on reason. ''audit'' marks a guided box-audit variance (reason must then be ''adjust''); null for every other movement. Lets Daily Reports/history separate audit variances from manual adjustments without a sixth reason enum value.';
 comment on column public.smark_movements.bom_id is
   'References smark_boms.id (created in 0003_projects_boms) — deliberately no FK constraint here to keep the 0001→0005 apply order acyclic; FK added in 0005.';
 
@@ -578,9 +591,10 @@ create policy smark_part_events_insert on public.smark_part_events
 -- update/delete POLICY, so the grant is inert for those commands — RLS
 -- default-denies any command with no matching policy). `anon` gets NOTHING on
 -- these eight operational tables: the client portal (FEATURES.md §11) reads
--- ONLY through SECURITY DEFINER functions (added alongside the views in
--- 0005), which run with the function owner's privileges, not the caller's, so
--- they need no table-level grant to anon here.
+-- ONLY through SECURITY DEFINER functions (DEFERRED to Phase 4 — FEATURES.md
+-- §19; NOT defined in 0005, which adds only the three read-only views), which
+-- run with the function owner's privileges, not the caller's, so they will
+-- need no table-level grant to anon here.
 --
 -- NOTE for the migration owning 0001/0003/0004: `smark_app_users`,
 -- `smark_projects`, `smark_boms`, etc. were verified to have the SAME missing

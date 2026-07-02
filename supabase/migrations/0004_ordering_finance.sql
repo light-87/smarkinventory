@@ -603,7 +603,7 @@ create table public.smark_expenses (
   category        text not null
                      constraint smark_expenses_category_check
                      check (category in ('Materials', 'Salaries', 'Rent', 'Utilities', 'Tools', 'Client payment', 'Other')),
-  account_id      uuid not null references public.smark_expense_accounts (id),
+  account_id      uuid references public.smark_expense_accounts (id), -- nullable: PO-auto-drafts defer it to owner-confirm (seed seeds zero accounts); CHECK below requires it once confirmed
   vendor          text,                              -- party/distributor
   gstin           text,
   tax_amount      numeric(14,2) check (tax_amount is null or tax_amount >= 0),
@@ -615,13 +615,21 @@ create table public.smark_expenses (
   created_by      uuid references public.smark_app_users (id),
   deleted_at      timestamptz,                        -- soft delete for audit
   created_at      timestamptz not null default now(),
-  updated_at      timestamptz
+  updated_at      timestamptz,
+
+  -- A PO-auto-created draft (is_draft=true) is incomplete by design — the
+  -- checkout server action has no account to assign yet (seed.sql seeds ZERO
+  -- expense accounts; they arrive from onboarding), so account_id stays null
+  -- until the owner confirms. A CONFIRMED entry (is_draft=false) MUST carry an
+  -- account. Manual entries are never drafts and always supply it (form field).
+  constraint smark_expenses_account_when_confirmed
+    check (is_draft or account_id is not null)
 );
 
 comment on table public.smark_expenses is
-  '[R2-20 · Q-09 FINAL] Owner + accountant read/write ledger; employee has NO access (see RLS §). Placing a smark_orders row auto-creates a draft (is_draft=true) row here — application logic in the checkout server action (needs the order''s lines to compute the total; cannot be a simple single-table trigger), not a DB trigger.';
+  '[R2-20 · Q-09 FINAL] Owner + accountant read/write ledger; employee has NO access (see RLS §). Placing a smark_orders row auto-creates a draft (is_draft=true) row here — application logic in the checkout server action (needs the order''s lines to compute the total; cannot be a simple single-table trigger), not a DB trigger. That draft carries no account_id (none exist on a fresh install; owner assigns at confirm — see smark_expenses_account_when_confirmed).';
 comment on column public.smark_expenses.account_id is
-  'NOT NULL — the checkout server action that auto-creates draft rows must supply an account (e.g. a designated default), matching types/db.ts ExpenseRowSchema.';
+  'Nullable. A PO-auto-created draft has no account to assign at checkout — seed.sql intentionally seeds ZERO expense accounts (real client onboarding data), so a NOT NULL column would make the first fresh-install checkout''s draft-expense INSERT fail. The owner assigns the account when confirming the draft; smark_expenses_account_when_confirmed then requires it for any is_draft=false row. Matches types/db.ts ExpenseRowSchema.account_id (nullable).';
 comment on column public.smark_expenses.is_draft is
   'PO-auto-created entries start true; owner confirm flips to false (TESTING.md Q-09 traceability). Excluded from v_expense_rollups (0005) until confirmed.';
 

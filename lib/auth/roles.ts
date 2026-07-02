@@ -79,9 +79,20 @@ export const ROLE_MATRIX: Record<Area, Record<Role, Access>> = {
   users: { owner: "full", employee: "hidden", accountant: "hidden" },
 };
 
-/** Raw access level for a (role, area) pair. */
-export function accessFor(role: Role, area: Area): Access {
-  return ROLE_MATRIX[area][role];
+/**
+ * Raw access level for a (role, area) pair.
+ *
+ * `role` is `Role | null | undefined` on purpose: `smark_role()` returns SQL
+ * NULL for anon, unknown, or DEACTIVATED callers (types/db.ts
+ * Functions.smark_role.Returns = `AppRole | null`). A null OR otherwise
+ * unrecognized role is DENIED everything ("hidden") — never silently granted.
+ * Without this guard the lookup is `undefined`, and `undefined !== "hidden"`
+ * would make canSee/canWrite return true for a role-less caller.
+ */
+export function accessFor(role: Role | null | undefined, area: Area): Access {
+  if (role == null) return "hidden";
+  const access: Access | undefined = ROLE_MATRIX[area][role];
+  return access ?? "hidden";
 }
 
 /** Can this role see the area at all? (nav visibility / route guard) */

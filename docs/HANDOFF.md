@@ -37,10 +37,9 @@ regenerated. Plan folder = audit trail; any NEW client change → id R2-39+, log
 - WF-1 deps pre-installed (xlsx, html5-qrcode, qrcode, pdf-lib) — parallel builders must NOT run
   `bun add`.
 
-**WF-0 judgment status:** `PENDING — VERIFY BEFORE WF-1` ← previous session's final judgment leg
-(2 adversarial reviewers + fix + verify) may not have completed before handoff. Treat as not done
-unless a later line here says otherwise. It is cheap to re-run (see §4 step 0) — the build work
-itself is complete and committed.
+**WF-0 judgment status:** `COMPLETE — GREEN (2026-07-03)`. Opus reviewers found 6 findings (all
+minor, 0 serious), fix round applied them, final verify: typecheck ✓ · unit tests ✓ · build ✓ ·
+db reset ✓, zero failures. **Skip §4 Step 0 — start directly at Step 1 (launch WF-1).**
 
 ## 3. Operating protocol (client-approved, follow exactly)
 

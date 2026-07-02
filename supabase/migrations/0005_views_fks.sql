@@ -262,7 +262,9 @@ select * from (
     null::uuid as order_id,
     null::uuid as run_id,
     m.delta_qty::numeric as qty,
-    (m.reason || ' ' || m.delta_qty::text) as summary
+    -- reason_detail surfaces the guided-audit tag so an audit variance reads
+    -- "adjust audit -3" vs a manual "adjust -3" in Daily Reports (FEATURES.md §5.4/§9).
+    (m.reason || coalesce(' ' || m.reason_detail, '') || ' ' || m.delta_qty::text) as summary
   from public.smark_movements m
   left join public.smark_boms b on b.id = m.bom_id
 

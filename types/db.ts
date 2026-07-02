@@ -199,6 +199,14 @@ export type PartEventType = z.infer<typeof PartEventTypeSchema>;
 export const MovementReasonSchema = z.enum(["pick", "receive", "adjust", "bulk_pick", "undo"]);
 export type MovementReason = z.infer<typeof MovementReasonSchema>;
 
+/**
+ * §6 `smark_movements.reason_detail` — nullable qualifier on `reason`.
+ * `"audit"` tags a guided box-audit variance (FEATURES.md §5.4/§9); the DB
+ * additionally pins the tag to `reason = "adjust"`. Null on every other movement.
+ */
+export const MovementReasonDetailSchema = z.enum(["audit"]);
+export type MovementReasonDetail = z.infer<typeof MovementReasonDetailSchema>;
+
 /** §6 `smark_qr_labels.target_type`. */
 export const QrTargetTypeSchema = z.enum(["part", "big_box"]);
 export type QrTargetType = z.infer<typeof QrTargetTypeSchema>;
@@ -759,6 +767,9 @@ export const MovementRowSchema = z.object({
   /** Signed. */
   delta_qty: z.number().int(),
   reason: MovementReasonSchema,
+  /** [FEATURES.md §5.4/§9] 'audit' tags a guided box-audit variance (reason is
+   * then 'adjust'); null for every other movement. */
+  reason_detail: MovementReasonDetailSchema.nullable(),
   bom_id: zUuid.nullable(),
   /** NOT NULL in SQL — every movement stamps its real actor (§2). */
   actor: zUuid,
@@ -885,7 +896,10 @@ export const ExpenseRowSchema = z.object({
   currency: z.string(),
   entry_date: zDateOnly,
   category: ExpenseCategorySchema,
-  account_id: zUuid,
+  /** Nullable: a PO-auto-created draft defers the account until owner-confirm
+   * (seed.sql seeds no expense accounts); a confirmed (is_draft=false) row must
+   * carry one — DB CHECK smark_expenses_account_when_confirmed. */
+  account_id: zUuid.nullable(),
   /** Party/distributor. */
   vendor: z.string().nullable(),
   gstin: z.string().nullable(),
@@ -1125,10 +1139,17 @@ export type Database = {
       v_expense_rollups: ViewOf<ExpenseRollupRow>;
     };
     Functions: {
-      /** SQL helper reading the caller's role for RLS policies (SCHEMA §0). */
+      /**
+       * SQL helper reading the caller's role for RLS policies (SCHEMA §0).
+       * `select role from smark_app_users where id = auth.uid() and active`
+       * returns NO row — i.e. SQL NULL — for anon, unknown, or DEACTIVATED
+       * callers, so the value is `AppRole | null`. Callers MUST null-check
+       * before use: a null role must grant NOTHING (see lib/auth/roles.ts
+       * accessFor, which maps null → "hidden").
+       */
       smark_role: {
         Args: Record<PropertyKey, never>;
-        Returns: AppRole;
+        Returns: AppRole | null;
       };
     };
     Enums: Record<string, never>;
