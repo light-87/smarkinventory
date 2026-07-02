@@ -1,0 +1,12 @@
+- generic [ref=f3e6]:
+  - img "Smark Automation" [ref=f3e8]
+  - generic [ref=f3e9]: SmarkStock
+  - generic [ref=f3e10]: Every part, every box — one tap away.
+  - generic [ref=f3e11]:
+    - textbox [ref=f3e12]
+    - textbox [ref=f3e13]
+    - textbox [ref=f3e14]
+    - textbox [ref=f3e15]
+  - button "Unlock" [ref=f3e16] [cursor=pointer]
+  - generic [ref=f3e17]: demo PIN · 1947
+  - generic [ref=f3e18]: Runs on Smark's own Vercel · Supabase · Claude.

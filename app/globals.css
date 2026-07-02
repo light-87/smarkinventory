@@ -1,0 +1,232 @@
+@import "tailwindcss";
+
+/* Don't scan non-app sources for class names */
+@source not "../SmarkStock-prototype";
+@source not "../plan";
+@source not "../assets";
+
+/*
+ * SmarkStock locked dark design system.
+ * Tokens mirror /theme.css + /tokens.json (locked — do not edit those files),
+ * plus the SMARK brand orange and the surface/border micro-scale used by the
+ * approved prototype (SmarkStock-prototype/SmarkStock.dc.html).
+ *
+ * Deliberate deviations from a 1:1 copy of theme.css:
+ *  - fonts: Circular / Source Code Pro are licensed; DESIGN.md names Inter and
+ *    JetBrains Mono as the substitutes — loaded via next/font in app/layout.tsx
+ *    and wired here through `@theme inline`.
+ *  - spacing: theme.css's --spacing-8..224 are NOT imported into @theme —
+ *    remapping Tailwind's numeric spacing steps (p-8 → 8px) would silently
+ *    break standard utility semantics. Tailwind's default 0.25rem base already
+ *    yields the 8px grid (p-2 = 8px, p-4 = 16px, p-6 = 24px, ...).
+ */
+@theme {
+  /* ---- Colors — locked palette (tokens.json) ---- */
+  --color-phosphor-green: #3ecf8e;
+  --color-mint-pulse: #00c573;
+  --color-forest-depth: #1f4b37;
+  --color-midnight-emerald: #006239;
+  --color-snow: #fafafa;
+  --color-silver-mist: #b4b4b4;
+  --color-smoke: #898989;
+  --color-graphite: #4d4d4d;
+  --color-slate: #393939;
+  --color-charcoal: #2e2e2e;
+  --color-ash: #242424;
+  --color-obsidian: #121212;
+
+  /* ---- SMARK brand accent (FEATURES.md §3 + prototype) ---- */
+  --color-smark-orange: #f57d05;
+  /* hover/pressed fill for orange CTAs */
+  --color-smark-orange-hover: #c25e02;
+  /* links, soft warnings, error text — the only other chromatic voice */
+  --color-smark-orange-soft: #ff9a3c;
+
+  /* ---- Surface micro-scale (prototype hexes) ---- */
+  --color-canvas: #121212; /* page background (alias of obsidian) */
+  --color-surface: #141414; /* cards, drawers, dialogs */
+  --color-surface-panel: #131313; /* quiet inline panels, drop zones */
+  --color-surface-well: #0f0f0f; /* inputs, inset wells, segmented tracks */
+  --color-surface-raised: #1c1c1c; /* menus, avatar button, nav hover */
+  --color-surface-hover: #181818; /* interactive card hover */
+  --color-surface-accent: #161210; /* orange-tinted highlight surface */
+  --color-surface-accent-hover: #1a1411; /* hover on orange-outline actions */
+
+  /* ---- Border micro-scale (prototype hexes) ---- */
+  /* main component border = charcoal #2e2e2e · strong border = slate #393939 */
+  --color-border-hairline: #1a1a1a; /* table row dividers */
+  --color-border-faint: #1e1e1e; /* section separators inside chrome */
+  --color-border-divider: #232323; /* card header/footer dividers */
+
+  /* ---- Text ---- */
+  /* primary snow · secondary silver-mist · tertiary smoke · faintest: */
+  --color-faint: #5a5a5a;
+
+  /* ---- Type scale — size + line-height + letter-spacing per role ---- */
+  --text-caption: 12px;
+  --text-caption--line-height: 1.5;
+  --text-caption--letter-spacing: -0.084px;
+  --text-body-sm: 14px;
+  --text-body-sm--line-height: 1.43;
+  --text-body-sm--letter-spacing: -0.098px;
+  --text-body: 16px;
+  --text-body--line-height: 1.5;
+  --text-body--letter-spacing: -0.112px;
+  --text-subheading: 18px;
+  --text-subheading--line-height: 1.38;
+  --text-subheading--letter-spacing: -0.126px;
+  --text-heading-sm: 24px;
+  --text-heading-sm--line-height: 1.33;
+  --text-heading-sm--letter-spacing: -0.168px;
+  --text-heading: 36px;
+  --text-heading--line-height: 1.2;
+  --text-heading--letter-spacing: -0.252px;
+  --text-display: 72px;
+  --text-display--line-height: 1;
+  --text-display--letter-spacing: -0.504px;
+
+  /* ---- Border radius — pill buttons/tags, 16px cards, 8px inputs ---- */
+  --radius-lg: 8px;
+  --radius-lg-2: 11px;
+  --radius-2xl: 16px;
+  --radius-full: 9999px;
+
+  /* ---- Shadows — system is border-driven; single sanctioned shadow ---- */
+  --shadow-sm:
+    rgba(0, 0, 0, 0.1) 0px 4px 6px -1px,
+    rgba(0, 0, 0, 0.1) 0px 2px 4px -2px;
+
+  /* ---- Motion (prototype keyframes) ---- */
+  --animate-fade-in: smk-fade 0.2s ease both;
+  --animate-slide-in: smk-slide 0.22s ease both;
+  --animate-toast-in: smk-toast 0.25s ease both;
+  --animate-shimmer: smk-shimmer 1.6s linear infinite;
+  --animate-pulse-ring: smk-pulse 0.9s ease;
+  --animate-shake: smk-shake 0.5s ease;
+
+  @keyframes smk-fade {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes smk-slide {
+    from {
+      transform: translateX(24px);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+  @keyframes smk-toast {
+    from {
+      transform: translateY(16px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+  @keyframes smk-shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+  @keyframes smk-pulse {
+    0% {
+      box-shadow: 0 0 0 0 rgba(245, 125, 5, 0);
+    }
+    30% {
+      box-shadow: 0 0 0 3px rgba(245, 125, 5, 0.35);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgba(245, 125, 5, 0);
+    }
+  }
+  @keyframes smk-shake {
+    10%,
+    90% {
+      transform: translateX(-2px);
+    }
+    20%,
+    80% {
+      transform: translateX(4px);
+    }
+    30%,
+    50%,
+    70% {
+      transform: translateX(-7px);
+    }
+    40%,
+    60% {
+      transform: translateX(7px);
+    }
+  }
+}
+
+/* Fonts resolve at runtime from next/font variables set on <html> */
+@theme inline {
+  --font-sans:
+    var(--font-inter), ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono:
+    var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, Monaco,
+    Consolas, monospace;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: var(--color-obsidian);
+    color: var(--color-snow);
+    font-family: var(--font-sans);
+    /* Signature uniform negative tracking (prototype body) */
+    letter-spacing: -0.007em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: var(--color-smark-orange);
+    color: var(--color-obsidian);
+  }
+
+  input,
+  textarea,
+  select,
+  button {
+    letter-spacing: inherit;
+  }
+
+  /* Dark pill scrollbars (prototype) */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-charcoal);
+    border-radius: 9999px;
+    border: 3px solid var(--color-obsidian);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-slate);
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-charcoal) transparent;
+  }
+}

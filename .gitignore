@@ -1,0 +1,41 @@
+# dependencies
+node_modules/
+.pnp
+.pnp.*
+
+# next.js
+.next/
+out/
+next-env.d.ts
+
+# builds
+build/
+dist/
+*.tsbuildinfo
+
+# env — never commit secrets (.env.local.example IS committed)
+.env
+.env*.local
+
+# supabase local dev
+supabase/.temp/
+supabase/.branches/
+
+# local file storage (lib/storage LocalDiskAdapter dev/test fallback for R2)
+.storage/
+
+# testing
+coverage/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
+# vercel
+.vercel
+
+# misc
+.DS_Store
+*.pem
+npm-debug.log*
+bun-debug.log*

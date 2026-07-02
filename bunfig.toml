@@ -1,0 +1,20 @@
+# Bun configuration — SmarkStock.
+#
+# Test layout (plan/TESTING.md §2):
+#   tests/unit         pure logic            bun test
+#   tests/integration  local Supabase (RLS)  bun test  (skips itself when no local stack —
+#                                            tests/helpers/supabase.ts describeWithDb gate)
+#   tests/invariants   cross-feature A3 set  bun test  (test.todo skeletons until features land)
+#   tests/e2e          Playwright ONLY       bunx playwright test  (never `bun test` — Bun's
+#                                            default file matching also globs *.spec.ts, so a bare
+#                                            `bun test` would try to load these too; each e2e spec
+#                                            self-excludes via a `process.versions.bun` guard, see
+#                                            tests/e2e/smoke.spec.ts, as defense-in-depth)
+#
+# Full local dev + CI command reference: docs/DEV.md.
+
+[test]
+# Only scan the tests tree (keeps `bun test` from ever picking up strays elsewhere).
+root = "tests"
+coverageSkipTestFiles = true
+coverageDir = "coverage"

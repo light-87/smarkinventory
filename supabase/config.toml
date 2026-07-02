@@ -1,0 +1,51 @@
+# Supabase local development config — SmarkStock
+# Owned by migration agent 0001. Standard local ports.
+
+project_id = "smarkstock"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 17
+
+[studio]
+enabled = true
+port = 54323
+
+[inbucket]
+enabled = true
+port = 54324
+
+[storage]
+# All file uploads go to Cloudflare R2 (bucket smarkstock-files), never Supabase storage.
+enabled = false
+
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:3000"
+additional_redirect_urls = []
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+# Owner creates all accounts in Settings — no self-signup anywhere (FEATURES.md §2).
+enable_signup = false
+enable_anonymous_sign_ins = false
+
+[auth.email]
+# Usernames map to synthetic emails {username}@smark.internal — no real mail flows.
+enable_signup = false
+double_confirm_changes = false
+enable_confirmations = false
+
+[realtime]
+enabled = true
+
+[analytics]
+enabled = false

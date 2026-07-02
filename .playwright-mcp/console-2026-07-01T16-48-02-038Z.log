@@ -1,0 +1,11 @@
+[      92ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:8139/SmarkStock.dc.html:0
+[     104ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:8139/favicon.ico:0
+[    9753ms] [WARNING] [dc-runtime] SmarkStock: {{ r.pid }} never resolved — rendered as empty @ http://127.0.0.1:8139/support.js:471
+[    9754ms] [WARNING] [dc-runtime] SmarkStock: {{ r.mpn }} never resolved — rendered as empty @ http://127.0.0.1:8139/support.js:471
+[    9754ms] [WARNING] [dc-runtime] SmarkStock: {{ r.value }} never resolved — rendered as empty @ http://127.0.0.1:8139/support.js:471
+[    9754ms] [WARNING] [dc-runtime] SmarkStock: {{ r.pkg }} never resolved — rendered as empty @ http://127.0.0.1:8139/support.js:471
+[    9754ms] [WARNING] [dc-runtime] SmarkStock: {{ r.category }} never resolved — rendered as empty @ http://127.0.0.1:8139/support.js:471
+[    9754ms] [WARNING] [dc-runtime] SmarkStock: {{ r.qtyStr }} never resolved — rendered as empty @ http://127.0.0.1:8139/support.js:471
+[    9754ms] [WARNING] [dc-runtime] SmarkStock: {{ r.loc }} never resolved — rendered as empty @ http://127.0.0.1:8139/support.js:471
+[    9754ms] [WARNING] [dc-runtime] SmarkStock: {{ r.statusLabel }} never resolved — rendered as empty @ http://127.0.0.1:8139/support.js:471
+[    9761ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:8139/SmarkStock.dc.html#/inventory:0
