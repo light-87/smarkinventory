@@ -2,13 +2,20 @@
 
 import type { SessionUser } from "@/lib/auth/session";
 import { titleForPath } from "@/lib/nav";
-import { HeaderSearch } from "./header-search";
-import { NotificationsBell } from "./notifications-bell";
+import { CommandPalette } from "@/components/search";
+import { NotificationBell } from "@/components/notifications";
 import { AvatarMenu } from "./avatar-menu";
 
 /**
  * Sticky top chrome (every screen, FEATURES §5 header spec): screen title ·
  * scan-or-type field · notifications bell · avatar menu.
+ *
+ * Header seam (integrator): the search field + bell slots host
+ * search-notifications' real components (components/search + components/
+ * notifications) — CommandPalette carries the Ctrl-K palette + scan-code
+ * resolve-first behaviour, NotificationBell the polling read model. The
+ * auth-shell stubs (./header-search, ./notifications-bell) are retained but
+ * unreferenced.
  */
 export function Header({ user, pathname }: { user: SessionUser; pathname: string }) {
   return (
@@ -17,10 +24,10 @@ export function Header({ user, pathname }: { user: SessionUser; pathname: string
         {titleForPath(pathname, user.role)}
       </div>
       <div className="relative flex min-w-0 flex-1 justify-center">
-        <HeaderSearch className="w-full max-w-[420px]" />
+        <CommandPalette className="w-full max-w-[420px]" />
       </div>
       <div className="flex flex-none items-center gap-2.5">
-        <NotificationsBell userId={user.id} />
+        <NotificationBell userId={user.id} />
         <AvatarMenu user={user} />
       </div>
     </header>

@@ -87,7 +87,15 @@ if (typeof process.versions.bun === "undefined") {
           .then(() => true)
           .catch(() => false);
         if (hasFacet) {
-          await categoryCheckbox.check();
+          // components/inventory/facet-sidebar.tsx's checkbox input is
+          // visually `sr-only` — a decorative <span> painted on top gives it
+          // the checked/unchecked look. Real users click that (via the
+          // wrapping <label>, which forwards to the input natively); a
+          // direct `.check()`/click on the input itself hits Playwright's
+          // actionability check, which sees the decorative span
+          // "intercepting" the click point and retries until it times out.
+          await categoryCheckbox.locator("xpath=ancestor::label").click();
+          await expect(categoryCheckbox).toBeChecked();
           await expect(page.getByText(/capacitor/i).first()).toBeVisible();
         }
       }

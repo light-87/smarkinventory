@@ -17,7 +17,12 @@
  * primitives (OWNERSHIP.md: "lib/import (import) ← bom-pipeline").
  */
 
-import XLSX from "xlsx";
+// Namespace import (not `import XLSX from "xlsx"`): xlsx's ESM build
+// (node_modules/xlsx/xlsx.mjs) exposes only named exports, no default, so the
+// default form hard-fails Turbopack's `next build` ("Export default doesn't
+// exist in target module") once this module is pulled into an app route's
+// build graph (bom-pipeline imports it). All usage below is `XLSX.*`.
+import * as XLSX from "xlsx";
 
 /** One parsed `smark_bom_lines`-shaped row, before reconcile/matching. */
 export interface BomLineRaw {

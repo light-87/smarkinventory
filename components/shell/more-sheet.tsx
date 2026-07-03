@@ -27,11 +27,14 @@ export function MoreSheet({
       if (e.key === "Escape") onClose();
     };
     document.addEventListener("keydown", onKeyDown);
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    // `main` (id="app-scroll-region", ./app-shell.tsx) is the element that
+    // actually scrolls, not `document.body`.
+    const scrollEl = document.getElementById("app-scroll-region") ?? document.body;
+    const previousOverflow = scrollEl.style.overflow;
+    scrollEl.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = previousOverflow;
+      scrollEl.style.overflow = previousOverflow;
     };
   }, [open, onClose]);
 

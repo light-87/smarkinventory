@@ -37,12 +37,16 @@ export function Drawer({
     };
     document.addEventListener("keydown", onKeyDown);
 
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    // `main` (id="app-scroll-region", components/shell/app-shell.tsx) is the
+    // element that actually scrolls, not `document.body` — falls back to
+    // body for any host that isn't the authed shell.
+    const scrollEl = document.getElementById("app-scroll-region") ?? document.body;
+    const previousOverflow = scrollEl.style.overflow;
+    scrollEl.style.overflow = "hidden";
 
     return () => {
       document.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = previousOverflow;
+      scrollEl.style.overflow = previousOverflow;
     };
   }, [open, onClose]);
 

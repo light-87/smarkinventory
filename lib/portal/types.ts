@@ -1,0 +1,94 @@
+/**
+ * lib/portal/types.ts — zod schemas for the two portal RPC payloads
+ * (`portal_get_project` / `portal_get_shared`, supabase/migrations/
+ * 0006_portal_fns.sql).
+ *
+ * These are NOT part of `types/db.ts` (integrator-owned — the portal RPC
+ * functions aren't tables and aren't in that contract, see
+ * `lib/portal/anon-client.ts`'s header) but `row_kind`/`status` reuse the
+ * SAME enums `types/db.ts` already declares for `smark_project_phases`, so
+ * `PortalPhase` stays structurally interchangeable with `lib/projects/
+ * phase-math.ts`'s `PhaseMathRow` (the portal renders phases through that
+ * SAME pure function — see `lib/portal/phase-math.ts`).
+ *
+ * Parsing every RPC response through these schemas does double duty: normal
+ * defensive validation, AND the portal's own leak guarantee — the schema IS
+ * the whitelist. Every object schema below is `.strict()`, so an
+ * accidentally-widened SQL payload (e.g. a future edit to 0006 that started
+ * returning a price or a quantity) FAILS to parse instead of silently
+ * reaching a component that might render it.
+ */
+
+import { z } from "zod";
+import { PhaseRowKindSchema, PhaseStatusSchema } from "@/types/db";
+
+export const PortalPhaseSchema = z
+  .object({
+    id: z.string(),
+    sort_order: z.number(),
+    name: z.string(),
+    start_date: z.string().nullable(),
+    end_date: z.string().nullable(),
+    duration_text: z.string().nullable(),
+    notes: z.string().nullable(),
+    row_kind: PhaseRowKindSchema,
+    status: PhaseStatusSchema,
+    version_label: z.number(),
+  })
+  .strict();
+export type PortalPhase = z.infer<typeof PortalPhaseSchema>;
+
+export const PortalProjectStatusSchema = z.enum(["completed", "in_progress"]);
+export type PortalProjectStatus = z.infer<typeof PortalProjectStatusSchema>;
+
+/** `portal_get_project(p_token)` result — null when the RPC itself returned null. */
+export const PortalProjectPayloadSchema = z
+  .object({
+    project_id: z.string(),
+    name: z.string(),
+    status: PortalProjectStatusSchema,
+    est_start_date: z.string().nullable(),
+    est_delivery_date: z.string().nullable(),
+    timeline_note: z.string().nullable(),
+    completed_at: z.string().nullable(),
+    phases: z.array(PortalPhaseSchema),
+  })
+  .strict();
+export type PortalProjectPayload = z.infer<typeof PortalProjectPayloadSchema>;
+
+export const PortalActivityTypeSchema = z.enum(["note", "meeting", "change", "task"]);
+
+export const PortalActivitySchema = z
+  .object({
+    id: z.string(),
+    type: PortalActivityTypeSchema,
+    title: z.string().nullable(),
+    body: z.string().nullable(),
+    from_portal: z.boolean(),
+    created_at: z.string(),
+  })
+  .strict();
+export type PortalActivity = z.infer<typeof PortalActivitySchema>;
+
+export const PortalDocumentSchema = z
+  .object({
+    id: z.string(),
+    display_name: z.string(),
+    mime_type: z.string().nullable(),
+    size_bytes: z.number().nullable(),
+    file_url: z.string(),
+    created_at: z.string(),
+  })
+  .strict();
+export type PortalDocument = z.infer<typeof PortalDocumentSchema>;
+
+/** `portal_get_shared(p_token)` result. */
+export const PortalSharedPayloadSchema = z
+  .object({
+    activities: z.array(PortalActivitySchema),
+    documents: z.array(PortalDocumentSchema),
+  })
+  .strict();
+export type PortalSharedPayload = z.infer<typeof PortalSharedPayloadSchema>;
+
+export const EMPTY_PORTAL_SHARED: PortalSharedPayload = { activities: [], documents: [] };

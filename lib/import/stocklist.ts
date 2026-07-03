@@ -31,7 +31,12 @@
  * silently guessed.
  */
 
-import XLSX from "xlsx";
+// Namespace import (not `import XLSX from "xlsx"`): xlsx's ESM build
+// (node_modules/xlsx/xlsx.mjs) exposes only named exports, no default, so the
+// default form hard-fails Turbopack's `next build` ("Export default doesn't
+// exist in target module") once this module is pulled into an app route's
+// build graph. All usage below is `XLSX.*` (incl. the `XLSX.WorkSheet` type).
+import * as XLSX from "xlsx";
 import { normalizeLcsc, normalizeMpn } from "@/lib/matcher";
 
 /* ────────────────────────────────────────────────────────────────────────────

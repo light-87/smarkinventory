@@ -43,7 +43,20 @@ export default defineConfig({
   // A stray `.only` must never merge — fail the run if one slips into CI.
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 2 : undefined,
+  // Fixed at 2 (not `undefined` locally, which defaults to ~half the
+  // machine's CPU cores): the `webServer` all workers share is a single
+  // `next dev` Turbopack process (R2-29 spec — see the block below), and
+  // every route it hasn't compiled yet does so on demand, once, on first
+  // request. With a high local worker count, many *different* first-touch
+  // routes (dashboard, cart, daily, projects/:id, bulk-takeout, …) land on
+  // the dev server in the same instant from unrelated spec files running
+  // in parallel, and the resulting pile of concurrent cold compiles pushed
+  // ordinary navigations past this suite's 25-30s timeouts (verified — the
+  // same specs are reliably green at low concurrency and flaky/red at a
+  // default ~8-worker fan-out on a 16-core box). 2 matches what CI already
+  // runs (see .github/workflows/ci.yml's playwright job) so local and CI
+  // see the same contention profile.
+  workers: 2,
   reporter: process.env.CI
     ? [
         ["github"],
