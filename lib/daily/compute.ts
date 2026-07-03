@@ -8,38 +8,47 @@
 
 import type { MovementReason, MovementReasonDetail } from "@/types/db";
 import { formatDate, formatNumber, formatTime } from "@/lib/format";
+import { istDateOnly, istDateRangeToIsoBounds } from "@/lib/timezone";
 
 /* ────────────────────────────────────────────────────────────────────────────
  * Date helpers — "today" / prev-next / range bounds.
  *
- * Deliberately server-local calendar day, same simplification the dashboard
- * package already made (lib/dashboard/compute.ts `todayBoundsIso`: "no
- * project-wide IST convention yet"). `work_date` columns (attendance/time
- * entries) are plain `date` — compared as YYYY-MM-DD strings, no bounds
- * needed. timestamptz columns (movements/orders/runs/cart/expenses) need an
- * explicit [start, end) ISO range for a `date-only` day or day-range.
+ * Anchored to the Asia/Kolkata (IST) calendar day via `lib/timezone.ts`
+ * (finding #4 — this used to be server-local calendar day + `.toISOString()`,
+ * which on a UTC runtime mis-bucketed every 00:00–05:30 IST event, e.g. an
+ * early-morning clock-in, into the previous day; same fix the dashboard
+ * package's `todayBoundsIso` got, now sharing one helper so both surfaces
+ * agree). `work_date` columns (attendance/time entries) are plain `date` —
+ * compared as YYYY-MM-DD strings, no bounds needed. timestamptz columns
+ * (movements/orders/runs/cart/expenses) need an explicit [start, end) ISO
+ * range for a `date-only` day or day-range.
+ *
+ * `combineDateAndTime` below is NOT part of this fix — it still builds its
+ * ISO instant from server-local `Date` setters, a separate (real, and more
+ * severe — every check-in/out is off, not just the midnight edge) gap;
+ * flagged for a follow-up rather than folded in here.
  * ──────────────────────────────────────────────────────────────────────────── */
 
 function pad2(n: number): string {
   return n < 10 ? `0${n}` : String(n);
 }
 
-/** `YYYY-MM-DD` for the server-local calendar day of `reference` (default now). */
+/** `YYYY-MM-DD` for the IST calendar day of `reference` (default now). */
 export function todayDateOnly(reference: Date = new Date()): string {
-  return `${reference.getFullYear()}-${pad2(reference.getMonth() + 1)}-${pad2(reference.getDate())}`;
+  return istDateOnly(reference);
 }
 
-/** Parses a `YYYY-MM-DD` string as a server-local midnight `Date` (no UTC drift). */
-function parseDateOnly(dateOnly: string): Date {
+/** Parses a `YYYY-MM-DD` string into literal {year, month, day} components — pure calendar arithmetic, no timezone attached. */
+function parseDateOnlyParts(dateOnly: string): { year: number; month: number; day: number } {
   const [y, m, d] = dateOnly.split("-").map(Number);
-  return new Date(y!, (m ?? 1) - 1, d ?? 1);
+  return { year: y!, month: (m ?? 1) - 1, day: d ?? 1 };
 }
 
-/** `dateOnly` shifted by `deltaDays` (may cross month/year boundaries), e.g. prev/next day nav. */
+/** `dateOnly` shifted by `deltaDays` (may cross month/year boundaries), e.g. prev/next day nav. Pure calendar-date arithmetic — no timezone involved. */
 export function shiftDateOnly(dateOnly: string, deltaDays: number): string {
-  const d = parseDateOnly(dateOnly);
-  d.setDate(d.getDate() + deltaDays);
-  return todayDateOnly(d);
+  const { year, month, day } = parseDateOnlyParts(dateOnly);
+  const shifted = new Date(Date.UTC(year, month, day + deltaDays));
+  return `${shifted.getUTCFullYear()}-${pad2(shifted.getUTCMonth() + 1)}-${pad2(shifted.getUTCDate())}`;
 }
 
 export interface IsoBounds {
@@ -49,12 +58,10 @@ export interface IsoBounds {
   endIso: string;
 }
 
-/** `[from 00:00, to+1day 00:00)` as ISO instants — the timestamptz query range for a date-only day/range. */
+/** `[from 00:00 IST, to+1day 00:00 IST)` as ISO instants — the timestamptz query range for a date-only day/range. */
 export function dateRangeToIsoBounds(from: string, to: string): IsoBounds {
-  const start = parseDateOnly(from);
-  const end = parseDateOnly(to);
-  end.setDate(end.getDate() + 1);
-  return { startIso: start.toISOString(), endIso: end.toISOString() };
+  const { start, end } = istDateRangeToIsoBounds(from, to);
+  return { startIso: start, endIso: end };
 }
 
 /** Single-day convenience wrapper. */
@@ -63,7 +70,9 @@ export function dayToIsoBounds(dateOnly: string): IsoBounds {
 }
 
 export function isValidDateOnly(value: string): boolean {
-  return /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(parseDateOnly(value).getTime());
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const { year, month, day } = parseDateOnlyParts(value);
+  return !Number.isNaN(Date.UTC(year, month, day));
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -79,10 +88,17 @@ export function sumHours(entries: readonly { hours: number }[]): number {
   return Math.round(entries.reduce((sum, e) => sum + e.hours, 0) * 10) / 10;
 }
 
-/** Combines a `date`-only work day with an `HH:mm` local time into an ISO instant (server-local time zone — see module header re: no project-wide IST convention yet). */
+/**
+ * Combines a `date`-only work day with an `HH:mm` local time into an ISO
+ * instant — server-local time zone (NOT yet anchored to IST like the rest of
+ * this module; see file header). Kept as-is: a separate, out-of-scope gap
+ * from finding #4 (this one shifts every check-in/out's clock time, not just
+ * events in the midnight-05:30 IST window).
+ */
 export function combineDateAndTime(workDate: string, hhmm: string): string {
   const [h, m] = hhmm.split(":").map(Number);
-  const d = parseDateOnly(workDate);
+  const { year, month, day } = parseDateOnlyParts(workDate);
+  const d = new Date(year, month, day);
   d.setHours(h ?? 0, m ?? 0, 0, 0);
   return d.toISOString();
 }

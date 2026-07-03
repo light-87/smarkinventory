@@ -127,7 +127,10 @@ function ActiveRunRow({ run }: { run: AgentRunFeedRow }) {
       </div>
       <div className="flex items-center justify-between text-[11px] text-faint">
         <span className="truncate">{run.startedByName ?? "—"}</span>
-        <span className="flex-none">{formatElapsed(run.createdAt)}</span>
+        {/* `formatElapsed`'s default `reference: Date = new Date()` is evaluated once at SSR time and again at hydration — a real gap under any latency (and this suite's own shared-`next dev`-process contention docs elsewhere confirm it's not always sub-second). The text is meant to read "as of right now" and this row already re-renders every poll tick (use-agent-runs-feed.ts) with a fresh client clock, so freezing it to the server's instant isn't right either — suppress rather than fight the intentionally-live value. */}
+        <span className="flex-none" suppressHydrationWarning>
+          {formatElapsed(run.createdAt)}
+        </span>
       </div>
     </RunRowLink>
   );
@@ -149,7 +152,10 @@ function RecentRunRow({ run }: { run: AgentRunFeedRow }) {
       </div>
       <div className="mt-1.5 flex items-center justify-between text-[11px] text-faint">
         <span className="truncate">{run.startedByName ?? "—"}</span>
-        <span className="flex-none">{formatFinishedAgo(run.updatedAt ?? run.createdAt)}</span>
+        {/* Same intentionally-live "as of right now" value as ActiveRunRow's formatElapsed above — see that comment. */}
+        <span className="flex-none" suppressHydrationWarning>
+          {formatFinishedAgo(run.updatedAt ?? run.createdAt)}
+        </span>
       </div>
     </RunRowLink>
   );

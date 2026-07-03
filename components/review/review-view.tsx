@@ -1,5 +1,3 @@
-"use client";
-
 /**
  * components/review/review-view.tsx — Order Review (plan/tab-order-review.md,
  * prototype `isOrderReview`), persisted per run (R2-08). Rendered by

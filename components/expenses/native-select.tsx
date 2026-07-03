@@ -24,7 +24,7 @@ export function NativeSelect({ options, placeholder, className, ...props }: Nati
   return (
     <select
       className={cn(
-        "h-11 w-full rounded-lg border border-charcoal bg-surface-well px-3 text-sm text-snow outline-none",
+        "h-10 w-full rounded-lg border border-charcoal bg-surface-well px-3 text-sm text-snow outline-none",
         "focus:border-smark-orange disabled:cursor-not-allowed disabled:opacity-50",
         className,
       )}

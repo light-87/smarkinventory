@@ -13,9 +13,7 @@ import { AvatarMenu } from "./avatar-menu";
  * Header seam (integrator): the search field + bell slots host
  * search-notifications' real components (components/search + components/
  * notifications) — CommandPalette carries the Ctrl-K palette + scan-code
- * resolve-first behaviour, NotificationBell the polling read model. The
- * auth-shell stubs (./header-search, ./notifications-bell) are retained but
- * unreferenced.
+ * resolve-first behaviour, NotificationBell the polling read model.
  */
 export function Header({ user, pathname }: { user: SessionUser; pathname: string }) {
   return (

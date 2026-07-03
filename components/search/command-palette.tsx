@@ -21,7 +21,7 @@ import {
 import { ArrowRightIcon, BomResultIcon, OrderResultIcon, PartResultIcon, ProjectResultIcon, ScanIcon, SearchIcon } from "./icons";
 
 export interface CommandPaletteProps {
-  /** Applied to the header-slot trigger's wrapper — mirrors HeaderSearch's `className` prop. */
+  /** Applied to the header-slot trigger's wrapper. */
   className?: string;
   /** Renders no visible trigger; the global Ctrl-K listener + modal still work. See this
    * package's report for when to use this vs. the default trigger. */
@@ -50,8 +50,7 @@ interface FlatItem {
  * single "Jump to…" row — no section search runs in that case. Anything else
  * shows the four-section palette (Parts · Projects · BOMs · Orders).
  *
- * See this package's report for the exact two-line swap that puts this in
- * place of `components/shell/header.tsx`'s current `<HeaderSearch />` stub.
+ * Rendered directly by `components/shell/header.tsx`'s search slot.
  */
 export function CommandPalette({ className, hideTrigger = false }: CommandPaletteProps) {
   const router = useRouter();
@@ -94,9 +93,8 @@ export function CommandPalette({ className, hideTrigger = false }: CommandPalett
   // Debounced search — a stale in-flight response (superseded by a later
   // keystroke) is dropped via the requestId check rather than applied. State
   // resets are wrapped in a named function (not called inline at the effect
-  // body's top level) — same convention components/shell/notifications-bell.tsx
-  // uses for its own load effect — so a synchronous reset doesn't trip
-  // react-hooks' set-state-in-effect rule.
+  // body's top level) so a synchronous reset doesn't trip react-hooks'
+  // set-state-in-effect rule.
   useEffect(() => {
     if (!open) return;
     const trimmed = query.trim();

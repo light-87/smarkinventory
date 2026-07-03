@@ -84,7 +84,9 @@ describe("per-event helpers — audience + deep link", () => {
     expect(row.user_id).toBe("employee-1");
     expect(row.kind).toBe("run_done");
     expect(row.link).toBe("/projects/proj-1/runs?bom=bom-1");
-    expect(row.body).toContain("1234.50");
+    // Finding #6 — must go through the shared `formatINR` (en-IN grouping),
+    // not a hand-rolled `₹${n.toFixed(2)}`.
+    expect(row.body).toBe("Actual cost ₹1,234.50");
   });
 
   test("notifyRulePending fans out to every ACTIVE owner only", async () => {
@@ -110,7 +112,14 @@ describe("per-event helpers — audience + deep link", () => {
     expect(notifications).toHaveLength(1);
     expect(notifications[0]?.kind).toBe("expense_draft");
     expect(notifications[0]?.link).toBe("/expenses");
-    expect(notifications[0]?.body).toContain("4500.00");
+    // Finding #6 — must go through the shared `formatINR` (en-IN grouping).
+    expect(notifications[0]?.body).toBe("₹4,500.00 — confirm in Expenses");
+  });
+
+  test("notifyExpenseDraft — finding #6: a lakh-scale amount gets full en-IN lakh grouping, not a hand-rolled toFixed", async () => {
+    const { client, notifications } = makeFakeClient(fixtures());
+    await notifyExpenseDraft(client, { poNumber: "PO-2026-002", amount: 123456 });
+    expect(notifications[0]?.body).toBe("₹1,23,456.00 — confirm in Expenses");
   });
 
   test("notifyPortalComment fans out to owners, linking into the project", async () => {

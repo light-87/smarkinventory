@@ -5,9 +5,9 @@ import { expect, test, type Page } from "@playwright/test";
  * lib/auth/roles.ts ROLE_MATRIX): owner and accountant both get `full`
  * access to Expenses (the client amendment — accountant is the one place
  * besides owner that WRITES); employee gets `hidden` — the nav link doesn't
- * render AND the route itself 404s for a direct hit, matching
- * components/shell/placeholder-page.tsx's own guard pattern. Same bun-guard
- * + login-helper convention as tests/e2e/dashboard-smoke.spec.ts.
+ * render AND the route itself 404s for a direct hit (each hidden page's own
+ * `canSee` guard). Same bun-guard + login-helper convention as
+ * tests/e2e/dashboard-smoke.spec.ts.
  */
 if (typeof process.versions.bun === "undefined") {
   async function login(page: Page, username: string, password: string): Promise<void> {

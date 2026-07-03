@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { INVENTORY_EXPORT_HEADERS, inventoryPartToCsvRow, toCsv, toCsvValue } from "@/lib/inventory/csv";
+import { INVENTORY_EXPORT_HEADERS, inventoryPartToCsvRow, sanitizeForSpreadsheet, toCsv, toCsvValue } from "@/lib/inventory/csv";
 import type { InventoryPart } from "@/lib/inventory/types";
 import type { PartAttributes, PartRow } from "@/types/db";
 
@@ -26,6 +26,41 @@ describe("toCsvValue", () => {
 
   test("quotes a field containing a line break", () => {
     expect(toCsvValue("line1\nline2")).toBe('"line1\nline2"');
+  });
+});
+
+/**
+ * Finding #1 / #7 — CSV/formula (spreadsheet) injection (CWE-1236). A
+ * free-text part field (MPN/manufacturer/value/package/datasheet URL, or a
+ * box name) starting with `=`/`+`/`-`/`@` (or a leading tab/CR) must never
+ * reach the exported CSV cell unescaped — Excel/Sheets can interpret it as a
+ * formula on open. Mirrors tests/unit/expenses-csv.test.ts.
+ */
+describe("sanitizeForSpreadsheet — finding #1/#7 CSV/formula injection", () => {
+  test.each([
+    ["=SUM(A1:A9)", "'=SUM(A1:A9)"],
+    ["+1+1", "'+1+1"],
+    ["-cmd|' /C calc'!A0", "'-cmd|' /C calc'!A0"],
+    ["@SUM(1+1)", "'@SUM(1+1)"],
+    ["\tsneaky", "'\tsneaky"],
+    ["\rsneaky", "'\rsneaky"],
+  ])("prefixes a value starting with a dangerous character: %s", (input, expected) => {
+    expect(sanitizeForSpreadsheet(input)).toBe(expected);
+  });
+
+  test("leaves an ordinary value untouched", () => {
+    expect(sanitizeForSpreadsheet("Murata")).toBe("Murata");
+    expect(sanitizeForSpreadsheet("")).toBe("");
+  });
+});
+
+describe("toCsvValue — sanitizes a raw formula-like value before quoting", () => {
+  test("a raw formula-like string value is prefixed before quoting", () => {
+    expect(toCsvValue("=cmd")).toBe("'=cmd");
+  });
+
+  test("a formula-like value that also needs RFC 4180 quoting gets both", () => {
+    expect(toCsvValue("=A1,B1")).toBe('"\'=A1,B1"');
   });
 });
 
@@ -107,5 +142,26 @@ describe("inventoryPartToCsvRow", () => {
   test("renders '—' when the part has no physical location", () => {
     const row = inventoryPartToCsvRow(makePart({ locations: [] }));
     expect(row[11]).toBe("—");
+  });
+
+  test("finding #1/#7 — free-text fields are sanitized at the row-array level (protects a future xlsx/aoa_to_sheet path)", () => {
+    const row = inventoryPartToCsvRow(
+      makePart({
+        mpn: "=HYPERLINK(\"http://evil\")",
+        manufacturer: "=cmd",
+        category: "+1+1",
+        value: "-100nF",
+        package: "@SUM(1)",
+        datasheet_url: "=B1",
+        locations: [{ id: "l1", qty: 5, boxName: "=EVIL", shelfCode: "=A", lastCountedAt: null }],
+      }),
+    );
+    expect(row[1]).toBe('\'=HYPERLINK("http://evil")');
+    expect(row[2]).toBe("'=cmd");
+    expect(row[4]).toBe("'+1+1");
+    expect(row[5]).toBe("'-100nF");
+    expect(row[7]).toBe("'@SUM(1)");
+    expect(row[14]).toBe("'=B1");
+    expect(row[11]).toBe("Shelf '=A · '=EVIL (5)");
   });
 });

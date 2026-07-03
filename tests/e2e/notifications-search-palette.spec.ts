@@ -8,10 +8,9 @@ import path from "node:path";
  * SMK-000101"). Named `notifications-*` alongside notifications-bell.spec.ts
  * per this package's mission brief ("tests/e2e/notifications-*.spec.ts").
  *
- * **Integration status:** the integrator has already swapped
- * components/shell/header.tsx's `<HeaderSearch />` stub for the real
- * `<CommandPalette />` (components/search/command-palette.tsx), so this
- * spec runs against the live Ctrl-K listener, not a placeholder.
+ * `components/shell/header.tsx` renders the real `<CommandPalette />`
+ * (components/search/command-palette.tsx), so this spec runs against the
+ * live Ctrl-K listener.
  *
  * Self-excludes under `bun test` (Bun's default test-file matching also
  * globs `*.spec.ts`) — run via `bunx playwright test`.

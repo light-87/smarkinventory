@@ -10,7 +10,7 @@ import {
   describeDb,
   readTotalQty,
 } from "./fixtures";
-import { assertUndoable, MovementValidationError, recordMovement } from "@/lib/movements";
+import { assertUndoable, MovementValidationError, recordMovement, undoMovement } from "@/lib/movements";
 import type { MovementInput, UndoableMovement } from "@/lib/movements";
 import { TABLES, type Database } from "@/types/db";
 import type { PostgrestSingleResponse } from "@supabase/supabase-js";
@@ -390,6 +390,54 @@ describe("invariant: undo pairing — app write-path coverage", () => {
   });
 });
 
+/**
+ * Finding #5 — `undoMovement` used to reverse the location qty BEFORE
+ * inserting the undo row that `smark_movements_undo_of_unique`
+ * (UNIQUE(undo_of)) arbitrates. Two concurrent undos of the SAME movement
+ * could both pass the earlier `existingUndo` check, both apply the reversing
+ * delta (qty reversed TWICE), and only the second insert would fail on the
+ * unique violation — but its qty reversal was never rolled back. The fix
+ * inserts first and only reverses qty once the insert actually wins.
+ */
+describe("invariant: undo pairing — concurrent-undo ordering (finding #5)", () => {
+  test("the undo movement is inserted BEFORE the location qty is touched", async () => {
+    const calls: string[] = [];
+    const { client } = makeFakeUndoClient({
+      original: { id: "m1", part_id: "part-1", big_box_id: "box-1", delta_qty: -5, reason: "pick", bom_id: null },
+      existingUndo: null,
+      insertError: null,
+      startingQty: 10,
+      calls,
+    });
+
+    const result = await undoMovement(client, "m1", "actor-1");
+
+    expect(result.location?.qty).toBe(15); // 10 + reversed delta (+5)
+    expect(calls).toContain("undo-insert");
+    expect(calls).toContain("location-update");
+    expect(calls.indexOf("undo-insert")).toBeLessThan(calls.indexOf("location-fetch"));
+    expect(calls.indexOf("undo-insert")).toBeLessThan(calls.indexOf("location-update"));
+  });
+
+  test("a unique-violation (23505) on the undo insert aborts WITHOUT ever touching qty", async () => {
+    const calls: string[] = [];
+    const { client, getQty } = makeFakeUndoClient({
+      original: { id: "m1", part_id: "part-1", big_box_id: "box-1", delta_qty: -5, reason: "pick", bom_id: null },
+      existingUndo: null, // simulates the race: the earlier read didn't see the concurrent winner yet
+      insertError: { code: "23505", message: 'duplicate key value violates unique constraint "smark_movements_undo_of_unique"' },
+      startingQty: 10,
+      calls,
+    });
+
+    await expect(undoMovement(client, "m1", "actor-1")).rejects.toThrow(/already been undone/);
+
+    expect(calls).not.toContain("location-lookup");
+    expect(calls).not.toContain("location-fetch");
+    expect(calls).not.toContain("location-update");
+    expect(getQty()).toBe(10); // untouched
+  });
+});
+
 /* ────────────────────────────────────────────────────────────────────────────
  * A minimal, hand-rolled fake of the slice of `SupabaseClient` that
  * `lib/movements/service.ts` calls — enough to exercise `recordMovement`'s
@@ -452,4 +500,117 @@ function makeFakeMovementsClient(options: FakeMovementsClientOptions): SupabaseC
   };
 
   return { from: builder } as unknown as SupabaseClient<Database>;
+}
+
+/**
+ * A minimal, hand-rolled fake of the slice of `SupabaseClient` that
+ * `undoMovement` calls — enough to exercise its real code path (fetch
+ * original → existing-undo check → insert the reversing row → reverse qty)
+ * while asserting the ORDER those calls happen in (finding #5), without a
+ * live Postgres instance.
+ */
+interface FakeUndoClientOptions {
+  original: { id: string; part_id: string; big_box_id: string | null; delta_qty: number; reason: string; bom_id: string | null };
+  existingUndo: { id: string } | null;
+  insertError: { code: string; message: string } | null;
+  startingQty: number;
+  calls: string[];
+}
+
+function fakeErr<T>(error: { code: string; message: string }): PostgrestSingleResponse<T> {
+  return { data: null, error, count: null, status: 409, statusText: "Conflict" } as unknown as PostgrestSingleResponse<T>;
+}
+
+function makeFakeUndoClient(options: FakeUndoClientOptions): { client: SupabaseClient<Database>; getQty: () => number } {
+  let currentQty = options.startingQty;
+
+  const movementsTable = () => ({
+    select: (cols: string) => {
+      if (cols === "id") {
+        // existingUndo check: .eq("undo_of", movementId).maybeSingle()
+        return {
+          eq: () => ({
+            maybeSingle: async () => {
+              options.calls.push("existing-undo-check");
+              return fakeOk(options.existingUndo);
+            },
+          }),
+        };
+      }
+      // cols === "*" — fetch the original movement
+      return {
+        eq: () => ({
+          single: async () => fakeOk(options.original),
+        }),
+      };
+    },
+    insert: (row: unknown) => ({
+      select: () => ({
+        single: async () => {
+          options.calls.push("undo-insert");
+          if (options.insertError) return fakeErr(options.insertError);
+          return fakeOk({ id: "undo-1", ...(row as object) });
+        },
+      }),
+    }),
+  });
+
+  const locationsTable = () => ({
+    select: (cols: string) => {
+      if (cols === "id") {
+        // location lookup by part_id/big_box_id: .eq().eq().maybeSingle()
+        return {
+          eq: () => ({
+            eq: () => ({
+              maybeSingle: async () => {
+                options.calls.push("location-lookup");
+                return fakeOk({ id: "loc-1" });
+              },
+            }),
+          }),
+        };
+      }
+      // cols === "*" — fetchLocation inside updateLocationQty
+      return {
+        eq: () => ({
+          single: async () => {
+            options.calls.push("location-fetch");
+            return fakeOk({
+              id: "loc-1",
+              part_id: options.original.part_id,
+              big_box_id: options.original.big_box_id,
+              qty: currentQty,
+            });
+          },
+        }),
+      };
+    },
+    update: (patch: { qty: number }) => ({
+      eq: () => ({
+        eq: (_col: string, expectedQty: number) => ({
+          select: () => ({
+            maybeSingle: async () => {
+              options.calls.push("location-update");
+              if (expectedQty !== currentQty) return fakeOk(null);
+              currentQty = patch.qty;
+              return fakeOk({
+                id: "loc-1",
+                part_id: options.original.part_id,
+                big_box_id: options.original.big_box_id,
+                qty: currentQty,
+              });
+            },
+          }),
+        }),
+      }),
+    }),
+  });
+
+  const builder = (table: string) => {
+    if (table === TABLES.movements) return movementsTable();
+    if (table === TABLES.stock_locations) return locationsTable();
+    throw new Error(`fake client: unexpected table "${table}"`);
+  };
+
+  return { client: { from: builder } as unknown as SupabaseClient<Database>, getQty: () => currentQty };
 }

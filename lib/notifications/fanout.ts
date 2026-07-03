@@ -29,6 +29,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { TABLES, type Database, type NotificationKind, type NotificationRow } from "@/types/db";
 import { orderHref, partHref, projectHref } from "@/lib/search/queries";
+import { formatINR } from "@/lib/format";
 
 type Client = SupabaseClient<Database>;
 
@@ -145,7 +146,7 @@ export async function notifyRunDone(
   client: Client,
   params: { projectId: string; bomId: string; startedByUserId: string; actualCost: number | null },
 ): Promise<NotificationRow> {
-  const body = params.actualCost != null ? `Actual cost ₹${params.actualCost.toFixed(2)}` : null;
+  const body = params.actualCost != null ? `Actual cost ${formatINR(params.actualCost)}` : null;
   const [row] = await notify(client, {
     userIds: [params.startedByUserId],
     kind: "run_done",
@@ -168,7 +169,7 @@ export async function notifyExpenseDraft(
     userIds: owners,
     kind: "expense_draft",
     title: `Draft expense from ${params.poNumber}`,
-    body: `₹${params.amount.toFixed(2)} — confirm in Expenses`,
+    body: `${formatINR(params.amount)} — confirm in Expenses`,
     link: "/expenses",
   });
 }

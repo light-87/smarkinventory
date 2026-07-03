@@ -144,12 +144,19 @@ if (typeof process.versions.bun === "undefined") {
       // receipt-extraction fixture order (below) seeded into it. What this
       // test actually cares about is "the tab switch renders SOMETHING sane,
       // not a crash", so it accepts either the empty state or a real PO card.
+      // `.first()` on both: this DB can carry several fixture orders in the
+      // same status at once (this suite's own receipt-extraction fixture,
+      // plus other specs' — e.g. flow-3/flow-4 — leftover POs), so
+      // `getByText(/^PO /)` routinely matches more than one card. The check
+      // only cares that SOME sane content rendered on the tab switch, not
+      // which card — `.first()` keeps that intent without a strict-mode
+      // violation when more than one match is present.
       await page.goto("/cart");
       await page.getByRole("radio", { name: /^Ordered \(\d+\)$/ }).click();
-      await expect(page.getByText(/nothing on order/i).or(page.getByText(/^PO /))).toBeVisible();
+      await expect(page.getByText(/nothing on order/i).or(page.getByText(/^PO /)).first()).toBeVisible();
 
       await page.getByRole("radio", { name: /^Arrived \(\d+\)$/ }).click();
-      await expect(page.getByText(/nothing arrived yet/i).or(page.getByText(/^PO /))).toBeVisible();
+      await expect(page.getByText(/nothing arrived yet/i).or(page.getByText(/^PO /)).first()).toBeVisible();
     });
 
     test("no horizontal scroll at the mobile breakpoint", async ({ page }) => {

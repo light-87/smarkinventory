@@ -29,6 +29,18 @@
  *  - shortfall <= 0 (or no demand row at all) and an active auto line exists
  *    → close it (delete — `smark_cart_items.status` has no "closed" value,
  *    and a suggestion for zero shortfall is nothing but noise).
+ *
+ * Cross-package invariant with `lib/runs/cart.ts` (bug regression, see
+ * tests/invariants/shortfall-500-400-200.test.ts "review add vs auto
+ * lifecycle"): every write below that targets an already-fetched auto row
+ * re-checks `source = 'auto_shortfall'` at write time, not just at the
+ * SELECT that built `activeAuto`. `addReviewLineToCart` CONVERTS an auto row
+ * to `review_add` the moment a review/manual add touches it (never merges
+ * into one), which is what keeps this module's wholesale refresh/delete from
+ * ever clobbering a real add — but only if a recompute already in flight,
+ * holding a pre-conversion snapshot of that row, can't still land its write
+ * afterward. The extra `.eq("source", "auto_shortfall")` on each write makes
+ * that a harmless no-op (0 rows matched) instead of a race.
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -85,7 +97,13 @@ export async function recomputeShortfallCartItems(supabase: DB): Promise<Recompu
     if (!item.part_id) continue;
     const shortfall = demandByPart.get(item.part_id)?.shortfall ?? 0;
     if (shortfall <= 0) {
-      const { error } = await supabase.from(TABLES.cart_items).delete().eq("id", item.id);
+      // Re-scoped to `source = 'auto_shortfall'` at write time, not just at
+      // the SELECT above: if `addReviewLineToCart` (lib/runs/cart.ts)
+      // CONVERTED this exact row to `review_add` in the gap between our
+      // SELECT and this DELETE, the row is no longer ours to close — the
+      // extra filter turns what would otherwise be a silent destruction of
+      // a real review add into a harmless no-op (0 rows matched).
+      const { error } = await supabase.from(TABLES.cart_items).delete().eq("id", item.id).eq("source", "auto_shortfall");
       if (error) throw error;
       closed += 1;
     }
@@ -115,10 +133,13 @@ export async function recomputeShortfallCartItems(supabase: DB): Promise<Recompu
 
     if (existing.status === "open") {
       if (existing.qty_to_order !== row.shortfall || !sameBreakdown(existing.demand, breakdown)) {
+        // Same defensive re-scope as the close loop above: only touch this
+        // row if it is STILL an auto line at write time.
         const { error } = await supabase
           .from(TABLES.cart_items)
           .update({ demand: breakdown, qty_to_order: row.shortfall })
-          .eq("id", existing.id);
+          .eq("id", existing.id)
+          .eq("source", "auto_shortfall");
         if (error) throw error;
         updated += 1;
       }
@@ -130,13 +151,18 @@ export async function recomputeShortfallCartItems(supabase: DB): Promise<Recompu
       const { error } = await supabase
         .from(TABLES.cart_items)
         .update({ status: "open", qty_to_order: row.shortfall, demand: breakdown })
-        .eq("id", existing.id);
+        .eq("id", existing.id)
+        .eq("source", "auto_shortfall");
       if (error) throw error;
       resurrected += 1;
     } else if (!sameBreakdown(existing.demand, breakdown)) {
       // Stays dismissed — refresh the breakdown for display accuracy without
       // touching qty_to_order (that value IS the resurrect threshold).
-      const { error } = await supabase.from(TABLES.cart_items).update({ demand: breakdown }).eq("id", existing.id);
+      const { error } = await supabase
+        .from(TABLES.cart_items)
+        .update({ demand: breakdown })
+        .eq("id", existing.id)
+        .eq("source", "auto_shortfall");
       if (error) throw error;
     }
   }

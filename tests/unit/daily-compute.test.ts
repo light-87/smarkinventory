@@ -39,9 +39,18 @@ function movement(overrides: Partial<MovementDailyRow> = {}): MovementDailyRow {
   };
 }
 
-describe("date helpers", () => {
-  test("todayDateOnly formats YYYY-MM-DD for a given reference date", () => {
-    expect(todayDateOnly(new Date(2026, 6, 3))).toBe("2026-07-03");
+describe("date helpers — finding #4: anchored to Asia/Kolkata (IST), not server-local", () => {
+  test("todayDateOnly formats YYYY-MM-DD for the IST calendar day containing a given reference instant", () => {
+    // 2026-07-03T05:30:00Z = 11:00 IST, 3 Jul — well inside the IST day of 3 Jul.
+    expect(todayDateOnly(new Date("2026-07-03T05:30:00.000Z"))).toBe("2026-07-03");
+  });
+
+  test("an event just after midnight IST (before 05:30 IST) resolves to TODAY's IST date, not the earlier UTC calendar day", () => {
+    // 2026-07-02T20:00:00Z = 01:30 IST on 3 Jul. The pre-fix server-local/UTC
+    // implementation would read this instant's UTC calendar date (2 Jul) —
+    // e.g. an employee clocking in at 01:30 IST would be logged against
+    // YESTERDAY's work_date instead of today's.
+    expect(todayDateOnly(new Date("2026-07-02T20:00:00.000Z"))).toBe("2026-07-03");
   });
 
   test("shiftDateOnly steps forward/back across month boundaries", () => {
@@ -49,10 +58,10 @@ describe("date helpers", () => {
     expect(shiftDateOnly("2026-06-30", 1)).toBe("2026-07-01");
   });
 
-  test("dateRangeToIsoBounds is [from 00:00, to+1day 00:00)", () => {
+  test("dateRangeToIsoBounds is [from 00:00 IST, to+1day 00:00 IST)", () => {
     const { startIso, endIso } = dateRangeToIsoBounds("2026-07-01", "2026-07-03");
-    expect(new Date(startIso).getDate()).toBe(1);
-    expect(new Date(endIso).getDate()).toBe(4);
+    expect(startIso).toBe("2026-06-30T18:30:00.000Z"); // 00:00 IST 1 Jul
+    expect(endIso).toBe("2026-07-03T18:30:00.000Z"); // 00:00 IST 4 Jul
   });
 
   test("dayToIsoBounds is the single-day special case of a range", () => {

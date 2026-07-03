@@ -28,6 +28,7 @@ import { TABLES } from "@/types/db";
 import type { IsoBounds } from "./compute";
 import { filterActivityForActor } from "./compute";
 import type { OrderingActivityItem, MovementDailyRow } from "./compute";
+import { formatINR } from "@/lib/format";
 
 type DB = SupabaseClient<Database>;
 
@@ -406,7 +407,7 @@ export async function getOrderingActivityForRange(
       });
     }
     for (const r of finishedRes.data ?? []) {
-      const cost = r.actual_cost != null ? ` · ₹${r.actual_cost}` : "";
+      const cost = r.actual_cost != null ? ` · ${formatINR(r.actual_cost)}` : "";
       items.push({
         id: `${r.id}-finished`,
         occurredAt: r.updated_at ?? r.created_at,

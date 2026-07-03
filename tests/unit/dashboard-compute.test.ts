@@ -135,17 +135,35 @@ describe("composeBoxLabel", () => {
   });
 });
 
-describe("todayBoundsIso", () => {
-  test("spans exactly local midnight to the next local midnight", () => {
-    const reference = new Date(2026, 6, 3, 14, 22, 0); // 3 Jul 2026, 14:22 local
+describe("todayBoundsIso — finding #4: anchored to Asia/Kolkata (IST), not server-local", () => {
+  test("spans exactly IST midnight to the next IST midnight (fixed +05:30)", () => {
+    // 2026-07-03T14:22:00Z = 19:52 IST, 3 Jul — well inside the IST day of 3 Jul.
+    const reference = new Date("2026-07-03T14:22:00.000Z");
     const { start, end } = todayBoundsIso(reference);
-    const startDate = new Date(start);
-    const endDate = new Date(end);
-    expect(startDate.getFullYear()).toBe(2026);
-    expect(startDate.getMonth()).toBe(6);
-    expect(startDate.getDate()).toBe(3);
-    expect(startDate.getHours()).toBe(0);
-    expect(endDate.getTime() - startDate.getTime()).toBe(24 * 60 * 60 * 1000);
+    expect(start).toBe("2026-07-02T18:30:00.000Z"); // 00:00 IST 3 Jul == 18:30 UTC 2 Jul
+    expect(end).toBe("2026-07-03T18:30:00.000Z");
+    expect(new Date(end).getTime() - new Date(start).getTime()).toBe(24 * 60 * 60 * 1000);
+  });
+
+  test("an event just after midnight IST (before 05:30 IST) buckets into TODAY's IST day, not the earlier UTC calendar day", () => {
+    // 2026-07-02T20:00:00Z = 01:30 IST on 3 Jul. The pre-fix server-local/UTC
+    // implementation would have computed 2 Jul's UTC-day bounds here (00:00-
+    // 24:00 UTC 2 Jul) and wrongly included this instant in "2 Jul" — even
+    // though for an IST user it's already 3 Jul.
+    const reference = new Date("2026-07-02T20:00:00.000Z");
+    const { start, end } = todayBoundsIso(reference);
+    expect(start).toBe("2026-07-02T18:30:00.000Z"); // IST midnight of 3 Jul
+    expect(end).toBe("2026-07-03T18:30:00.000Z");
+    expect(reference.getTime()).toBeGreaterThanOrEqual(new Date(start).getTime());
+    expect(reference.getTime()).toBeLessThan(new Date(end).getTime());
+  });
+
+  test("an event just before midnight IST (e.g. 23:50 IST) still buckets into the day that is ending, not the next one", () => {
+    // 2026-07-03T18:20:00Z = 23:50 IST on 3 Jul — 10 minutes before IST midnight.
+    const reference = new Date("2026-07-03T18:20:00.000Z");
+    const { start, end } = todayBoundsIso(reference);
+    expect(start).toBe("2026-07-02T18:30:00.000Z"); // still 3 Jul's IST day
+    expect(end).toBe("2026-07-03T18:30:00.000Z");
   });
 });
 

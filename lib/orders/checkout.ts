@@ -50,6 +50,7 @@ import type { CartItemRow, Database } from "@/types/db";
 import { TABLES } from "@/types/db";
 import { canWrite, type Role } from "@/lib/auth/roles";
 import { notify, notifyExpenseDraft } from "@/lib/notifications";
+import { formatINR } from "@/lib/format";
 import type { CheckoutGroupInput } from "./types";
 import { splitQtyAcrossDemand } from "./split";
 
@@ -182,7 +183,7 @@ async function checkoutOneGroup(supabase: DB, actorId: string, role: Role, group
       userIds: owners,
       kind: "expense_draft",
       title: `PO ${poNumber} needs an expense entry`,
-      body: `₹${total.toFixed(2)} — placed by a role that can't draft it automatically; add it in Expenses.`,
+      body: `${formatINR(total)} — placed by a role that can't draft it automatically; add it in Expenses.`,
       link: "/expenses",
     });
   } else {

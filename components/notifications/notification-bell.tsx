@@ -16,19 +16,11 @@ export interface NotificationBellProps {
 /**
  * components/notifications/notification-bell.tsx — the search-notifications
  * package's canonical bell (docs/OWNERSHIP.md; FEATURES.md §5 header spec /
- * plan/tab-login-shell.md R2-36).
+ * plan/tab-login-shell.md R2-36), rendered directly by
+ * `components/shell/header.tsx`'s notification-bell slot.
  *
- * `components/shell/notifications-bell.tsx` is auth-shell's own SHELL STUB —
- * by its own doc comment, a deliberately minimal placeholder ("the fan-out
- * writer side... belongs to search-notifications"). This is the full
- * version: per-`kind` icons, an unread dot, a loading state, and reads via
- * `hooks/use-notifications.ts` (this package's polling read model) instead
- * of querying inline. It deliberately keeps the SAME public contract as the
- * stub (`userId` prop, `aria-label="Notifications"` trigger button, a
- * dropdown listing title/body/time, mark-all-read) so the two-line header
- * swap documented in this package's report is a drop-in replacement, not a
- * layout change — see that report for the exact import/prop the integrator
- * updates in components/shell/header.tsx.
+ * Per-`kind` icons, an unread dot, a loading state, and reads via
+ * `hooks/use-notifications.ts` (this package's polling read model).
  */
 export function NotificationBell({ userId, className }: NotificationBellProps) {
   const router = useRouter();

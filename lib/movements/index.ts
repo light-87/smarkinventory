@@ -11,7 +11,7 @@ export {
   buildUndoInsert,
   sumLocationQty,
 } from "./pure";
-export { recordMovement, undoMovement } from "./service";
+export { isUniqueViolation, recordMovement, undoMovement } from "./service";
 export {
   MovementValidationError,
   type MovementInput,

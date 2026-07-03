@@ -13,7 +13,7 @@ export interface AiMemoryClientProps {
 }
 
 /**
- * `/ai-memory` (plan/tab-ai-memory.md, owner-only — `PlaceholderPage`'s
+ * `/ai-memory` (plan/tab-ai-memory.md, owner-only — the page's own
  * server-side `canSee` guard already 404s anyone else before this ever
  * mounts). Optimistically removes/moves rows on approve/reject/retire so
  * the screen doesn't wait on a full page reload; the Server Actions'

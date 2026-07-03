@@ -10,10 +10,9 @@ export const metadata: Metadata = { title: "AI Memory" };
 
 /**
  * `/ai-memory` (plan/tab-ai-memory.md) — owner-only (§2: "AI Memory approve
- * · Settings · user management" row); employee/accountant hidden. Mirrors
- * `components/shell/placeholder-page.tsx`'s guard: a role the matrix hides
- * from 404s the direct URL too (hiding the nav link isn't the enforcement —
- * RLS + this check are).
+ * · Settings · user management" row); employee/accountant hidden. A role the
+ * matrix hides from 404s the direct URL too (hiding the nav link isn't the
+ * enforcement — RLS + this check are).
  */
 export default async function AiMemoryPage() {
   const user = await getSessionUser();

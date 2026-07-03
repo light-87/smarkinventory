@@ -11,11 +11,10 @@ export const metadata: Metadata = { title: "Expenses" };
 
 /**
  * `/expenses` (plan/tab-expenses.md) — owner full, accountant full
- * (Q-01 client amendment), employee HIDDEN. Mirrors
- * `components/shell/placeholder-page.tsx`'s guard exactly: a role the
- * matrix hides from 404s the direct URL too — hiding the nav link isn't the
- * enforcement (RLS + this check are); an employee hitting this URL directly
- * must see the same 404 as any other made-up route, not a blank/broken page.
+ * (Q-01 client amendment), employee HIDDEN. A role the matrix hides from
+ * 404s the direct URL too — hiding the nav link isn't the enforcement
+ * (RLS + this check are); an employee hitting this URL directly must see
+ * the same 404 as any other made-up route, not a blank/broken page.
  */
 export default async function ExpensesPage() {
   const user = await getSessionUser();

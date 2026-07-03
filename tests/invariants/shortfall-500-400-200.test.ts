@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceClient } from "../helpers/supabase";
 import { type TestActor, type TestBox, createTestActor, createTestBox, createTestPart, describeDb } from "./fixtures";
 import { recomputeShortfallCartItems } from "@/lib/orders/demand";
+import { addReviewLineToCart } from "@/lib/runs/cart";
 import { TABLES, VIEWS, type CartItemRow, type PartDemandRow } from "@/types/db";
 
 /**
@@ -139,6 +140,55 @@ describeDb("invariant: 500/400/200 → 100 shortfall (client's permanent example
       .maybeSingle();
     if (error) throw new Error(`getActiveCartItem failed: ${error.message}`);
     return (data as CartItemRow | null) ?? null;
+  }
+
+  /** Minimal run + one selected agent_result for a bom_line, so `addReviewLineToCart` has something to add. */
+  async function seedReviewOption(bomLineId: string): Promise<{ runId: string; resultId: string; cleanup: () => Promise<void> }> {
+    const { data: bomLine, error: bomLineError } = await service.from(TABLES.bom_lines).select("bom_id").eq("id", bomLineId).single();
+    if (bomLineError || !bomLine) throw new Error(`seedReviewOption: could not read bom_line: ${bomLineError?.message}`);
+
+    const { data: distributor, error: distError } = await service.from(TABLES.distributors).select("id").eq("name", "Digikey").single();
+    if (distError || !distributor) throw new Error(`seedReviewOption: could not read seeded Digikey distributor: ${distError?.message}`);
+
+    const runId = crypto.randomUUID();
+    const { error: runError } = await service.from(TABLES.agent_runs).insert({
+      id: runId,
+      bom_id: (bomLine as { bom_id: string }).bom_id,
+      status: "review",
+      concurrency_preset: "balanced",
+      fanout_width: 3,
+      depth_per_item: 3,
+      per_site_cap: 2,
+      started_by: actor.id,
+    });
+    if (runError) throw new Error(`seedReviewOption: could not seed run: ${runError.message}`);
+
+    const { data: resultRow, error: resultError } = await service
+      .from(TABLES.agent_results)
+      .insert({
+        run_id: runId,
+        bom_line_id: bomLineId,
+        distributor_id: distributor.id,
+        price: 1,
+        mpn_match: "exact",
+        package_match: true,
+        is_recommended: true,
+        selected: true,
+      })
+      .select("id")
+      .single();
+    if (resultError || !resultRow) throw new Error(`seedReviewOption: could not seed agent result: ${resultError?.message}`);
+
+    return {
+      runId,
+      resultId: (resultRow as { id: string }).id,
+      // agent_runs.bom_id has no ON DELETE clause (RESTRICT — 0004's own
+      // comment: "protects run/cost history"), so this MUST run before
+      // scenario.cleanup() deletes the project/BOM, or that cascade fails.
+      cleanup: async () => {
+        await service.from(TABLES.agent_runs).delete().eq("id", runId); // cascades agent_results
+      },
+    };
   }
 
   test(
@@ -348,6 +398,134 @@ describeDb("invariant: 500/400/200 → 100 shortfall (client's permanent example
         await recomputeShortfallCartItems(service);
         expect(await getActiveCartItem(scenario.partId)).toBeNull();
       } finally {
+        await scenario.cleanup();
+      }
+    },
+  );
+
+  /**
+   * BUG REGRESSION — "Add to cart" silently lost under concurrent recompute
+   * (flow-3's alternating desktop/mobile failure). Root cause: the old
+   * `addReviewLineToCart` (lib/runs/cart.ts) found ANY open cart row for the
+   * part — including one `recomputeShortfallCartItems` already owned — and
+   * MERGED its demand slice in, leaving `source` untouched at
+   * `auto_shortfall`. A later recompute (triggered by any other page load;
+   * genuinely concurrent in the full E2E suite) then either overwrote that
+   * row's `demand` wholesale from `v_part_demand` (losing the merged slice)
+   * or deleted the row outright once combined shortfall cleared to 0 —
+   * destroying a real add-to-cart the user had just made. Fix: an auto row a
+   * review add touches is CONVERTED (source -> review_add), permanently
+   * moving it off this module's `source = 'auto_shortfall'` filter. These two
+   * tests cover both landing orders (auto-first and review-first); the
+   * existing tests above (untouched) continue to pin the auto-only lifecycle
+   * this module owns on its own.
+   */
+  test(
+    "review add vs auto lifecycle: an auto_shortfall row a review add touches is CONVERTED (not merged into) — its demand survives a later recompute that drives shortfall to 0 [bug regression]",
+    async () => {
+      const scenario = await buildCanonicalScenario();
+      let option: Awaited<ReturnType<typeof seedReviewOption>> | null = null;
+      try {
+        await recomputeShortfallCartItems(service);
+        const beforeAdd = await getActiveCartItem(scenario.partId);
+        expect(beforeAdd).not.toBeNull();
+        expect(beforeAdd!.source).toBe("auto_shortfall");
+        expect(beforeAdd!.qty_to_order).toBe(100);
+
+        // Project A's own to-order line is reviewed and added to cart — its
+        // demand slice (qty 400) is exactly one of the entries v_part_demand
+        // already folded into the auto row's breakdown.
+        option = await seedReviewOption(scenario.lineAId);
+        const addResult = await addReviewLineToCart(service, service, {
+          runId: option.runId,
+          bomLineId: scenario.lineAId,
+          resultId: option.resultId,
+          qty: 400,
+          actorId: actor.id,
+        });
+        expect(addResult.ok).toBe(true);
+
+        const afterAdd = await getActiveCartItem(scenario.partId);
+        expect(afterAdd).not.toBeNull();
+        expect(afterAdd!.id).toBe(beforeAdd!.id); // converted in place, not replaced by a second row
+        expect(afterAdd!.source).toBe("review_add");
+        expect(afterAdd!.qty_to_order).toBe(400); // max(100, 400) — not their sum
+
+        // Drop Project B's demand entirely (archive) — combined demand is
+        // now 400 vs 500 available: shortfall recomputes to exactly 0. Old
+        // behaviour: recompute would delete this row outright right here.
+        const { error: archiveError } = await service
+          .from(TABLES.projects)
+          .update({ archived_at: new Date().toISOString() })
+          .eq("id", scenario.projectBId);
+        if (archiveError) throw archiveError;
+        const demand = await getPartDemand(scenario.partId);
+        expect(demand?.shortfall ?? 0).toBe(0);
+
+        await recomputeShortfallCartItems(service);
+
+        const afterRecompute = await getActiveCartItem(scenario.partId);
+        expect(afterRecompute).not.toBeNull(); // survived — NOT deleted
+        expect(afterRecompute!.id).toBe(beforeAdd!.id);
+        expect(afterRecompute!.source).toBe("review_add");
+        expect(afterRecompute!.qty_to_order).toBe(400);
+        const survivingSlice = afterRecompute!.demand.find((d) => d.bom_line_id === scenario.lineAId);
+        expect(survivingSlice?.qty).toBe(400);
+
+        const { data: allRows, error: allRowsError } = await service.from(TABLES.cart_items).select("id").eq("part_id", scenario.partId);
+        if (allRowsError) throw allRowsError;
+        expect(allRows).toHaveLength(1); // no zombie auto row alongside it
+      } finally {
+        await option?.cleanup();
+        await scenario.cleanup();
+      }
+    },
+  );
+
+  test(
+    "review add vs auto lifecycle: a review add that lands BEFORE any auto row exists is never duplicated or destroyed by a later recompute [bug regression]",
+    async () => {
+      const scenario = await buildCanonicalScenario();
+      let option: Awaited<ReturnType<typeof seedReviewOption>> | null = null;
+      try {
+        // No recompute has ever run for this part — review-add lands first,
+        // taking the plain INSERT path (source=review_add from the start).
+        option = await seedReviewOption(scenario.lineAId);
+        const addResult = await addReviewLineToCart(service, service, {
+          runId: option.runId,
+          bomLineId: scenario.lineAId,
+          resultId: option.resultId,
+          qty: 400,
+          actorId: actor.id,
+        });
+        expect(addResult.ok).toBe(true);
+
+        const afterAdd = await getActiveCartItem(scenario.partId);
+        expect(afterAdd).not.toBeNull();
+        expect(afterAdd!.source).toBe("review_add");
+        expect(afterAdd!.qty_to_order).toBe(400);
+
+        // v_part_demand still reports the full 600/100 shortfall (it knows
+        // nothing about cart items) — recompute tries to insert a fresh
+        // auto_shortfall suggestion for the SAME part, collides with
+        // idx_smark_cart_items_one_active_per_part (unique per part_id
+        // regardless of source), and must swallow that as "already covered"
+        // instead of throwing or clobbering the review row.
+        const demand = await getPartDemand(scenario.partId);
+        expect(demand?.shortfall).toBe(100);
+        await recomputeShortfallCartItems(service);
+
+        const afterRecompute = await getActiveCartItem(scenario.partId);
+        expect(afterRecompute).not.toBeNull();
+        expect(afterRecompute!.id).toBe(afterAdd!.id);
+        expect(afterRecompute!.source).toBe("review_add");
+        expect(afterRecompute!.qty_to_order).toBe(400);
+
+        const { data: allRows, error: allRowsError } = await service.from(TABLES.cart_items).select("id").eq("part_id", scenario.partId);
+        if (allRowsError) throw allRowsError;
+        expect(allRows).toHaveLength(1); // not duplicated
+      } finally {
+        await option?.cleanup();
         await scenario.cleanup();
       }
     },

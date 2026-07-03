@@ -11,6 +11,7 @@ import { formatDistanceStrict, isValid, parseISO } from "date-fns";
 import type { AgentRunStatus, MovementReason, MovementReasonDetail } from "@/types/db";
 import type { WorkerRunPlanColumn } from "@/types/worker";
 import { formatINR, formatNumber } from "@/lib/format";
+import { istDayBoundsIso } from "@/lib/timezone";
 
 /* ────────────────────────────────────────────────────────────────────────────
  * Stock state — MUST agree with Inventory's Stock facet and Shelves' low dots
@@ -114,9 +115,10 @@ export function composeBoxLabel(box: BoxLabelInput): string {
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
- * "Today" bounds — server-local calendar day (see dashboard report re: no
- * project-wide IST convention yet). Exposed with an injectable reference date
- * so tests are deterministic.
+ * "Today" bounds — the Asia/Kolkata (IST) calendar day (finding #4: this used
+ * to be server-local, which mis-bucketed every 00:00–05:30 IST event into the
+ * previous day on a UTC runtime — see lib/timezone.ts). Exposed with an
+ * injectable reference date so tests are deterministic.
  * ──────────────────────────────────────────────────────────────────────────── */
 
 export interface DateRangeIso {
@@ -125,10 +127,7 @@ export interface DateRangeIso {
 }
 
 export function todayBoundsIso(reference: Date = new Date()): DateRangeIso {
-  const start = new Date(reference.getFullYear(), reference.getMonth(), reference.getDate());
-  const end = new Date(start);
-  end.setDate(end.getDate() + 1);
-  return { start: start.toISOString(), end: end.toISOString() };
+  return istDayBoundsIso(reference);
 }
 
 /* ────────────────────────────────────────────────────────────────────────────

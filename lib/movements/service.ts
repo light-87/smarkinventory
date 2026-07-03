@@ -19,6 +19,12 @@
  * flagged as a follow-up for the integrator in this package's report —
  * `smark_stock_locations_qty_nonnegative` still protects the DB from ever
  * going negative even if the retry loop above raced.
+ *
+ * `undoMovement` inserts its reversing row BEFORE touching qty (opposite
+ * order from `recordMovement`) so `smark_movements_undo_of_unique`
+ * (UNIQUE(undo_of)) — not the earlier `existingUndo` read, which two
+ * concurrent undos can both pass — is what arbitrates a concurrent
+ * double-undo; only the insert's actual winner ever reverses the qty.
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -29,6 +35,16 @@ import { MovementValidationError, type MovementInput, type MovementResult, type 
 type Client = SupabaseClient<Database>;
 
 const MAX_QTY_UPDATE_ATTEMPTS = 3;
+
+/**
+ * Postgres unique-violation (`23505`) — fired by `smark_movements_undo_of_unique`
+ * (UNIQUE(undo_of)) when two concurrent undos race for the same original
+ * movement. Exported for direct unit testing of the friendly-error mapping,
+ * mirroring `lib/bom/service.ts`'s `isUniqueViolation`.
+ */
+export function isUniqueViolation(error: unknown): boolean {
+  return Boolean(error && typeof error === "object" && "code" in error && (error as { code?: string }).code === "23505");
+}
 
 /** Reads the current qty for one stock-location row (throws if it no longer exists). */
 async function fetchLocation(client: Client, locationId: string): Promise<StockLocationRow> {
@@ -139,6 +155,28 @@ export async function undoMovement(
 
   const undoInsert = buildUndoInsert(undoable, actor);
 
+  // Insert the undo row FIRST and let `smark_movements_undo_of_unique`
+  // (UNIQUE(undo_of)) arbitrate. Two concurrent undos of the same movement
+  // can both pass the `existingUndo` check above; if the qty reversal ran
+  // before this insert, both would apply the reversing delta and only the
+  // loser's insert would fail — silently double-reversing the qty while the
+  // "undoable once" invariant only protected the movement row. Reversing the
+  // order means the qty is only ever touched by whichever caller's insert
+  // actually wins the unique constraint.
+  const { data: undoMovementRow, error: insertError } = await client
+    .from(TABLES.movements)
+    .insert(undoInsert)
+    .select("*")
+    .single();
+  if (insertError || !undoMovementRow) {
+    if (isUniqueViolation(insertError)) {
+      throw new MovementValidationError("this movement has already been undone");
+    }
+    throw new MovementValidationError(
+      `undo movement failed to write: ${insertError?.message ?? "no row returned"}`,
+    );
+  }
+
   let location: StockLocationRow | null = null;
   if (original.big_box_id) {
     const { data: locationRow, error: locationError } = await client
@@ -153,17 +191,6 @@ export async function undoMovement(
     if (locationRow) {
       location = await updateLocationQty(client, locationRow.id, undoInsert.delta_qty);
     }
-  }
-
-  const { data: undoMovementRow, error: insertError } = await client
-    .from(TABLES.movements)
-    .insert(undoInsert)
-    .select("*")
-    .single();
-  if (insertError || !undoMovementRow) {
-    throw new MovementValidationError(
-      `stock qty was reversed but the undo movement failed to write: ${insertError?.message ?? "no row returned"}`,
-    );
   }
 
   return { movement: undoMovementRow, location };

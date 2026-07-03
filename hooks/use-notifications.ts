@@ -75,9 +75,8 @@ export function useNotifications(userId: string | null | undefined): UseNotifica
     mountedRef.current = true;
 
     // State resets/kickoffs live in a named function rather than being
-    // called inline at the effect body's top level (same convention
-    // components/shell/notifications-bell.tsx's own load effect uses) so a
-    // synchronous setState doesn't trip react-hooks' set-state-in-effect rule.
+    // called inline at the effect body's top level, so a synchronous
+    // setState doesn't trip react-hooks' set-state-in-effect rule.
     function start() {
       if (!userId) {
         setNotifications([]);

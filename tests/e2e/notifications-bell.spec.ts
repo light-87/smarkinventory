@@ -6,15 +6,11 @@ import { expect, test, type Page } from "@playwright/test";
  * (redirects to `/login` when signed out), so every test here logs in first
  * as the seeded `owner` dev user (same pattern as tests/e2e/dashboard-smoke.spec.ts).
  *
- * This asserts the OBSERVABLE CONTRACT (an aria-labeled "Notifications"
- * trigger; a dropdown with the same "Notifications" header copy and
- * "Nothing yet" / "Mark all read" language) rather than which component
- * renders it — components/notifications/notification-bell.tsx (this
- * package's canonical bell) was deliberately built to the same contract as
- * components/shell/notifications-bell.tsx (auth-shell's own stub, by its own
- * doc comment: "SHELL per the mission brief"), so this spec is green BOTH
- * before AND after the integrator's two-line header swap documented in this
- * package's report — it isn't a placeholder pending integration.
+ * This asserts the OBSERVABLE CONTRACT: an aria-labeled "Notifications"
+ * trigger; a dropdown with the "Notifications" header copy and "Nothing
+ * yet" / "Mark all read" language — rendered by
+ * components/notifications/notification-bell.tsx (this package's canonical
+ * bell, wired directly into components/shell/header.tsx).
  *
  * Self-excludes under `bun test` the same way tests/e2e/smoke.spec.ts does
  * (Bun's default test-file matching also globs `*.spec.ts`) — run via

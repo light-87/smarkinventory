@@ -1,4 +1,25 @@
 import { defineConfig, devices } from "@playwright/test";
+import { existsSync, readFileSync } from "node:fs";
+import path from "node:path";
+
+// Load .env.local into process.env for the Playwright runner + its worker
+// processes (they inherit this process's env). Playwright runs under plain
+// Node even when launched via `bunx` — only Bun auto-loads .env.local — so
+// spec files that construct Supabase clients (the WF-4 flow specs use
+// createServiceClient() in-test) silently starve without this and fail in
+// ways that look like app bugs. Existing env always wins (CI exports the
+// stack's real values explicitly; we must not clobber them).
+const envLocal = path.join(__dirname, ".env.local");
+if (existsSync(envLocal)) {
+  for (const line of readFileSync(envLocal, "utf8").split(/\r?\n/)) {
+    const m = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/.exec(line);
+    const key = m?.[1];
+    const rawValue = m?.[2];
+    if (key === undefined || rawValue === undefined) continue;
+    if (process.env[key] !== undefined) continue;
+    process.env[key] = rawValue.replace(/^(["'])(.*)\1$/, "$2");
+  }
+}
 
 /**
  * SmarkStock Playwright config — R2-29 quality gate (plan/TESTING.md §2 "E2E"
