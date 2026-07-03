@@ -1,107 +1,88 @@
-# HANDOFF.md — continue the SmarkStock v2 build (fresh session bootstrap)
+# HANDOFF.md — SmarkStock v2 build state (post-WF-4)
 
-> Written 2026-07-03 by the previous orchestrating session. A fresh Claude Code session should read
-> this file FIRST, then the files in §1, then execute §4 in order. Everything here is current as of
-> the WF-0 foundation build.
+> Rewritten 2026-07-04 after the build completed. A fresh Claude Code session should read this
+> file FIRST, then §1's files. The four feature workflows (WF-1…WF-4) are DONE, GREEN, and
+> COMMITTED — do not re-plan or re-scaffold anything. What remains is wiring + deploy (§4).
 
 ## 1. Read these before doing anything
 
-1. `FEATURES.md` — the build spec (v2, regenerated from 38 approved client changes). BUILD TRUTH.
-2. `plan/00-INDEX.md` → the plan folder: per-surface specs (`plan/tab-*.md`), canonical schema
-   (`plan/SCHEMA.md`), invariants (`plan/CROSS-FEATURE.md` §A3), test gate (`plan/TESTING.md`).
-3. `docs/OWNERSHIP.md` — file-ownership map for parallel agents (written by WF-0 integrator).
-4. `docs/DEV.md` — local dev runbook (supabase local, test commands).
-5. `scripts/workflows/wf1-phase1.js` — the READY WF-1 workflow script (launch via the Workflow
-   tool with `scriptPath`).
+1. `FEATURES.md` — the build spec (v2, 38 approved R2 changes). BUILD TRUTH.
+2. `plan/00-INDEX.md` → plan folder: per-surface specs (`plan/tab-*.md`), `plan/SCHEMA.md`,
+   invariants (`plan/CROSS-FEATURE.md` §A3), test gate (`plan/TESTING.md`). Audit trail — any NEW
+   client change gets id R2-39+, logs in `plan/CHANGE-LOG.md`, updates tab files + SCHEMA, then
+   re-syncs FEATURES.md.
+3. `docs/OWNERSHIP.md` — file-ownership map (still governs any future parallel-agent work).
+4. `docs/DEV.md` — local dev runbook (supabase local, every command).
 
-## 2. State snapshot (2026-07-03)
+## 2. State snapshot (2026-07-04) — BUILD COMPLETE
 
-**Done — planning:** prototype (SmarkStock-prototype/) approved through 2 client reviews; 38 R2
-changes all planned (36 🟢, 2 ⚪ superseded); all 10 open questions closed; FEATURES.md v2
-regenerated. Plan folder = audit trail; any NEW client change → id R2-39+, log in
-`plan/CHANGE-LOG.md`, update tab files + SCHEMA + CROSS-FEATURE, re-sync FEATURES.md.
+All four phases built by multi-agent workflows, each reviewed adversarially, fixed, verified
+green through the full gate (tsc · bun test · worker tests · build · db reset · playwright
+desktop-1280 + mobile-360), and committed:
 
-**Done — WF-0 foundation (all on disk, integration-verified):**
-- Next.js App Router scaffold AT REPO ROOT (bun; tsc + build green at scaffold time).
-- `supabase/migrations/0001…0005` — **35 `smark_` tables, 3 views, RLS on all 35, 124 policies**;
-  `bunx supabase db reset` applies clean (verified live twice by the integrator against local
-  Docker supabase). Seed: ordering rules, distributors, prefs.
-- Design system port: `lib/theme.ts`, tailwind tokens, `components/ui/*` base kit (dark #121212,
-  SMARK orange #f57d05), `/design-preview` page.
-- Shared contracts: `types/db.ts` (zod, drift-fixed against SQL), `lib/supabase/*`,
-  `lib/auth/roles.ts` (role matrix), `lib/matcher/` (THE part-matching ladder — reused by
-  reconcile/dup-guard/takeout), `lib/storage/` (StoragePort + local-disk adapter; R2 adapter
-  stubbed), `lib/format.ts`.
-- CI harness: bun test + Playwright config + `.github/workflows/ci.yml` + invariant test skeletons
-  (`tests/invariants/`, mostly test.todo).
-- WF-1 deps pre-installed (xlsx, html5-qrcode, qrcode, pdf-lib) — parallel builders must NOT run
-  `bun add`.
+| Commit | Increment |
+|---|---|
+| `9ab894b`+`962fe0f` | WF-0 foundation: scaffold, 35-table schema + RLS (124 policies), design system, contracts, CI |
+| `af8ecff` | WF-1 Phase-1: auth+shell, inventory, part drawer, shelves+audit, scan+movements, receive+labels, import+seed, dashboard |
+| `88293d5` | WF-2 Phase-2: projects hub + phase timelines, named BOMs + reconcile, smart cart + checkout, bulk takeout, daily reports, expenses+charts, search+notifications, client portal (migration 0006 SECURITY DEFINER) |
+| `8f58d7d` | WF-3 AI layer: lib/ai (alias layer, digest, fetch Claude client w/ mock-when-no-key), worker/ service (FOR UPDATE SKIP LOCKED claim, idempotent upserts, caps + ₹ ceilings), ordering workspace, run console, persisted review, settings expansion, receipt extraction, Phase-0 spike harness (code-complete, awaiting keys) |
+| `d694898` | WF-4 hardening: full E2E flow suite (TESTING.md §3 flows 1-8), 10 audit findings fixed, executable RLS matrix (28 role cells + 19 db-schema tests), two load-race root fixes w/ regression tests |
 
-**WF-0 judgment status:** `COMPLETE — GREEN (2026-07-03)`. Opus reviewers found 6 findings (all
-minor, 0 serious), fix round applied them, final verify: typecheck ✓ · unit tests ✓ · build ✓ ·
-db reset ✓, zero failures. **Skip §4 Step 0 — start directly at Step 1 (launch WF-1).**
+**Completeness:** an opus critic walked all 38 R2 changes + FEATURES' 17 surfaces against code —
+42/42 confirmed implemented (stub ≠ done). Only expected-incomplete item: Phase-0 live LCSC
+measurement (§4.2).
 
-## 3. Operating protocol (client-approved, follow exactly)
+**The whole AI/distributor path runs in deterministic MOCK mode** (no live keys anywhere). Every
+external call sits behind an interface that selects mock-when-key-absent — the e2e gate exercises
+enqueue → claim → plan → stream → review → cart for real. Wiring keys is config, not code.
 
-- **Multi-agent workflows are approved** by Vaibhav for this build ("launch n agents"). Use the
-  Workflow tool per phase; he approves between workflows only if something material changed.
-- **Model split (hard rule, saves his session limits):** builder + fixer agents `model:'sonnet'`;
-  integrator/reviewer/verifier agents `model:'opus'`; the main orchestrating loop spawns NOTHING
-  on fable.
-- **Loop pattern per workflow:** parallel sonnet builders (each owns files per OWNERSHIP.md; never
-  touch shared files — integrator handles those) → 2–3 adversarial opus reviewers (schemas for
-  structured findings) → opus fixer → opus verifier (`bunx tsc --noEmit` · `bun test` ·
-  `bun run build` · `bunx supabase db reset` · playwright when relevant) → loop ≤3 rounds.
-- **Git: commit at every workflow boundary** (approved). Repo already initialized; foundation
-  committed. Message style: `WF-N: <what>` + Co-Authored-By Claude line.
-- **Env:** bun 1.3.5, Docker present, LOCAL supabase only (`bunx supabase start`); NO live keys yet
-  (Supabase cloud/R2/Anthropic/distributors — Vaibhav wires later; everything stays behind
-  interfaces/env so missing keys never block). Windows machine — cross-platform scripts only.
-- **Never:** npm/yarn, secrets in code, skipping RLS, mutating stock without a movement + undo.
+**Test infra facts the hard way taught us** (all encoded in the repo, kept here so nobody
+re-learns them):
+- Playwright runs under Node even via `bunx` — only Bun auto-loads `.env.local`. The config
+  self-loads it (existing env wins). `tests/e2e/global-setup.ts` seeds dev users
+  (owner/employee/accountant — passwords in `scripts/seed-dev-users.ts`) AND the canonical demo
+  dataset (both idempotent) before every run, so `supabase db reset` can never strand the suite.
+- Playwright `workers: 2` is pinned — the shared `next dev` Turbopack server cold-compiles routes
+  on first hit; higher fan-out reliably times navigations out.
+- Cart invariant (cross-package, regression-tested in `tests/invariants/shortfall-500-400-200.test.ts`):
+  review/manual demand slices must NEVER be destroyed by the auto-shortfall lifecycle —
+  `lib/runs/cart.ts` converts auto rows (never merges silently), `lib/orders/demand.ts` re-checks
+  `source='auto_shortfall'` at write time.
 
-## 4. Next actions, in order
+## 3. Operating protocol (unchanged, client-approved)
 
-**Step 0 — WF-0 judgment (if §2 says PENDING):** small workflow: two opus reviewers over the
-foundation (lens A: plan-fidelity vs `plan/SCHEMA.md` + FEATURES §2 role matrix — especially
-accountant-writes-expenses-only special case, UNIQUE(project_id,name), po_number NOT NULL,
-v_part_demand math qty×build_qty non-archived; lens B: correctness — run tsc/test/build for
-evidence) → opus fixer for confirmed findings → opus verifier (4 checks above). Then commit
-`WF-0: foundation reviewed+verified`.
+Multi-agent Workflow per phase; model split hard rule: builders/fixers `sonnet`,
+integrator/reviewer/verifier `opus`, main loop spawns nothing on fable. Commit at every workflow
+boundary (`WF-N: …` + Co-Authored-By Claude). Bun only. Local supabase only until keys land.
+Never: npm/yarn, secrets in code, skipping RLS, stock mutation without movement+undo.
+Recovery for interrupted/errored workflow runs: TaskStop → `Workflow({scriptPath, resumeFromRunId})`
+(completed agents replay from cache; never edit the script's shared COMMON block between resumes).
 
-**Step 1 — WF-1 (Phase-1 features):** launch `scripts/workflows/wf1-phase1.js` via Workflow
-(`{scriptPath: '<abs path>'}`). 8 sonnet builders: auth-shell · inventory+part-drawer ·
-shelves+audit · scan+movements · receive+labels · import+seed · dashboard · invariants+e2e — then
-3 opus review lenses → fix/verify loop (script encodes all of it). On green: commit `WF-1`.
+## 4. What remains (needs Vaibhav, not code)
 
-**Step 2 — WF-2 (Phase-2):** author a new script, same pattern, packages: projects-hub (cards,
-overview, PHASE TIMELINE per plan/tab-orders-projects.md R2-30, documents, notes/tasks, team,
-archive-with-warning) · bom-pipeline (upload/create-BOM grid + remembered templates, reconcile via
-lib/matcher, build_qty ×N) · cart-orders (smart shortfall v_part_demand, checkout grouped BY
-DISTRIBUTOR with website order-number = po_number, receipt upload stub, PO→draft expense) ·
-bulk-takeout · daily-reports (clock in/out + MANUAL hours) · expenses (entries+accounts+charts —
-use the dataviz skill for charts) · search+notifications (Ctrl-K, bell fan-out) · client-portal
-(`/p/:share_token`, opt-in shared content ONLY, never prices/inventory). Read each
-`plan/tab-*.md` first; respect OWNERSHIP.md; commit on green.
+1. **Live keys** — create Supabase cloud project + R2 bucket (`smarkstock-files`) + set
+   `ANTHROPIC_API_KEY`, distributor keys (Digikey OAuth2, Mouser, element14),
+   `WORKER_SHARED_SECRET`. Registry: `.env.local.example`. Everything activates by env presence;
+   no code changes expected. Then: run migrations against cloud, import real Stock List
+   (`scripts/import-stocklist.ts`), onboarding queue for locations/labels.
+2. **Phase-0 spike measurement (GATE for the browser-agent path)** — harness is code-complete in
+   `worker/` + `docs/spike-browser-worker.md`. Needs ANTHROPIC_API_KEY + a SUPERVISED session with
+   Vaibhav (~30 real TMCS lines vs LCSC; go/no-go per FEATURES §0). Until then: API distributors
+   only; browser drivers stay env-gated stubs.
+3. **Deploy** — Vercel Pro project (`bun run build`), GitHub branch protection requiring the
+   `gate` check (docs/DEV.md §6 has the exact two steps), worker to Railway/Fly/Render with
+   service role + `WORKER_SHARED_SECRET`. R2-29: red blocks deploy.
+4. **Nightly live smoke** (post-keys) — the cost-capped live-API suite per `plan/TESTING.md` §4.
+5. **Client demo** — canonical demo dataset seeds on every `db reset`; logins in
+   `scripts/seed-dev-users.ts`. `/design-preview` shows the design system.
 
-**Step 3 — WF-3 (AI layer):** worker service (separate process dir `worker/`, job claim
-FOR UPDATE SKIP LOCKED, BrowserDriver interface, REST distributor clients record/replay-mocked),
-Opus planner + Sonnet item-agent prompt templates, ALIAS LAYER (`smark_ai_aliases`; MPN/LCSC pass
-through real; descriptions never sent — leak test), AI Memory screen + digest versioning, run
-console streaming + persisted reviews, receipt extraction endpoint (mock behind interface until
-ANTHROPIC_API_KEY exists). Phase-0 spike harness code-complete but live LCSC measurement waits for
-keys + a supervised session with Vaibhav.
+## 5. Known accepted trade-offs (documented, not bugs)
 
-**Step 4 — WF-4 (hardening):** full Playwright E2E per `plan/TESTING.md` §3 loop-until-green ·
-360px/PWA/a11y sweep · whole-codebase review sweep (correctness/security-RLS/simplify lenses) ·
-**completeness critic**: walk FEATURES.md + all 38 changes in `plan/CHANGE-LOG.md`, verify each
-exists in code; gaps → next fix round.
-
-## 5. Known open items (not blockers)
-
-- Live keys: Supabase cloud, R2, ANTHROPIC_API_KEY, distributor APIs — Vaibhav wires; everything
-  is behind env/interfaces.
-- Phase-0 browser spike: still GATES the browser-agent path (FEATURES.md §0) — API distributors
-  first.
-- Deploy: Vercel Pro `bun run build` when Vaibhav is ready; CI must be green first (R2-29:
-  red blocks deploy).
-- Client-portal comment moderation default: straight-to-feed with flag chip (revisit if abused).
+- Most `created_by`/`actor` stamping is app-layer-guaranteed; only attendance/time-entries have
+  DB-level `auth.uid()` WITH CHECK (comment in `tests/integration/rls-matrix.test.ts`). Harden in
+  DB later if wanted.
+- BOM `sourcing_status` sync is an application-level write path — documented `test.todo` in
+  `tests/integration/db-schema.test.ts`.
+- Live-elapsed text on the dashboard agent card uses `suppressHydrationWarning` (intentionally
+  client-local, 8s poll).
+- Portal comments go straight to the feed with a flag chip (revisit if abused).
