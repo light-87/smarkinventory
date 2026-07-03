@@ -4,7 +4,7 @@ export const meta = {
   phases: [
     { title: 'Build', detail: '8 feature packages in parallel (sonnet)', model: 'sonnet' },
     { title: 'Review', detail: '3 adversarial lenses over the whole increment (opus)', model: 'opus' },
-    { title: 'Fix', detail: 'apply confirmed findings (opus)', model: 'opus' },
+    { title: 'Fix', detail: 'apply confirmed findings (sonnet)', model: 'sonnet' },
     { title: 'Verify', detail: 'tsc, tests, build, db reset, e2e smoke (opus)', model: 'opus' },
   ],
 }
@@ -96,11 +96,11 @@ while (round < 3) {
 MISSION: Fix these verified findings (root causes). Re-run bunx tsc --noEmit + bun test until clean. Do not expand scope.
 FINDINGS:
 ${toFix.map((f, i) => `${i + 1}. [${f.severity}] ${f.file}: ${f.issue} — ${f.fix_hint}`).join('\n')}`,
-      { label: `fix:r${round}`, phase: 'Fix', model: 'opus' })
+      { label: `fix:r${round}`, phase: 'Fix', model: 'sonnet' })
   }
   phase('Verify')
   verdict = await agent(`${COMMON}
-MISSION: Verification only — run and report, fix nothing: (1) bunx tsc --noEmit (2) bun test (3) bun run build (4) bunx supabase db reset (5) bunx playwright test --project=chromium (install browsers if needed via bunx playwright install chromium; mark e2e skipped if browsers can't install). Exact failure messages.`,
+MISSION: Verification only — run and report, fix nothing: (1) bunx tsc --noEmit (2) bun test (3) bun run build (4) bunx supabase db reset (5) bunx playwright test — run it bare: the two projects are desktop-1280 + mobile-360 (there is NO 'chromium' project); e2e global-setup auto-seeds the dev users after the reset (install browsers if needed via bunx playwright install chromium; mark e2e skipped only if browsers can't install). Exact failure messages.`,
     { label: `verify:r${round}`, phase: 'Verify', schema: VERIFY, model: 'opus' })
   const green = verdict && verdict.typecheck === 'pass' && verdict.unit_tests === 'pass' && verdict.next_build === 'pass'
     && (verdict.db_reset !== 'fail') && (verdict.e2e_smoke !== 'fail')

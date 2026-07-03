@@ -172,6 +172,47 @@ jobs:
 
       - run: bun install --frozen-lockfile
 
+      # The flow specs (login, dashboard, scan, …) sign in as the seeded
+      # owner/employee/accountant dev users — the placeholder Supabase env
+      # this job used before pointed at a URL nothing was listening on, so
+      # every `signInWithPassword` failed and every "log in, wait for
+      # /dashboard" helper timed out (root cause of the dashboard-smoke +
+      # scan e2e failures). Stand up the same local stack the `integration`
+      # job uses, then seed the dev-role auth users before Playwright boots
+      # the dev server.
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start local Supabase (Docker — preinstalled on ubuntu-latest)
+        run: supabase start
+
+      - name: Apply migrations + seed
+        run: supabase db reset
+
+      - name: Export local Supabase env for the app + seed script
+        run: |
+          supabase status -o env > /tmp/supabase-status.env
+          api_url=$(grep '^API_URL=' /tmp/supabase-status.env | cut -d= -f2- | tr -d '"')
+          anon_key=$(grep '^ANON_KEY=' /tmp/supabase-status.env | cut -d= -f2- | tr -d '"')
+          service_key=$(grep '^SERVICE_ROLE_KEY=' /tmp/supabase-status.env | cut -d= -f2- | tr -d '"')
+          {
+            echo "SUPABASE_URL=$api_url"
+            echo "NEXT_PUBLIC_SUPABASE_URL=$api_url"
+            echo "SUPABASE_ANON_KEY=$anon_key"
+            echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$anon_key"
+            echo "SUPABASE_SERVICE_ROLE_KEY=$service_key"
+          } >> "$GITHUB_ENV"
+
+      - name: Sanity-check exported env (fail loud, not a silent skip-everything)
+        run: |
+          test -n "$SUPABASE_URL" || { echo "::error::SUPABASE_URL empty after supabase status -o env parse"; exit 1; }
+          test -n "$SUPABASE_ANON_KEY" || { echo "::error::SUPABASE_ANON_KEY empty after supabase status -o env parse"; exit 1; }
+          test -n "$SUPABASE_SERVICE_ROLE_KEY" || { echo "::error::SUPABASE_SERVICE_ROLE_KEY empty after supabase status -o env parse"; exit 1; }
+
+      - name: Seed dev-role auth users (owner/employee/accountant) for E2E login
+        run: bun run scripts/seed-dev-users.ts
+
       # Only chromium — both projects (desktop-1280, mobile-360) render via
       # Chromium device profiles (playwright.config.ts). Add browsers here if
       # a project ever needs webkit/firefox.
@@ -180,9 +221,6 @@ jobs:
 
       - name: Run Playwright (webServer boots `bun run dev` on :3000)
         run: bunx playwright test
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ env.CI_PLACEHOLDER_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ env.CI_PLACEHOLDER_SUPABASE_ANON_KEY }}
 
       - name: Upload Playwright HTML report
         if: failure()

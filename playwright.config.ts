@@ -31,6 +31,10 @@ const baseURL = `http://localhost:${PORT}`;
 export default defineConfig({
   testDir: "./tests/e2e",
   outputDir: "./test-results",
+  // Re-seeds the dev-role auth users every run — `supabase db reset` wipes
+  // auth.users and every flow spec logs in as the seeded owner. See the
+  // header comment in tests/e2e/global-setup.ts.
+  globalSetup: "./tests/e2e/global-setup.ts",
   timeout: 30_000,
   expect: {
     timeout: 5_000,

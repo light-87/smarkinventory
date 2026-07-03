@@ -248,7 +248,73 @@ create trigger trg_smark_stock_locations_updated_at
 -- SECURITY DEFINER: the internal UPDATE on smark_parts runs as the migration
 -- role (table owner → not subject to RLS), so any role allowed to write
 -- stock_locations keeps the rollup correct.
+--
+-- Concurrency (lost-update fix — tests/invariants/qty-rollup.test.ts
+-- "concurrent movements..."): recomputing with a plain uncorrelated
+-- `SUM(...)` sub-select is only safe if concurrent writers to DIFFERENT
+-- `smark_stock_locations` rows for the SAME part are serialized against each
+-- other first. A first attempt at that serialization — taking a `FOR UPDATE`
+-- lock on the `smark_parts` row inside the AFTER-trigger recompute — turned
+-- out to deadlock: `smark_stock_locations.part_id` has a FK to
+-- `smark_parts.id`, so every concurrent INSERT/UPDATE already holds a `FOR
+-- KEY SHARE` lock on that same `smark_parts` row for the life of ITS OWN
+-- transaction (Postgres's own FK-check locking, released only at commit).
+-- Once N concurrent transactions each hold `FOR KEY SHARE` and then each try
+-- to upgrade to `FOR UPDATE`/`FOR NO KEY UPDATE` in their own AFTER trigger,
+-- every one of them is blocked on every OTHER one's still-held `FOR KEY
+-- SHARE` — a genuine N-way deadlock, resolved only by Postgres aborting
+-- transactions (which silently loses inserts if the caller doesn't check the
+-- write's `error`).
+--
+-- Fix: serialize with a **BEFORE-trigger transaction-scoped advisory lock**
+-- keyed by `part_id` instead of a row lock. `pg_advisory_xact_lock` lives in
+-- its own lock space — it never conflicts with the FK's `FOR KEY SHARE` — and
+-- because it fires BEFORE the row is written (i.e. before Postgres's internal
+-- FK-check trigger even runs), a transaction blocks here, before it has taken
+-- ANY lock on `smark_parts`, until the previous writer for that part has
+-- fully committed. That serializes entry per part_id with no lock-conflict
+-- cycle possible, so the AFTER-trigger recompute can stay a plain, simple
+-- fresh-snapshot SUM + UPDATE.
 -- ----------------------------------------------------------------------------
+
+create or replace function public.smark_lock_part_for_stock_sync()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_id uuid;
+begin
+  -- Lock the affected part_id(s) in a stable (sorted) order so two
+  -- concurrent moves between the same pair of parts can't form an ABBA
+  -- deadlock on the advisory locks themselves.
+  for v_id in
+    select distinct id
+      from unnest(
+        case tg_op
+          when 'DELETE' then array[old.part_id]
+          when 'INSERT' then array[new.part_id]
+          else array[new.part_id, old.part_id]
+        end
+      ) as id
+     order by id
+  loop
+    perform pg_advisory_xact_lock(hashtext(v_id::text)::bigint);
+  end loop;
+
+  return coalesce(new, old);
+end;
+$$;
+
+comment on function public.smark_lock_part_for_stock_sync() is
+  'BEFORE-trigger companion to smark_sync_part_total_qty: takes a transaction-scoped advisory lock per affected part_id BEFORE the row (and Postgres''s internal FK-check row lock) is written, serializing concurrent writers to the SAME part''s locations without conflicting with the FK''s FOR KEY SHARE lock (avoids the deadlock a plain row lock would cause).';
+
+revoke execute on function public.smark_lock_part_for_stock_sync() from public, anon;
+
+create trigger trg_smark_stock_locations_lock_for_sync
+  before insert or update or delete on public.smark_stock_locations
+  for each row execute function public.smark_lock_part_for_stock_sync();
 
 create or replace function public.smark_recompute_part_total_qty(p_part_id uuid)
 returns void
@@ -265,7 +331,7 @@ as $$
 $$;
 
 comment on function public.smark_recompute_part_total_qty(uuid) is
-  'Recomputes smark_parts.total_qty from smark_stock_locations for one part. Called by the sync trigger; safe to call directly (self-healing no-op when already correct).';
+  'Recomputes smark_parts.total_qty from smark_stock_locations for one part. Safe to call directly (self-healing no-op when already correct) — relies on trg_smark_stock_locations_lock_for_sync having already serialized concurrent writers for this part_id.';
 
 revoke execute on function public.smark_recompute_part_total_qty(uuid) from public, anon;
 

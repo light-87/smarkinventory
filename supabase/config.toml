@@ -19,7 +19,7 @@ major_version = 17
 enabled = true
 port = 54323
 
-[inbucket]
+[local_smtp]
 enabled = true
 port = 54324
 
@@ -40,7 +40,18 @@ enable_anonymous_sign_ins = false
 
 [auth.email]
 # Usernames map to synthetic emails {username}@smark.internal — no real mail flows.
-enable_signup = false
+#
+# `enable_signup` here is NOT "block self-signup" (that's `[auth].enable_signup`
+# above, which correctly maps to GOTRUE_DISABLE_SIGNUP and already blocks it) —
+# the Supabase CLI wires THIS key straight to GOTRUE_EXTERNAL_EMAIL_ENABLED
+# (apps/cli-go/internal/start/start.go), i.e. it's really "is the email
+# provider on at all". Setting it to `false` — as this file did before —
+# disables email/password login entirely, not just signup: every
+# `signInWithPassword` 422s with `email_provider_disabled`, which is exactly
+# why the e2e login helper (fills the form, clicks Log in, waits for
+# /dashboard) timed out on a freshly reset local stack. Keep this `true`;
+# `[auth].enable_signup = false` above is what actually stops self-signup.
+enable_signup = true
 double_confirm_changes = false
 enable_confirmations = false
 

@@ -122,7 +122,7 @@ export function DrawerCloseButton({
       type="button"
       aria-label="Close"
       className={cn(
-        "flex size-8 flex-none cursor-pointer items-center justify-center rounded-full border border-charcoal bg-transparent text-silver-mist leading-none transition-colors hover:bg-ash",
+        "flex min-h-11 min-w-11 flex-none cursor-pointer items-center justify-center rounded-full border border-charcoal bg-transparent text-silver-mist leading-none transition-colors hover:bg-ash",
         className,
       )}
       {...props}
