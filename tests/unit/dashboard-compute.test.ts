@@ -3,9 +3,18 @@ import {
   buildProjectUsageBars,
   composeBoxLabel,
   computeInventoryValue,
+  computeRunLaneProgress,
   deltaTone,
+  extractRunTotalLines,
   formatDelta,
+  formatElapsed,
+  formatFinishedAgo,
+  formatLaneProgress,
+  formatRunCost,
+  isRunActive,
   movementReasonLabel,
+  runStatusLabel,
+  runStatusTone,
   stockStateFor,
   todayBoundsIso,
   uniq,
@@ -173,5 +182,145 @@ describe("uniq", () => {
 
   test("empty input yields empty output", () => {
     expect(uniq([])).toEqual([]);
+  });
+});
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Agent activity card — dashboard's WF-3 slice (plan/tab-dashboard.md).
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+describe("extractRunTotalLines", () => {
+  test("reads plan.config.lines.length from the enqueue envelope", () => {
+    const plan = { config: { lines: [{ bomLineId: "a" }, { bomLineId: "b" }] }, masterPlan: null };
+    expect(extractRunTotalLines(plan)).toBe(2);
+  });
+
+  test("zero-line config is a valid, distinct total (not 'unknown')", () => {
+    expect(extractRunTotalLines({ config: { lines: [] }, masterPlan: null })).toBe(0);
+  });
+
+  test("null plan (e.g. a worker-test fixture that never wrote it) is unknown", () => {
+    expect(extractRunTotalLines(null)).toBeNull();
+  });
+
+  test("malformed plan (missing config, or config.lines not an array) is unknown, not a crash", () => {
+    expect(extractRunTotalLines({})).toBeNull();
+    expect(extractRunTotalLines({ config: {} })).toBeNull();
+    expect(extractRunTotalLines({ config: { lines: "oops" } })).toBeNull();
+    expect(extractRunTotalLines("not an object")).toBeNull();
+  });
+});
+
+describe("computeRunLaneProgress", () => {
+  test("unknown total ⇒ everything unknown, regardless of status", () => {
+    expect(computeRunLaneProgress("running", null)).toEqual({ total: null, done: null });
+    expect(computeRunLaneProgress("done", null)).toEqual({ total: null, done: null });
+  });
+
+  test("planning: nothing dispatched to the worker yet ⇒ 0 done", () => {
+    expect(computeRunLaneProgress("planning", 6)).toEqual({ total: 6, done: 0 });
+  });
+
+  test("review/done: worker only flips out of running once every job is terminal ⇒ done = total", () => {
+    expect(computeRunLaneProgress("review", 6)).toEqual({ total: 6, done: 6 });
+    expect(computeRunLaneProgress("done", 6)).toEqual({ total: 6, done: 6 });
+  });
+
+  test("running: per-line progress isn't observable under RLS ⇒ done is indeterminate, not fabricated", () => {
+    expect(computeRunLaneProgress("running", 6)).toEqual({ total: 6, done: null });
+  });
+
+  test("failed: could have aborted early or late — stays indeterminate rather than guessing", () => {
+    expect(computeRunLaneProgress("failed", 6)).toEqual({ total: 6, done: null });
+  });
+});
+
+describe("formatLaneProgress", () => {
+  test("unknown total renders the honest dash", () => {
+    expect(formatLaneProgress({ total: null, done: null })).toBe("—");
+  });
+
+  test("zero to-order lines reads as a sentence, not '0 of 0 lines'", () => {
+    expect(formatLaneProgress({ total: 0, done: 0 })).toBe("no to-order lines");
+  });
+
+  test("indeterminate done renders total only, no fake fraction", () => {
+    expect(formatLaneProgress({ total: 6, done: null })).toBe("6 lines");
+  });
+
+  test("known done/total renders the fraction", () => {
+    expect(formatLaneProgress({ total: 6, done: 6 })).toBe("6 of 6 lines");
+    expect(formatLaneProgress({ total: 6, done: 0 })).toBe("0 of 6 lines");
+  });
+
+  test("singular 'line' at total === 1", () => {
+    expect(formatLaneProgress({ total: 1, done: null })).toBe("1 line");
+    expect(formatLaneProgress({ total: 1, done: 1 })).toBe("1 of 1 line");
+  });
+});
+
+describe("runStatusLabel / runStatusTone / isRunActive", () => {
+  test("every forward-only status has a human label", () => {
+    expect(runStatusLabel("planning")).toBe("Planning");
+    expect(runStatusLabel("running")).toBe("Running");
+    expect(runStatusLabel("review")).toBe("Needs review");
+    expect(runStatusLabel("done")).toBe("Done");
+    expect(runStatusLabel("failed")).toBe("Failed");
+  });
+
+  test("running and failed share the design system's one alert color (accent) — text tells them apart", () => {
+    expect(runStatusTone("running")).toBe("accent");
+    expect(runStatusTone("failed")).toBe("accent");
+  });
+
+  test("done/planning are quiet (default), review is a soft highlight", () => {
+    expect(runStatusTone("planning")).toBe("default");
+    expect(runStatusTone("done")).toBe("default");
+    expect(runStatusTone("review")).toBe("soft");
+  });
+
+  test("isRunActive is true only for planning/running", () => {
+    expect(isRunActive("planning")).toBe(true);
+    expect(isRunActive("running")).toBe(true);
+    expect(isRunActive("review")).toBe(false);
+    expect(isRunActive("done")).toBe(false);
+    expect(isRunActive("failed")).toBe(false);
+  });
+});
+
+describe("formatElapsed / formatFinishedAgo", () => {
+  const reference = new Date(2026, 6, 3, 12, 0, 0); // 3 Jul 2026, noon local
+
+  test("elapsed measures from start to the injected reference, not real now()", () => {
+    const start = new Date(2026, 6, 3, 11, 55, 0).toISOString(); // 5 min earlier
+    expect(formatElapsed(start, reference)).toBe("5 minutes elapsed");
+  });
+
+  test("finished-ago reads as a past-tense suffix", () => {
+    const finished = new Date(2026, 6, 3, 11, 45, 0).toISOString(); // 15 min earlier
+    expect(formatFinishedAgo(finished, reference)).toBe("15 minutes ago");
+  });
+
+  test("null/invalid input renders the honest dash instead of 'Invalid Date'", () => {
+    expect(formatElapsed("not a date", reference)).toBe("—");
+    expect(formatFinishedAgo(null, reference)).toBe("—");
+  });
+});
+
+describe("formatRunCost", () => {
+  test("prefers actual_cost once the worker has spent something", () => {
+    const { text, isEstimate } = formatRunCost(42.5, 50);
+    expect(text).toBe("₹42.50");
+    expect(isEstimate).toBe(false);
+  });
+
+  test("falls back to est_cost (dry-run estimate) before anything has been spent", () => {
+    const { text, isEstimate } = formatRunCost(null, 50);
+    expect(text).toBe("₹50.00");
+    expect(isEstimate).toBe(true);
+  });
+
+  test("neither cost known yet ⇒ honest dash, not an estimate flag", () => {
+    expect(formatRunCost(null, null)).toEqual({ text: "—", isEstimate: false });
   });
 });

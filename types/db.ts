@@ -1151,6 +1151,17 @@ export type Database = {
         Args: Record<PropertyKey, never>;
         Returns: AppRole | null;
       };
+      /**
+       * Atomic worker job-claim (migration 0007). `UPDATE ... WHERE id IN
+       * (SELECT ... FOR UPDATE SKIP LOCKED LIMIT p_limit) RETURNING *` — the
+       * single-statement claim path PostgREST can't express directly, so the
+       * worker calls it via `.rpc()`. SECURITY DEFINER, service_role-only.
+       * Returns the rows it claimed (0..p_limit) as full `smark_order_jobs`.
+       */
+      smark_claim_next_order_jobs: {
+        Args: { p_limit?: number };
+        Returns: OrderJobRow[];
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

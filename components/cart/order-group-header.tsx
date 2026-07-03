@@ -48,7 +48,13 @@ export function OrderGroupShell({
         </div>
         {children}
         <div className="border-t border-border-divider pt-3">
-          <ReceiptUpload orderId={group.orderId} receiptUrl={group.receiptUrl} canWrite={canWrite} />
+          <ReceiptUpload
+            orderId={group.orderId}
+            poNumber={group.poNumber}
+            receiptUrl={group.receiptUrl}
+            canWrite={canWrite}
+            lines={group.lines}
+          />
         </div>
       </CardBody>
     </Card>

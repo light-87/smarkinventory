@@ -22,16 +22,26 @@ import { recomputeShortfallCartItems, type RecomputeSummary } from "./demand";
 import { checkoutCart, type CheckoutResult } from "./checkout";
 import { markOrderLineArrived, type MarkOrderLineArrivedResult } from "./arrivals";
 import { uploadReceipt, type UploadReceiptResult } from "./receipts";
+import {
+  applyReceiptExtraction,
+  extractOrderReceipt,
+  type ApplyReceiptExtractionResult,
+  type ExtractOrderReceiptResult,
+} from "./receipt-extract";
 import { searchPartsForManualAdd, type PartSearchHit } from "./queries";
 import {
   CartItemIdInputSchema,
   CheckoutInputSchema,
+  ConfirmReceiptExtractionInputSchema,
   ManualAddInputSchema,
+  OrderIdInputSchema,
   OrderLineIdInputSchema,
   UpdateCartLineInputSchema,
   type CartItemIdInput,
   type CheckoutInput,
+  type ConfirmReceiptExtractionInput,
   type ManualAddInput,
+  type OrderIdInput,
   type OrderLineIdInput,
   type UpdateCartLineInput,
 } from "./types";
@@ -144,6 +154,28 @@ export async function uploadReceiptAction(formData: FormData): Promise<UploadRec
     contentType: file.type || null,
     body,
   });
+  if (result.ok) revalidatePath(CART_PATH);
+  return result;
+}
+
+/**
+ * "Extract prices" (§3-C) step 1 — read-only, returns a proposal for the
+ * confirm dialog. Never writes a price (lib/orders/receipt-extract.ts module
+ * doc) — nothing to revalidate.
+ */
+export async function extractOrderReceiptAction(input: OrderIdInput): Promise<ExtractOrderReceiptResult> {
+  const parsed = OrderIdInputSchema.parse(input);
+  const { supabase } = await requireCartWriter();
+  return extractOrderReceipt(supabase, parsed.orderId);
+}
+
+/** "Extract prices" step 2 — the user-confirmed mapping actually gets written here. */
+export async function confirmReceiptExtractionAction(
+  input: ConfirmReceiptExtractionInput,
+): Promise<ApplyReceiptExtractionResult> {
+  const parsed = ConfirmReceiptExtractionInputSchema.parse(input);
+  const { supabase } = await requireCartWriter();
+  const result = await applyReceiptExtraction(supabase, parsed.orderId, parsed.raw, parsed.lines);
   if (result.ok) revalidatePath(CART_PATH);
   return result;
 }

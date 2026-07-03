@@ -12,7 +12,16 @@
  *    cookies, no user session. Reserved for trusted server-only paths: the
  *    browser-worker's job queue claim (`smark_order_jobs` FOR UPDATE SKIP
  *    LOCKED), owner user-management actions (Settings → Users, which must
- *    create `auth.users` rows via the Auth admin API), cron/webhooks.
+ *    create `auth.users` rows via the Auth admin API), cron/webhooks, and the
+ *    Order-Run / Review server surface (`app/(app)/projects/[projectId]/runs/**`
+ *    + `ordering/**`, `app/api/runs/**`, `lib/runs/**`) whose targets —
+ *    `smark_agent_runs` / `smark_agent_results` / `smark_order_jobs` — are
+ *    service-role-only by RLS (migration 0004). Those routes are the
+ *    "manual-auth-then-service-read" analogue of portal's SECURITY DEFINER
+ *    functions: they MUST first authorize the caller with the per-request RLS
+ *    `createClient()` (`canWrite('projects')` + a cross-project-id guard) and
+ *    only THEN reach for this client to touch the locked agent tables. This is
+ *    the integrator-authored exception `lib/runs/enqueue.ts`'s header refers to.
  *    NEVER import this into a Client Component and never let
  *    `SUPABASE_SERVICE_ROLE_KEY` reach the browser bundle. Every write made
  *    through this client must stamp the acting `smark_app_users.id` onto

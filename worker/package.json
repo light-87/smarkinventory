@@ -1,0 +1,22 @@
+{
+  "name": "smarkstock-worker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SmarkStock Browser-Worker — always-on job-claim service (claim → Opus plan → Sonnet item agents → distributor search → results). Standalone Bun package; deploys separately from the Next.js app (Railway/Fly/Render). See ../docs/spike-browser-worker.md.",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --watch index.ts",
+    "start": "bun run index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "spike": "bun run spike/harness.ts"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.110.0"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.14",
+    "@types/node": "^26.1.0",
+    "typescript": "^6.0.3"
+  }
+}

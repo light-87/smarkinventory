@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -143,10 +144,10 @@ export function ReconcileView({ bom, lines, writable }: ReconcileViewProps) {
       </TableShell>
 
       <div>
-        <Button size="lg" disabled title="AI sourcing — coming with the agent layer">
-          Set up ordering →
-        </Button>
-        <p className="mt-2 text-caption text-smoke">AI sourcing — coming with the agent layer.</p>
+        <Link href={`/projects/${bom.project_id}/ordering/${bom.id}`}>
+          <Button size="lg">Set up ordering →</Button>
+        </Link>
+        <p className="mt-2 text-caption text-smoke">Sequence, priorities, tier, then run AI sourcing.</p>
       </div>
     </div>
   );

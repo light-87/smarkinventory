@@ -122,6 +122,67 @@ jobs:
       - name: RLS matrix + DB-backed suites (real run — env is set)
         run: bun test
 
+  # ── worker package: atomic claim / idempotency / caps against local DB ──
+  # The Browser-Worker is a standalone Bun package (worker/**, own
+  # package.json) — its DB-backed suites (claim race, idempotent upsert,
+  # ₹-ceiling) self-skip without a stack (worker/tests/helpers.ts
+  # `describeWithDb`), so give them the same local Supabase the integration
+  # job uses. `bun install` at the repo root hoists @supabase/supabase-js,
+  # which `cd worker && bun test` resolves by walking up node_modules.
+  worker:
+    name: worker package (claim + caps, local DB)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Cache bun install
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+          restore-keys: ${{ runner.os }}-bun-
+
+      - run: bun install --frozen-lockfile
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start local Supabase (Docker — preinstalled on ubuntu-latest)
+        run: supabase start
+
+      # `supabase db reset` applies 0007_worker_claim_fn.sql (the RPC the
+      # claim test's primary path exercises) and seeds smark_distributors
+      # (seedRunFixture looks up 'Digikey').
+      - name: Apply migrations + seed
+        run: supabase db reset
+
+      - name: Export local Supabase env for worker/tests/helpers.ts
+        run: |
+          supabase status -o env > /tmp/supabase-status.env
+          api_url=$(grep '^API_URL=' /tmp/supabase-status.env | cut -d= -f2- | tr -d '"')
+          service_key=$(grep '^SERVICE_ROLE_KEY=' /tmp/supabase-status.env | cut -d= -f2- | tr -d '"')
+          {
+            echo "SUPABASE_URL=$api_url"
+            echo "SUPABASE_SERVICE_ROLE_KEY=$service_key"
+          } >> "$GITHUB_ENV"
+
+      - name: Sanity-check exported env (fail loud, not a silent skip-everything)
+        run: |
+          test -n "$SUPABASE_URL" || { echo "::error::SUPABASE_URL empty after supabase status -o env parse"; exit 1; }
+          test -n "$SUPABASE_SERVICE_ROLE_KEY" || { echo "::error::SUPABASE_SERVICE_ROLE_KEY empty after supabase status -o env parse"; exit 1; }
+
+      - name: worker typecheck
+        run: cd worker && bunx tsc --noEmit
+
+      - name: worker tests (real run — env is set)
+        run: cd worker && bun test
+
   # ── build ────────────────────────────────────────────────────────────
   build:
     name: build
@@ -242,7 +303,7 @@ jobs:
   gate:
     name: CI gate
     runs-on: ubuntu-latest
-    needs: [checks, integration, build, playwright]
+    needs: [checks, integration, worker, build, playwright]
     if: always()
     steps:
       - name: Fail if any required job failed or was cancelled

@@ -177,9 +177,12 @@ export async function getCartItemById(supabase: DB, id: string): Promise<CartIte
 
 export interface OrderLineView {
   orderLineId: string;
+  /** Groups sibling lines from the same checkout split (lib/orders/checkout.ts's `splitQtyAcrossDemand` fans one cart line out per project) — WF-3's receipt-extraction mapping (lib/orders/receipt-map.ts) keys off this. Null only for a line whose originating cart item was since deleted (shouldn't happen post-checkout — cart_items only ever flip to `ordered`, never get removed by this package). */
+  cartItemId: string | null;
   partId: string | null;
   internalPid: string | null;
   mpn: string | null;
+  lcscPn: string | null;
   value: string | null;
   package: string | null;
   projectName: string | null;
@@ -222,7 +225,7 @@ async function buildOrderGroups(
   const [ordersRes, partsRes, cartItemsRes, bomLinesRes, projectsRes] = await Promise.all([
     supabase.from(TABLES.orders).select("*").in("id", orderIds),
     partIds.length
-      ? supabase.from(TABLES.parts).select("id, internal_pid, mpn, value, package").in("id", partIds)
+      ? supabase.from(TABLES.parts).select("id, internal_pid, mpn, lcsc_pn, value, package").in("id", partIds)
       : Promise.resolve({ data: [], error: null }),
     cartItemIds.length
       ? supabase.from(TABLES.cart_items).select("id, descriptor").in("id", cartItemIds)
@@ -298,9 +301,11 @@ async function buildOrderGroups(
 
     const lineView: OrderLineView = {
       orderLineId: line.id,
+      cartItemId: line.cart_item_id,
       partId: line.part_id,
       internalPid: part?.internal_pid ?? null,
       mpn: part?.mpn ?? descriptor?.mpn ?? null,
+      lcscPn: part?.lcsc_pn ?? descriptor?.lcsc_pn ?? null,
       value: part?.value ?? descriptor?.value ?? null,
       package: part?.package ?? descriptor?.package ?? null,
       projectName: line.project_id ? (projectNameById.get(line.project_id) ?? null) : null,

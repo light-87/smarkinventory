@@ -100,7 +100,11 @@ if (typeof process.versions.bun === "undefined") {
       expect(toOrderValue).toBeGreaterThan(0);
 
       await expect(page.getByText(bomName)).toBeVisible();
-      await expect(page.getByRole("button", { name: /set up ordering/i })).toBeDisabled();
+      // "Set up ordering →" now links straight into the Ordering Workspace
+      // (bom-pipeline's WF-3 half) — was a disabled placeholder button pre-WF-3.
+      const setUpOrderingLink = page.getByRole("link", { name: /set up ordering/i });
+      await expect(setUpOrderingLink).toBeVisible();
+      await expect(setUpOrderingLink).toHaveAttribute("href", new RegExp(`/projects/${projectId}/ordering/[0-9a-f-]+$`));
     });
   });
 

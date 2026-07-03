@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
-import { getDashboardStats, getRecentMovements, getUsageByProject } from "@/lib/dashboard/queries";
+import {
+  getDashboardStats,
+  getRecentAgentRuns,
+  getRecentMovements,
+  getUsageByProject,
+} from "@/lib/dashboard/queries";
 import { StatGrid } from "@/components/dashboard/stat-grid";
 import { RecentMovementsCard } from "@/components/dashboard/recent-movements-card";
 import { AgentActivityCard } from "@/components/dashboard/agent-activity-card";
@@ -27,10 +32,11 @@ async function loadSection<T>(promise: Promise<T>): Promise<Section<T>> {
 export default async function DashboardPage() {
   const supabase = await createClient();
 
-  const [stats, movements, usage] = await Promise.all([
+  const [stats, movements, usage, agentRuns] = await Promise.all([
     loadSection(getDashboardStats(supabase)),
     loadSection(getRecentMovements(supabase)),
     loadSection(getUsageByProject(supabase)),
+    loadSection(getRecentAgentRuns(supabase)),
   ]);
 
   return (
@@ -41,7 +47,7 @@ export default async function DashboardPage() {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-[1.6fr_1fr]">
         <RecentMovementsCard movements={movements.data} error={movements.error} />
         <div className="flex flex-col gap-4">
-          <AgentActivityCard />
+          <AgentActivityCard initialRuns={agentRuns.data} error={agentRuns.error} />
           <UsageByProjectCard bars={usage.data} error={usage.error} />
         </div>
       </div>

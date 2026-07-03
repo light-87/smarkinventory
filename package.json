@@ -9,7 +9,11 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "bun test"
+    "test": "bun test",
+    "worker:dev": "cd worker && bun run dev",
+    "worker:start": "cd worker && bun run start",
+    "worker:test": "cd worker && bun test",
+    "db:seed-demo": "bun run scripts/seed-demo-run.ts"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

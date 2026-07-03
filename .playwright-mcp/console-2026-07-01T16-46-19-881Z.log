@@ -1,8 +1,0 @@
-[     100ms] [WARNING] [dc-runtime] SmarkStock: {{ r.pid }} never resolved — rendered as empty @ http://127.0.0.1:8137/support.js:471
-[     101ms] [WARNING] [dc-runtime] SmarkStock: {{ r.mpn }} never resolved — rendered as empty @ http://127.0.0.1:8137/support.js:471
-[     101ms] [WARNING] [dc-runtime] SmarkStock: {{ r.value }} never resolved — rendered as empty @ http://127.0.0.1:8137/support.js:471
-[     101ms] [WARNING] [dc-runtime] SmarkStock: {{ r.pkg }} never resolved — rendered as empty @ http://127.0.0.1:8137/support.js:471
-[     101ms] [WARNING] [dc-runtime] SmarkStock: {{ r.category }} never resolved — rendered as empty @ http://127.0.0.1:8137/support.js:471
-[     101ms] [WARNING] [dc-runtime] SmarkStock: {{ r.qtyStr }} never resolved — rendered as empty @ http://127.0.0.1:8137/support.js:471
-[     102ms] [WARNING] [dc-runtime] SmarkStock: {{ r.loc }} never resolved — rendered as empty @ http://127.0.0.1:8137/support.js:471
-[     102ms] [WARNING] [dc-runtime] SmarkStock: {{ r.statusLabel }} never resolved — rendered as empty @ http://127.0.0.1:8137/support.js:471

@@ -103,3 +103,34 @@ export type OrderLineIdInput = z.infer<typeof OrderLineIdInputSchema>;
 
 export const OrderIdInputSchema = z.object({ orderId: z.uuid() });
 export type OrderIdInput = z.infer<typeof OrderIdInputSchema>;
+
+/**
+ * Confirm step for "Extract prices" (§3-C, lib/orders/receipt-extract.ts).
+ * `raw` is the AI's original proposal (round-tripped from the client so the
+ * server never has to re-derive it, and so `receipt_extracted` can carry the
+ * exact thing that was reviewed) — `lines` is the user-confirmed mapping
+ * that actually gets written.
+ */
+const ReceiptExtractedLineInputSchema = z.object({
+  desc: z.string(),
+  qty: z.number(),
+  unit_price: z.number(),
+});
+
+export const ConfirmReceiptExtractionInputSchema = z.object({
+  orderId: z.uuid(),
+  raw: z.object({
+    lines: z.array(ReceiptExtractedLineInputSchema),
+    total: z.number().nullable(),
+  }),
+  lines: z
+    .array(
+      z.object({
+        orderLineIds: z.array(z.uuid()).min(1),
+        cartItemId: z.uuid().nullable(),
+        unitPrice: z.coerce.number().nonnegative("Price can't be negative"),
+      }),
+    )
+    .min(1, "Map at least one line to a part before confirming."),
+});
+export type ConfirmReceiptExtractionInput = z.infer<typeof ConfirmReceiptExtractionInputSchema>;

@@ -10,19 +10,25 @@
  * type embeds against), so hand-joining in JS keeps this fully typed.
  */
 
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { createClient } from "@/lib/supabase/server";
-import { TABLES } from "@/types/db";
+import { TABLES, type AgentRunStatus, type Database } from "@/types/db";
 import {
   buildProjectUsageBars,
   composeBoxLabel,
   computeInventoryValue,
+  computeRunLaneProgress,
   deltaTone,
+  extractRunTotalLines,
   formatDelta,
+  formatRunCost,
   movementReasonLabel,
   stockStateFor,
   todayBoundsIso,
   uniq,
   type ProjectUsageBar,
+  type RunCostDisplay,
+  type RunLaneProgress,
 } from "@/lib/dashboard/compute";
 import { formatTime } from "@/lib/format";
 
@@ -213,4 +219,91 @@ export async function getUsageByProject(
   }));
 
   return buildProjectUsageBars(inputs, limit);
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Agent activity — recent smark_agent_runs (plan/tab-dashboard.md's
+ * agent-activity section, FEATURES §5.1). Typed against the plain
+ * `SupabaseClient<Database>` (not the server-only `SupabaseServerClient`
+ * alias above) so the SAME shaping function serves both the initial
+ * server-rendered fetch (lib/supabase/server.ts) and the client-side "while
+ * active" poll (lib/supabase/client.ts) — see hooks/use-agent-runs-feed.ts.
+ * Both factories return RLS-bound clients; neither is service-role (HARD
+ * RULES: "RLS clients in app routes"). See lib/dashboard/compute.ts's
+ * "Agent activity card" section header for the done/total RLS caveat.
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+export interface AgentRunFeedRow {
+  id: string;
+  bomId: string;
+  bomName: string;
+  projectId: string;
+  projectName: string;
+  status: AgentRunStatus;
+  laneProgress: RunLaneProgress;
+  cost: RunCostDisplay;
+  startedByName: string | null;
+  createdAt: string;
+  /** Best-effort "finished at" for terminal runs — see formatFinishedAgo's doc. */
+  updatedAt: string | null;
+}
+
+export async function getRecentAgentRuns(
+  supabase: SupabaseClient<Database>,
+  limit = 5,
+): Promise<AgentRunFeedRow[]> {
+  const { data, error } = await supabase
+    .from(TABLES.agent_runs)
+    .select("id, bom_id, status, actual_cost, est_cost, plan, started_by, created_at, updated_at")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  assertNoError(error, "loading recent agent runs");
+
+  const runs = data ?? [];
+  if (runs.length === 0) return [];
+
+  const bomIds = uniq(runs.map((r) => r.bom_id));
+  const userIds = uniq(runs.map((r) => r.started_by));
+
+  const [bomsRes, usersRes] = await Promise.all([
+    bomIds.length
+      ? supabase.from(TABLES.boms).select("id, name, project_id").in("id", bomIds)
+      : Promise.resolve({ data: [], error: null }),
+    userIds.length
+      ? supabase.from(TABLES.app_users).select("id, username, display_name").in("id", userIds)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+  assertNoError(bomsRes.error, "loading BOMs for agent run feed");
+  assertNoError(usersRes.error, "loading users for agent run feed");
+
+  const boms = bomsRes.data ?? [];
+  const projectIds = uniq(boms.map((b) => b.project_id));
+  const projectsRes = projectIds.length
+    ? await supabase.from(TABLES.projects).select("id, name").in("id", projectIds)
+    : { data: [] as { id: string; name: string }[], error: null };
+  assertNoError(projectsRes.error, "loading projects for agent run feed");
+
+  const bomById = new Map(boms.map((b) => [b.id, b]));
+  const projectNameById = new Map((projectsRes.data ?? []).map((p) => [p.id, p.name]));
+  const userNameById = new Map(
+    (usersRes.data ?? []).map((u) => [u.id, u.display_name ?? u.username]),
+  );
+
+  return runs.map((r) => {
+    const bom = bomById.get(r.bom_id);
+    const totalLines = extractRunTotalLines(r.plan);
+    return {
+      id: r.id,
+      bomId: r.bom_id,
+      bomName: bom?.name ?? "Deleted BOM",
+      projectId: bom?.project_id ?? "",
+      projectName: bom ? (projectNameById.get(bom.project_id) ?? "Unknown project") : "Unknown project",
+      status: r.status,
+      laneProgress: computeRunLaneProgress(r.status, totalLines),
+      cost: formatRunCost(r.actual_cost, r.est_cost),
+      startedByName: r.started_by ? (userNameById.get(r.started_by) ?? null) : null,
+      createdAt: r.created_at,
+      updatedAt: r.updated_at,
+    };
+  });
 }
