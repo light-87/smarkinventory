@@ -37,3 +37,20 @@ Screenshot: docs/testing-screenshots/f-001.png (optional)
 ## Processed log
 
 <!-- Claude moves resolved entries here with commit hashes, so the Findings section stays short -->
+
+### F-001 · S2 · FIXED (a85963b)
+Surface: Projects → BOMs list
+What happened: no way to delete a BOM.
+Fix: per-row delete button (owner/employee) with confirm dialog; lines cascade-delete; a BOM
+that already has AI sourcing runs is not deletable by design (run/cost history is protected) —
+the button explains and points to archiving the project instead.
+
+### F-002 · S1 · FIXED (a85963b)
+Surface: Projects → BOMs → upload GCU_V1.1_BOM.xlsx
+What happened: Status column showed wrong inventory matches (e.g. "10uF/25V 1206" pinned to a
+part in "Capacitors 0603") — the fuzzy value+package matcher rung was guessing identities for
+BOM lines whose MPN isn't in the catalog. Note: the parse itself was faithful — rows 94–100
+(blank refs, repeated C1/C2/H1/J1/U1) genuinely exist in the file (second board section).
+Fix: BOM reconcile now matches on exact MPN/LCSC identity only; everything else stays
+unresolved ("To order") and goes to AI sourcing as-is. Fuzzy matching still serves Receive's
+duplicate guard and bulk takeout, where a person confirms the hit.
