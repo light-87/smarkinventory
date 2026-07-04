@@ -24,7 +24,15 @@ import {
   UploadBomInputSchema,
   type CreateBomRowInput,
 } from "@/lib/bom/types";
-import { createInAppBom, createUploadedBom, runReconcile, setBuildQty, type CreateBomResult } from "@/lib/bom/service";
+import {
+  createInAppBom,
+  createUploadedBom,
+  deleteBom,
+  runReconcile,
+  setBuildQty,
+  type CreateBomResult,
+  type DeleteBomResult,
+} from "@/lib/bom/service";
 import { getEffectiveBomColumns } from "@/lib/bom/template";
 import { makeCustomColumn } from "@/lib/bom/columns";
 
@@ -119,6 +127,18 @@ export async function updateBuildQtyAction(input: { bomId: string; buildQty: num
     return { ok: true };
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "Could not update build qty." };
+  }
+}
+
+/** Delete a BOM from the project's BOMs list — blocked (friendly error) once AI runs exist. */
+export async function deleteBomAction(input: { projectId: string; bomId: string }): Promise<DeleteBomResult> {
+  const { supabase } = await requireProjectsWriter();
+  try {
+    const result = await deleteBom(supabase, input.bomId);
+    if (result.ok) revalidatePath(`/projects/${input.projectId}/boms`);
+    return result;
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Could not delete that BOM." };
   }
 }
 

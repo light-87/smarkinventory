@@ -176,7 +176,7 @@ export async function runReconcile(supabase: DB, bomId: string): Promise<void> {
 
   const { data: lines, error: linesError } = await supabase
     .from(TABLES.bom_lines)
-    .select("id, qty, value, footprint, mpn, lcsc_pn, dnp")
+    .select("id, qty, mpn, lcsc_pn, dnp")
     .eq("bom_id", bomId);
   if (linesError) throw linesError;
   if (!lines || lines.length === 0) return;
@@ -312,6 +312,38 @@ export async function createInAppBom(supabase: DB, input: CreateInAppBomInput): 
 
   await runReconcile(supabase, bom.id);
   return { ok: true, bomId: bom.id };
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Delete BOM
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+export type DeleteBomResult = { ok: true } | { ok: false; error: string };
+
+/**
+ * Deletes a BOM; its lines go with it (`smark_bom_lines.bom_id` ON DELETE
+ * CASCADE, 0003) and any released cross-project demand self-heals on the next
+ * cart render (`recomputeShortfallCartItems`). A BOM with AI sourcing runs is
+ * NOT deletable by design — `smark_agent_runs.bom_id` is RESTRICT (0004) to
+ * protect run/cost history — that FK violation maps to a friendly message.
+ */
+export async function deleteBom(supabase: DB, bomId: string): Promise<DeleteBomResult> {
+  const { data, error } = await supabase.from(TABLES.boms).delete().eq("id", bomId).select("id");
+  if (error) {
+    if (error.code === "23503") {
+      return {
+        ok: false,
+        error:
+          "This BOM has AI sourcing runs recorded against it, so it can't be deleted — run and cost history stay traceable. Archive the project instead.",
+      };
+    }
+    throw error;
+  }
+  // RLS blocking a delete surfaces as zero affected rows, not an error.
+  if (!data || data.length === 0) {
+    return { ok: false, error: "Could not delete this BOM — it may already be gone, or you don't have permission." };
+  }
+  return { ok: true };
 }
 
 /* ────────────────────────────────────────────────────────────────────────────

@@ -46,7 +46,7 @@ export default async function BomsPage({ params }: BomsPageProps) {
         )}
       </div>
 
-      <BomListTable projectId={projectId} boms={boms} />
+      <BomListTable projectId={projectId} boms={boms} writable={writable} />
     </div>
   );
 }

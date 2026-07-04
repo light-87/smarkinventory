@@ -21,7 +21,7 @@ const PART: ReconcileCatalogPart = {
   total_qty: 100,
 };
 
-const LINE: ReconcileLineInput = { id: "l1", qty: 10, value: null, footprint: null, mpn: "ABC123", lcsc_pn: null, dnp: false };
+const LINE: ReconcileLineInput = { id: "l1", qty: 10, mpn: "ABC123", lcsc_pn: null, dnp: false };
 
 describe("build_qty ×N need math", () => {
   test("need is exactly qty × build_qty", () => {

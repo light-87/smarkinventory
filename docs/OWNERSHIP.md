@@ -289,5 +289,6 @@ bom-pipeline · `lib/matcher` (shared) ← bom-pipeline/takeout/receive · `lib/
 (search-notifications) ← cart-orders/projects-hub/ai-memory/portal · `lib/ai` (ai-memory) ←
 cart-orders/bom-pipeline/receive · `lib/scan` (scan: resolve/classify + CameraScanner component) ←
 auth-shell-header/receive/search-notifications · `lib/search` (search-notifications: partHref/boxHref)
-← auth-shell-header. If you need a function that doesn't exist in a dependency,
+← auth-shell-header · `components/projects/confirm-dialog` (projects-hub) ← bom-pipeline (delete-BOM
+confirm). If you need a function that doesn't exist in a dependency,
 ask that package's owner (via the orchestrator), don't add it yourself.
