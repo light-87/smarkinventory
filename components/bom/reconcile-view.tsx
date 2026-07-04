@@ -21,7 +21,18 @@ export interface ReconcileViewProps {
   writable: boolean;
 }
 
-/** Per-BOM reconcile view (plan/tab-orders-projects.md §2/§5): stat trio, build-qty ×N, lines table. */
+/** "tolerance_pct" → "tolerance pct" — extra-column keys are slugs, headers should read like words. */
+function extraKeyLabel(key: string): string {
+  return key.replace(/_/g, " ");
+}
+
+/**
+ * Per-BOM reconcile view (plan/tab-orders-projects.md §2/§5): stat trio,
+ * build-qty ×N, lines table. The table renders the uploaded file IN FULL —
+ * every parsed column including Description/Manufacturer/PartLink and any
+ * custom extras (manual-test feedback: the BOM screen must mirror the file
+ * as-is; Status is informational, the AI pipeline reads the raw lines).
+ */
 export function ReconcileView({ bom, lines, writable }: ReconcileViewProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -29,6 +40,9 @@ export function ReconcileView({ bom, lines, writable }: ReconcileViewProps) {
   const [error, setError] = useState<string | null>(null);
 
   const stats = computeReconcileStats(lines.map((l) => ({ matchState: l.match_state })));
+  const hasLcsc = lines.some((l) => l.lcsc_pn);
+  const hasNotes = lines.some((l) => l.priority_note);
+  const extraKeys = Array.from(new Set(lines.flatMap((l) => (l.extra ? Object.keys(l.extra) : []))));
 
   function saveBuildQty() {
     setError(null);
@@ -101,7 +115,7 @@ export function ReconcileView({ bom, lines, writable }: ReconcileViewProps) {
 
       {error && <div className="text-caption text-smark-orange-soft">{error}</div>}
 
-      <TableShell minWidth={860}>
+      <TableShell minWidth={1480 + extraKeys.length * 120}>
         <TableHead>
           <Tr>
             <Th>#</Th>
@@ -109,7 +123,17 @@ export function ReconcileView({ bom, lines, writable }: ReconcileViewProps) {
             <Th align="right">Qty</Th>
             <Th>Value</Th>
             <Th>Footprint</Th>
+            <Th>Description</Th>
             <Th>MPN</Th>
+            <Th>Manufacturer</Th>
+            {hasLcsc && <Th>LCSC</Th>}
+            <Th>Link</Th>
+            {hasNotes && <Th>Note</Th>}
+            {extraKeys.map((key) => (
+              <Th key={key} className="capitalize">
+                {extraKeyLabel(key)}
+              </Th>
+            ))}
             <Th>Status</Th>
           </Tr>
         </TableHead>
@@ -121,7 +145,9 @@ export function ReconcileView({ bom, lines, writable }: ReconcileViewProps) {
               </Td>
               <Td mono>
                 <div className="flex items-center gap-1.5">
-                  <span>{line.references ?? "—"}</span>
+                  <span className="max-w-[260px] truncate" title={line.references ?? undefined}>
+                    {line.references ?? "—"}
+                  </span>
                   {line.dnp && <DnpBadge />}
                 </div>
               </Td>
@@ -130,7 +156,38 @@ export function ReconcileView({ bom, lines, writable }: ReconcileViewProps) {
               </Td>
               <Td>{line.value ?? "—"}</Td>
               <Td className="text-smoke">{line.footprint ?? "—"}</Td>
+              <Td className="text-smoke">
+                <span className="block max-w-[280px] truncate" title={line.description ?? undefined}>
+                  {line.description ?? "—"}
+                </span>
+              </Td>
               <Td mono>{line.mpn ?? "—"}</Td>
+              <Td className="text-smoke">{line.manufacturer ?? "—"}</Td>
+              {hasLcsc && <Td mono>{line.lcsc_pn ?? "—"}</Td>}
+              <Td>
+                {line.part_link ? (
+                  <a
+                    href={line.part_link}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-silver-mist underline underline-offset-2 transition-colors hover:text-snow"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    open ↗
+                  </a>
+                ) : (
+                  <span className="text-smoke">—</span>
+                )}
+              </Td>
+              {hasNotes && <Td className="text-smoke">{line.priority_note ?? "—"}</Td>}
+              {extraKeys.map((key) => {
+                const raw = line.extra?.[key];
+                return (
+                  <Td key={key} className="text-smoke">
+                    {raw === null || raw === undefined ? "—" : String(raw)}
+                  </Td>
+                );
+              })}
               <Td>
                 <LineStatusChip
                   matchState={line.match_state}

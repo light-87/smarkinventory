@@ -38,6 +38,15 @@ Screenshot: docs/testing-screenshots/f-001.png (optional)
 
 <!-- Claude moves resolved entries here with commit hashes, so the Findings section stays short -->
 
+### F-003 · S2 · FIXED (see commit)
+Surface: Projects → BOMs → BOM detail table
+What happened: the table hid half the uploaded file — Description, Manufacturer, PartLink,
+LCSC, per-line notes and custom extra columns were parsed + stored but never rendered.
+Decision recorded: the BOM screen mirrors the uploaded file as-is; Status is informational
+only (exact MPN/LCSC), and the AI pipeline receives every non-in-stock line raw.
+Fix: BOM detail now renders all parsed columns (conditional LCSC/Note, dynamic extras,
+PartLink as a clickable link); long references/descriptions truncate with full-text tooltips.
+
 ### F-001 · S2 · FIXED (a85963b)
 Surface: Projects → BOMs list
 What happened: no way to delete a BOM.
