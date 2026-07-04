@@ -137,7 +137,7 @@ export interface WorkerBomLine {
   bomLineId: string;
   /** Raw reference designators ("C3,C69…") — public, not client-identifying. */
   refDesignators: string | null;
-  /** Need, already × build_qty. */
+  /** Need, already × build_qty. 0 for DNP lines — nobody intends to buy them. */
   qty: number;
   value: string | null;
   /** Renamed from the DB's `package` column (reserved word) — mandatory rung, never substitutable. */
@@ -146,8 +146,37 @@ export interface WorkerBomLine {
   mpn: string | null;
   manufacturer: string | null;
   lcscPn: string | null;
-  /** Per-line plain-English note from the BOM sheet ("LCSC only") — public, no client names. */
+  /** Per-line plain-English note from the BOM sheet ("LCSC only") — ALREADY aliased. */
   priorityNote: string | null;
+  // ── Complete-file fields (manual-test decision: "the agent gets the whole
+  // BOM"). All optional so run configs stored before this change still parse.
+  /** The sheet's own `#` — lets the model reference lines the way the file does. */
+  lineNo?: number | null;
+  /** Raw footprint cell ("SMARKKicadLib:C1206") — `packageName` is the derived facet. */
+  footprint?: string | null;
+  /** Do-Not-Populate flag from the sheet — the planner must route these to "skip". */
+  dnp?: boolean;
+  /** Component description from the sheet — free text, ALREADY aliased. */
+  description?: string | null;
+  /** Direct distributor product URL from the sheet — public, pass-through real. */
+  partLink?: string | null;
+  /** Custom template columns (key → value) — string values ALREADY aliased. */
+  extra?: Record<string, string | number | boolean | null> | null;
+}
+
+/**
+ * Informational summary of a line that is already fully in stock — included
+ * in the run config so the master planner sees the COMPLETE uploaded file,
+ * but these have no `smark_order_jobs` row and must never appear in the
+ * plan's `searches`/`skip` output. Public-safe fields only (no free text).
+ */
+export interface InStockLineSummary {
+  lineNo: number | null;
+  refDesignators: string | null;
+  mpn: string | null;
+  value: string | null;
+  /** Need, already × build_qty. */
+  qty: number;
 }
 
 /** One run's full, already-aliased configuration (FEATURES §6/§9/§12). */
@@ -170,6 +199,8 @@ export interface WorkerRunConfig {
   concurrencyPreset: ConcurrencyPreset;
   /** To-order lines only — see WorkerBomLine doc. */
   lines: WorkerBomLine[];
+  /** Already-stocked lines, context only (see InStockLineSummary doc). Optional: absent on pre-change stored configs. */
+  inStockLines?: InStockLineSummary[];
   /** FEATURES §15/§18 — per-run ₹ ceiling; the worker MUST abort (not silently overspend) past this. */
   rupeeCeiling: number;
 }

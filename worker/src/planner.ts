@@ -32,29 +32,44 @@ and a code like "PROJ-03") and return a single JSON object, nothing else, matchi
 }
 
 Rules:
-- Every bomLineId from the input MUST appear in exactly one of "searches" or "skip" — never both, never omitted.
+- Every bomLineId from the input's "lines" MUST appear in exactly one of "searches" or "skip" — never
+  both, never omitted.
+- "inStockLines" (when present) are lines already fully covered by stock — they have NO bomLineId and
+  must NOT appear in your output; they exist so you see the complete uploaded BOM for context.
+- A line with "dnp": true is marked Do-Not-Populate on the BOM (its qty is already 0) — put it in
+  "skip" with a reason like "DNP — not populated on this build".
 - "distributorOrder" is a reordering/subset of the run's enabled distributor names, tailored to this
   line (e.g. honor a per-line priority note like "LCSC only"; move a distributor earlier if the active
-  rules digest names a preference for this part/category).
-- Only use "skip" when the rules digest or a line's own note clearly says this part is already
-  sufficiently stocked or should not be sourced this run — cite the rule in "ruleHit" when you do.
+  rules digest names a preference for this part/category; a "partLink" URL hints which distributor the
+  BOM's author bought from).
+- Only use "skip" when the line is dnp, or the rules digest or the line's own note clearly says this
+  part is already sufficiently stocked or should not be sourced this run — cite the rule in "ruleHit"
+  when you do.
 - "package" is a MANDATORY match rung — never suggest skipping the package check.
 - "narration" is one short sentence for a live progress UI, in the form
   "Planned N searches · dispatched N item agents." (N = searches.length).
 - Output raw JSON only — no prose before or after, no markdown code fence.`;
 
 export function buildMasterPrompt(config: WorkerRunConfig): string {
+  // The COMPLETE uploaded line ("the agent gets the whole BOM" decision) —
+  // free-text fields (description/priorityNote/extra) arrive pre-aliased.
   const lines = config.lines.map((line) => ({
     bomLineId: line.bomLineId,
+    lineNo: line.lineNo ?? null,
     refDesignators: line.refDesignators,
     qty: line.qty,
+    dnp: line.dnp ?? false,
     value: line.value,
+    footprint: line.footprint ?? null,
     packageName: line.packageName,
     voltage: line.voltage,
+    description: line.description ?? null,
     mpn: line.mpn,
     manufacturer: line.manufacturer,
     lcscPn: line.lcscPn,
+    partLink: line.partLink ?? null,
     priorityNote: line.priorityNote,
+    extra: line.extra ?? null,
   }));
 
   const enabledDistributors = config.distributorSequence
@@ -70,6 +85,7 @@ export function buildMasterPrompt(config: WorkerRunConfig): string {
       overallPriorities: config.overallPriorities,
       activeRulesDigest: config.rulesDigest,
       lines,
+      inStockLines: config.inStockLines ?? [],
     },
     null,
     2,
@@ -127,6 +143,17 @@ export function mockMasterPlan(config: WorkerRunConfig): ClaudeMasterPlan {
   const skip: SkipDecision[] = [];
 
   for (const line of config.lines) {
+    // DNP lines are never sourced — qty is already 0, the flag makes the
+    // decision explicit and mirrors what the live planner is instructed to do.
+    if (line.dnp) {
+      skip.push({
+        bomLineId: line.bomLineId,
+        reason: "Skipped — marked DNP (do not populate) on the BOM.",
+        ruleHit: null,
+      });
+      continue;
+    }
+
     // Deterministic "already stocked" demo hook for e2e fixtures — a line
     // whose priority note mentions it explicitly is skipped, citing that
     // note back as the rule hit (mirrors the shape a real learned-rule

@@ -152,7 +152,23 @@ describeDb("invariant: alias-layer leak scan — DB-backed (ensureAliases → bu
       distributorSequence: ["Digikey", "Mouser"],
       priorities: `Prioritize for ${uniqueClient} — they need it by Friday`,
       lines: [
-        { lineNo: 1, mpn: "STM32F103C8T6", lcscPn: "C8734", value: null, footprint: "LQFP-48", qty: 100, priorityNote: null },
+        {
+          lineNo: 1,
+          mpn: "STM32F103C8T6",
+          lcscPn: "C8734",
+          value: null,
+          footprint: "LQFP-48",
+          qty: 100,
+          priorityNote: null,
+          // Complete-file fields — free text that can name a client verbatim
+          // must be scrubbed by the SAME pass as priorities/notes.
+          references: "U5",
+          dnp: false,
+          description: `MCU for the ${uniqueClient} controller board`,
+          manufacturer: "STMicroelectronics",
+          partLink: "https://www.digikey.in/en/products/detail/stmicroelectronics/STM32F103C8T6/1646338",
+          extra: { sourcing_hint: `same reel as the ${uniqueProject} build`, moq: 1 },
+        },
       ],
     };
 
@@ -167,5 +183,10 @@ describeDb("invariant: alias-layer leak scan — DB-backed (ensureAliases → bu
     expect(payload).toContain("C8734");
     expect(payload).toContain("LQFP-48");
     expect(payload).toContain("Digikey");
+    // Pass-through-real fields survive; the free-text carriers keep their non-name content.
+    expect(payload).toContain("STMicroelectronics");
+    expect(payload).toContain("digikey.in");
+    expect(payload).toContain("controller board");
+    expect(payload).toContain("same reel as the");
   });
 });

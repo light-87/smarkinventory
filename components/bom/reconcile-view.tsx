@@ -6,18 +6,16 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { StatCard } from "@/components/ui/stat-card";
 import { TableBody, TableHead, TableShell, Td, Th, Tr } from "@/components/ui/table";
 import { formatNumber } from "@/lib/format";
-import { computeReconcileStats } from "@/lib/bom/reconcile";
-import { updateBuildQtyAction, reconcileBomAction } from "@/app/(app)/projects/[projectId]/boms/actions";
-import { DnpBadge, LineStatusChip } from "./status-chip";
-import type { BomDetailLine } from "@/lib/bom/queries";
+import { updateBuildQtyAction } from "@/app/(app)/projects/[projectId]/boms/actions";
+import { DnpBadge } from "./status-chip";
+import type { BomLineRow } from "@/types/db";
 import type { BomRow } from "@/types/db";
 
 export interface ReconcileViewProps {
   bom: BomRow;
-  lines: BomDetailLine[];
+  lines: BomLineRow[];
   writable: boolean;
 }
 
@@ -36,11 +34,12 @@ function safePartLink(raw: string | null): string | null {
 }
 
 /**
- * Per-BOM reconcile view (plan/tab-orders-projects.md §2/§5): stat trio,
- * build-qty ×N, lines table. The table renders the uploaded file IN FULL —
- * every parsed column including Description/Manufacturer/PartLink and any
- * custom extras (manual-test feedback: the BOM screen must mirror the file
- * as-is; Status is informational, the AI pipeline reads the raw lines).
+ * Per-BOM detail (plan/tab-orders-projects.md §2/§5): build-qty ×N + the
+ * uploaded sheet mirrored IN FULL — every parsed column, every row, exactly
+ * what the AI pipeline will read. Deliberately NO in-stock/to-order stats and
+ * NO per-line match status here (manual-test decision: stock checking is the
+ * agents' job during a run, not this page's — reconcile still runs silently
+ * on upload/×N change to feed cross-project demand).
  */
 export function ReconcileView({ bom, lines, writable }: ReconcileViewProps) {
   const router = useRouter();
@@ -48,7 +47,6 @@ export function ReconcileView({ bom, lines, writable }: ReconcileViewProps) {
   const [buildQty, setBuildQty] = useState(String(bom.build_qty));
   const [error, setError] = useState<string | null>(null);
 
-  const stats = computeReconcileStats(lines.map((l) => ({ matchState: l.match_state })));
   const hasLcsc = lines.some((l) => l.lcsc_pn);
   const hasNotes = lines.some((l) => l.priority_note);
   const extraKeys = Array.from(new Set(lines.flatMap((l) => (l.extra ? Object.keys(l.extra) : []))));
@@ -67,15 +65,6 @@ export function ReconcileView({ bom, lines, writable }: ReconcileViewProps) {
     });
   }
 
-  function reReconcile() {
-    setError(null);
-    startTransition(async () => {
-      const result = await reconcileBomAction(bom.id);
-      if (result.ok) router.refresh();
-      else setError(result.error);
-    });
-  }
-
   return (
     <div className="flex flex-col gap-5">
       {bom.priority_notes && (
@@ -84,12 +73,6 @@ export function ReconcileView({ bom, lines, writable }: ReconcileViewProps) {
           <div className="mt-1 text-[13px] text-snow">{bom.priority_notes}</div>
         </Card>
       )}
-
-      <div className="grid grid-cols-3 gap-3">
-        <StatCard value={formatNumber(stats.lines)} label="Lines" mono />
-        <StatCard value={formatNumber(stats.inStock)} label="In stock" tone="success" mono />
-        <StatCard value={formatNumber(stats.toOrder)} label="To order" tone="accent" mono />
-      </div>
 
       <Card padding="lg" className="flex flex-wrap items-end gap-3">
         <div className="flex flex-col gap-1.5">
@@ -113,18 +96,14 @@ export function ReconcileView({ bom, lines, writable }: ReconcileViewProps) {
           </div>
         </div>
         <p className="text-[13px] text-smoke">
-          Every line&rsquo;s need = qty × build qty. Changing it re-reconciles the split immediately.
+          {formatNumber(lines.length)} lines — every line&rsquo;s need = qty × build qty. The AI run reads this sheet
+          as-is.
         </p>
-        {writable && (
-          <Button className="ml-auto" size="sm" variant="ghost" onClick={reReconcile} loading={isPending}>
-            Re-reconcile
-          </Button>
-        )}
       </Card>
 
       {error && <div className="text-caption text-smark-orange-soft">{error}</div>}
 
-      <TableShell minWidth={1480 + extraKeys.length * 120}>
+      <TableShell minWidth={1400 + extraKeys.length * 120}>
         <TableHead>
           <Tr>
             <Th>#</Th>
@@ -143,7 +122,6 @@ export function ReconcileView({ bom, lines, writable }: ReconcileViewProps) {
                 {extraKeyLabel(key)}
               </Th>
             ))}
-            <Th>Status</Th>
           </Tr>
         </TableHead>
         <TableBody>
@@ -197,13 +175,6 @@ export function ReconcileView({ bom, lines, writable }: ReconcileViewProps) {
                   </Td>
                 );
               })}
-              <Td>
-                <LineStatusChip
-                  matchState={line.match_state}
-                  contestedShortfall={line.contestedShortfall}
-                  locationLabel={line.location ? `Shelf ${line.location.shelfCode} · ${line.location.boxName}` : null}
-                />
-              </Td>
             </Tr>
           ))}
         </TableBody>

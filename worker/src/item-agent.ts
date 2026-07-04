@@ -47,13 +47,20 @@ Return ONLY this JSON object, nothing else:
 function buildItemPrompt(line: WorkerBomLine, listings: DistributorListingResult[], rulesDigest: string): string {
   return JSON.stringify(
     {
+      // The complete uploaded line — description/priorityNote/extra arrive pre-aliased (types/worker.ts).
       line: {
+        refDesignators: line.refDesignators,
         mpn: line.mpn,
         value: line.value,
+        footprint: line.footprint ?? null,
         packageName: line.packageName,
         voltage: line.voltage,
+        description: line.description ?? null,
+        manufacturer: line.manufacturer,
+        partLink: line.partLink ?? null,
         qtyNeeded: line.qty,
         priorityNote: line.priorityNote,
+        extra: line.extra ?? null,
       },
       candidates: listings.map((l) => ({
         distributorName: l.distributorName,

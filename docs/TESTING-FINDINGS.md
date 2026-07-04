@@ -38,6 +38,24 @@ Screenshot: docs/testing-screenshots/f-001.png (optional)
 
 <!-- Claude moves resolved entries here with commit hashes, so the Findings section stays short -->
 
+### F-004 · S2 · FIXED (see commit)
+Surface: BOM detail page + AI ordering pipeline
+Decision: the BOM page is a pure sheet mirror and the AI reads the complete file.
+- Removed from the BOM page: Lines/In stock/To order stat trio, per-line Status chips,
+  Re-reconcile button — stock checking is the agents' job during a run. Reconcile still runs
+  silently on upload/×N change (feeds cross-project demand + which lines skip the worker).
+- Agents now receive the COMPLETE uploaded line: line #, references, qty(×N), value, raw
+  footprint, derived package, voltage (now split from "100uF/63V"-style cells — was always
+  null before), description, manufacturer, MPN, LCSC, PartLink URL, per-line note, custom
+  extra columns. Description/notes/extra string values pass the same global alias scrub
+  (leak tests extended + green).
+- DNP lines: qty forced to 0, flagged to the planner, mock + live planner skip them ("DNP —
+  not populated"). Previously they were sent as buyable with full qty.
+- The master planner also sees already-in-stock lines as read-only context (no jobs, no
+  free text), so it reads the whole file the way the user does.
+Note: the "footprint — on every row" report was NOT a bug — the uploaded file was the
+user-modified GCU_V1.1_BOM_removed.xlsx, which genuinely has no Footprint column.
+
 ### F-003 · S2 · FIXED (see commit)
 Surface: Projects → BOMs → BOM detail table
 What happened: the table hid half the uploaded file — Description, Manufacturer, PartLink,

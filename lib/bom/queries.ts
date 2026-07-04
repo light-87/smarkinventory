@@ -189,21 +189,21 @@ export async function getPrimaryLocationsByPartId(
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
- * BOM detail (reconcile view)
+ * BOM detail (sheet-mirror view)
  * ──────────────────────────────────────────────────────────────────────────── */
-
-export interface BomDetailLine extends BomLineRow {
-  contestedShortfall: number | null;
-  location: PrimaryLocation | null;
-}
 
 export interface BomDetailData {
   bom: BomRow;
   project: ProjectHeader;
-  lines: BomDetailLine[];
+  lines: BomLineRow[];
 }
 
-/** Everything the BOM-detail/reconcile route needs, or `null` if the BOM doesn't exist. */
+/**
+ * Everything the BOM-detail route needs, or `null` if the BOM doesn't exist.
+ * Raw lines only — the detail page mirrors the uploaded sheet as-is (manual-
+ * test decision: stock-checking is the AI pipeline's job, so no per-line
+ * match/location/shortfall lookups here anymore).
+ */
 export async function getBomDetail(supabase: DB, bomId: string): Promise<BomDetailData | null> {
   const { data: bom, error } = await supabase.from(TABLES.boms).select("*").eq("id", bomId).maybeSingle();
   assertNoError(error, "smark_boms");
@@ -219,21 +219,5 @@ export async function getBomDetail(supabase: DB, bomId: string): Promise<BomDeta
     .order("line_no", { ascending: true, nullsFirst: false });
   assertNoError(linesError, "smark_bom_lines");
 
-  const matchedPartIds = Array.from(
-    new Set((lines ?? []).map((l) => l.matched_part_id).filter((v): v is string => Boolean(v))),
-  );
-
-  const [shortfallByPart, locationByPart] = await Promise.all([
-    getShortfallByPartId(supabase, matchedPartIds),
-    getPrimaryLocationsByPartId(supabase, matchedPartIds),
-  ]);
-
-  const detailLines: BomDetailLine[] = (lines ?? []).map((line) => ({
-    ...line,
-    contestedShortfall:
-      line.match_state === "in_stock" && line.matched_part_id ? (shortfallByPart.get(line.matched_part_id) ?? null) : null,
-    location: line.matched_part_id ? (locationByPart.get(line.matched_part_id) ?? null) : null,
-  }));
-
-  return { bom, project, lines: detailLines };
+  return { bom, project, lines: (lines ?? []) as BomLineRow[] };
 }

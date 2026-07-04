@@ -336,6 +336,25 @@ export interface PlannerBomLineInput {
   qty: number;
   /** Plain-English per-line note (may mention the client) — aliased before injection. */
   priorityNote: string | null;
+  // ── Complete-file fields ("the agent gets the whole BOM" decision). All
+  // optional — pre-existing callers/tests keep compiling; the enqueue path
+  // passes every one. NOTE: this widens the original "no description field"
+  // whitelist claim DELIBERATELY, for the BOM line's COMPONENT description
+  // ("CAP CER 0.1UF…") only — free text, so it is aliased before injection.
+  // Project-level descriptions/notes remain structurally impossible
+  // (PlannerProjectInput is unchanged).
+  /** Reference designators ("C3,C69…") — public, pass-through real. */
+  references?: string | null;
+  /** Do-Not-Populate flag from the sheet. */
+  dnp?: boolean;
+  /** Component description from the sheet — free text, ALIASED before injection. */
+  description?: string | null;
+  /** Manufacturer — public catalog identifier, pass-through real. */
+  manufacturer?: string | null;
+  /** Direct distributor product URL — public, pass-through real. */
+  partLink?: string | null;
+  /** Custom BOM columns (key → value) — STRING values aliased before injection. */
+  extra?: Record<string, string | number | boolean | null> | null;
 }
 
 export interface PlannerContextInput {
@@ -395,8 +414,23 @@ export async function buildPlannerContext(
     lines: input.lines.map((line) => ({
       ...line,
       priorityNote: line.priorityNote ? aliasText(line.priorityNote, mapping) : null,
+      description: line.description ? aliasText(line.description, mapping) : (line.description ?? null),
+      extra: aliasExtraValues(line.extra, mapping),
     })),
   };
+}
+
+/** Custom-column cells are free text — alias every STRING value; numbers/booleans pass through. */
+function aliasExtraValues(
+  extra: Record<string, string | number | boolean | null> | null | undefined,
+  mapping: Map<string, string>,
+): Record<string, string | number | boolean | null> | null {
+  if (!extra) return null;
+  const out: Record<string, string | number | boolean | null> = {};
+  for (const [key, value] of Object.entries(extra)) {
+    out[key] = typeof value === "string" ? aliasText(value, mapping) : value;
+  }
+  return out;
 }
 
 /** Convenience for logging/tests/CI leak-scans — a stable text rendering of a `PlannerContext`. Not the actual Opus prompt shape (bom-pipeline owns that). */

@@ -57,6 +57,16 @@ test("every line is accounted for exactly once — never both searched and skipp
   expect(searchIds.filter((id) => skipIds.includes(id)).length).toBe(0);
 });
 
+test("a DNP line is skipped, never searched — and its skip survives reconciliation", () => {
+  const plan = reconcilePlanWithLines(
+    mockMasterPlan(config([line({ bomLineId: "A", dnp: true, qty: 0 }), line({ bomLineId: "B", mpn: "X1" })])),
+    config([line({ bomLineId: "A", dnp: true, qty: 0 }), line({ bomLineId: "B", mpn: "X1" })]),
+  );
+  expect(plan.skip.map((s) => s.bomLineId)).toEqual(["A"]);
+  expect(plan.skip[0]?.reason).toContain("DNP");
+  expect(plan.searches.map((s) => s.bomLineId)).toEqual(["B"]);
+});
+
 test("a line whose priority note flags 'already_stocked' is skipped, not searched", () => {
   const cfg = config([line({ bomLineId: "A", priorityNote: "already_stocked — over 500 in stock" })]);
   const plan = reconcilePlanWithLines(mockMasterPlan(cfg), cfg);

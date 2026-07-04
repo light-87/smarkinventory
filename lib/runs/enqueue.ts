@@ -21,7 +21,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { BomLineRow, BomRow, Database } from "@/types/db";
 import { TABLES } from "@/types/db";
 import { buildPlannerContext, buildGlobalAliasMapping, getDigestForInjection, aliasDigestForInjection } from "@/lib/ai";
-import { derivePackageFromFootprint } from "@/lib/bom/footprint";
+import { derivePackageFromFootprint, splitValueVoltage } from "@/lib/bom/footprint";
 import { getProjectHeader } from "@/lib/bom/queries";
 import type {
   ConcurrencyPreset,
@@ -52,6 +52,8 @@ interface LoadedBomContext {
   bom: BomRow;
   project: { id: string; name: string; client: string | null };
   toOrderLines: BomLineRow[];
+  /** Already fully stocked — no jobs, but the planner still sees them (complete-file context). */
+  inStockLines: BomLineRow[];
   effectiveSequence: EffectiveDistributorRow[];
 }
 
@@ -66,7 +68,9 @@ async function loadBomContext(supabase: DB, bomId: string): Promise<LoadedBomCon
   const { data: lines, error: linesError } = await supabase.from(TABLES.bom_lines).select("*").eq("bom_id", bomId);
   if (linesError) return { error: linesError.message };
 
-  const toOrderLines = ((lines ?? []) as BomLineRow[]).filter((l) => l.match_state !== "in_stock");
+  const allLines = (lines ?? []) as BomLineRow[];
+  const toOrderLines = allLines.filter((l) => l.match_state !== "in_stock");
+  const inStockLines = allLines.filter((l) => l.match_state === "in_stock");
 
   const [{ data: distributors, error: distError }, { data: preferences, error: prefError }] = await Promise.all([
     supabase.from(TABLES.distributors).select("id, name, api_type, active"),
@@ -81,7 +85,7 @@ async function loadBomContext(supabase: DB, bomId: string): Promise<LoadedBomCon
     (preferences ?? []) as { distributor_id: string; rank: number; enabled: boolean }[],
   );
 
-  return { bom, project, toOrderLines, effectiveSequence };
+  return { bom, project, toOrderLines, inStockLines, effectiveSequence };
 }
 
 /**
@@ -121,13 +125,22 @@ async function buildAliasedRunContext(
       buildQty: ctx.bom.build_qty,
       distributorSequence: ctx.effectiveSequence.filter((d) => d.enabled).map((d) => d.name),
       priorities: ctx.bom.priority_notes,
+      // The COMPLETE line, as uploaded ("the agent gets the whole BOM").
+      // buildPlannerContext aliases the free-text fields (priorityNote,
+      // description, string extra values); the rest pass through real.
       lines: ctx.toOrderLines.map((l) => ({
         lineNo: l.line_no ?? 0,
+        references: l.references,
         mpn: l.mpn,
         lcscPn: l.lcsc_pn,
         value: l.value,
         footprint: l.footprint,
-        qty: (l.qty ?? 0) * ctx.bom.build_qty,
+        qty: l.dnp ? 0 : (l.qty ?? 0) * ctx.bom.build_qty,
+        dnp: l.dnp,
+        description: l.description,
+        manufacturer: l.manufacturer,
+        partLink: l.part_link,
+        extra: l.extra,
         priorityNote: l.priority_note,
       })),
     },
@@ -143,23 +156,42 @@ async function buildAliasedRunContext(
   return { plannerContext, rulesDigestVersion: digest.version, rulesDigestAliased: aliasedDigestContent };
 }
 
+/** Already-aliased free-text fields for one line, keyed off the planner context (same alias pass, by construction). */
+interface AliasedLineText {
+  priorityNote: string | null;
+  description: string | null;
+  extra: Record<string, string | number | boolean | null> | null;
+}
+
+/** The COMPLETE uploaded line for the item agents — free-text fields come pre-aliased via `aliasedTextByLineId`. */
 function buildWorkerBomLines(
   toOrderLines: BomLineRow[],
   buildQty: number,
-  aliasedPriorityNotes: Map<string, string | null>,
+  aliasedTextByLineId: Map<string, AliasedLineText>,
 ): WorkerBomLine[] {
-  return toOrderLines.map((l) => ({
-    bomLineId: l.id,
-    refDesignators: l.references,
-    qty: (l.qty ?? 0) * buildQty,
-    value: l.value,
-    packageName: derivePackageFromFootprint(l.footprint),
-    voltage: null,
-    mpn: l.mpn,
-    manufacturer: l.manufacturer,
-    lcscPn: l.lcsc_pn,
-    priorityNote: aliasedPriorityNotes.get(l.id) ?? null,
-  }));
+  return toOrderLines.map((l) => {
+    const aliased = aliasedTextByLineId.get(l.id);
+    return {
+      bomLineId: l.id,
+      lineNo: l.line_no,
+      refDesignators: l.references,
+      // DNP lines need nothing (mirrors reconcile's own need math) — the dnp
+      // flag tells the planner to skip, qty 0 makes over-ordering impossible.
+      qty: l.dnp ? 0 : (l.qty ?? 0) * buildQty,
+      value: l.value,
+      footprint: l.footprint,
+      packageName: derivePackageFromFootprint(l.footprint),
+      voltage: splitValueVoltage(l.value).voltage,
+      mpn: l.mpn,
+      manufacturer: l.manufacturer,
+      lcscPn: l.lcsc_pn,
+      dnp: l.dnp,
+      description: aliased?.description ?? null,
+      partLink: l.part_link,
+      extra: aliased?.extra ?? null,
+      priorityNote: aliased?.priorityNote ?? null,
+    };
+  });
 }
 
 export interface EnqueueRunInput {
@@ -177,7 +209,7 @@ export interface EnqueueRunInput {
 export async function enqueueRun(supabase: DB, service: DB, input: EnqueueRunInput): Promise<EnqueueRunResult> {
   const loaded = await loadBomContext(supabase, input.bomId);
   if ("error" in loaded) return { ok: false, error: loaded.error };
-  const { bom, project, toOrderLines, effectiveSequence } = loaded;
+  const { bom, project, toOrderLines, inStockLines, effectiveSequence } = loaded;
 
   if (toOrderLines.length === 0) {
     return { ok: false, error: "Nothing to order — every line on this BOM is already in stock." };
@@ -191,8 +223,17 @@ export async function enqueueRun(supabase: DB, service: DB, input: EnqueueRunInp
     effectiveSequence,
   });
 
-  const aliasedPriorityNotes = new Map(plannerContext.lines.map((l, i) => [toOrderLines[i]!.id, l.priorityNote] as const));
-  const workerLines = buildWorkerBomLines(toOrderLines, bom.build_qty, aliasedPriorityNotes);
+  // plannerContext.lines is index-aligned with toOrderLines — pull the already-aliased free-text fields back per line id.
+  const aliasedTextByLineId = new Map(
+    plannerContext.lines.map(
+      (l, i) =>
+        [
+          toOrderLines[i]!.id,
+          { priorityNote: l.priorityNote ?? null, description: l.description ?? null, extra: l.extra ?? null },
+        ] as const,
+    ),
+  );
+  const workerLines = buildWorkerBomLines(toOrderLines, bom.build_qty, aliasedTextByLineId);
 
   const distributorDescriptors: DistributorDescriptor[] = effectiveSequence.map((d) => ({
     id: d.id,
@@ -217,6 +258,15 @@ export async function enqueueRun(supabase: DB, service: DB, input: EnqueueRunInp
     orderingLadder: ["mpn", "lcsc", "value", "package", "status", "qty", "cost"],
     concurrencyPreset: input.tier,
     lines: workerLines,
+    // The planner sees the COMPLETE file: already-stocked lines ride along as
+    // public-safe summaries (no jobs, no free text — see InStockLineSummary).
+    inStockLines: inStockLines.map((l) => ({
+      lineNo: l.line_no,
+      refDesignators: l.references,
+      mpn: l.mpn,
+      value: l.value,
+      qty: l.dnp ? 0 : (l.qty ?? 0) * bom.build_qty,
+    })),
     rupeeCeiling: computeRupeeCeiling(dryRun),
   };
 
