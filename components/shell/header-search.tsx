@@ -4,73 +4,175 @@ import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CameraScanner } from "@/components/scan/camera-scanner";
 import { CameraIcon } from "@/components/scan/icons";
-import { useToast } from "@/components/ui/toast";
-import { createClient } from "@/lib/supabase/client";
-import { classifyScanCode, resolveScanCode } from "@/lib/scan";
-import { boxHref, partHref } from "@/lib/search";
+import { Chip } from "@/components/ui/chip";
+import {
+  bomHref,
+  boxHref,
+  isEmptyPaletteResults,
+  orderHref,
+  partHref,
+  projectHref,
+  runPaletteSearch,
+  type PaletteResults,
+} from "@/lib/search";
 
 /**
  * components/shell/header-search.tsx — the camera-scan entry point that sits
  * next to search-notifications' CommandPalette in the header row
  * (components/shell/header.tsx). Kept as its own auth-shell file rather than
  * an edit inside components/search/** — docs/OWNERSHIP.md's search-notifications
- * seam is explicit ("neither package edits the other's files"), so this
- * reaches only into `lib/scan`'s own read-only exports (resolveScanCode/
- * classifyScanCode — the scan package's, freely reusable anywhere) for the
- * resolve-first behaviour, the same one CommandPalette's own
- * `runPaletteSearch` layers on top of for the typed/pasted case.
+ * seam is explicit ("neither package edits the other's files").
  *
- * `partHref`/`boxHref` are imported from `lib/search` (read-only pure URL
- * builders — not an edit) so a scanned code lands on the exact same
- * destination the palette's own scan-match row already uses, rather than a
- * second, possibly-drifting copy of that routing convention. This specific
- * pairing isn't yet in OWNERSHIP.md's cross-package-import table (mirroring
- * `lib/search/actions.ts`'s own note about its lib/scan import) — flagged
- * for the integrator to add.
- *
- * A detected code that resolves to a part/box navigates straight there (the
- * dominant case — a physical barcode's decoded payload IS a code, not fuzzy
- * search text). A code that doesn't resolve surfaces a toast pointing at
- * Ctrl-K rather than reaching into CommandPalette's internal state to open
- * it prefilled — that would require a controlled-query prop CommandPalette
- * doesn't expose today, i.e. an edit on search-notifications' side.
+ * onDetect runs the field's EXACT existing resolve logic by calling
+ * `runPaletteSearch` (lib/search/actions.ts) directly — the very same server
+ * action CommandPalette's own Enter/debounced-search path calls, not a
+ * reimplementation of it. A scan-code match routes straight to the part/box
+ * (`partHref`/`boxHref`, so the destination matches the palette's own
+ * scan-match row exactly); anything else renders the same four-section
+ * results (Parts/Projects/BOMs/Orders) the palette would show for that text,
+ * in a compact panel local to this file. `lib/search`'s exports used here are
+ * all pure/read-only (hrefs, the search action, its result types) — not an
+ * edit — but this pairing isn't yet in OWNERSHIP.md's cross-package-import
+ * table (mirroring `lib/search/actions.ts`'s own note about its lib/scan
+ * import) — flagged for the integrator to add.
  */
+
+interface ResultRow {
+  key: string;
+  href: string;
+  type: string;
+  label: string;
+  meta: string | null;
+}
+
+function flattenResults(results: PaletteResults): ResultRow[] {
+  return [
+    ...results.parts.map((p) => ({
+      key: `part-${p.id}`,
+      href: partHref(p.internal_pid),
+      type: "Part",
+      label: p.internal_pid,
+      meta: [p.mpn, p.value, p.package].filter(Boolean).join(" · ") || null,
+    })),
+    ...results.projects.map((p) => ({
+      key: `project-${p.id}`,
+      href: projectHref(p.id),
+      type: "Project",
+      label: p.name,
+      meta: p.client,
+    })),
+    ...results.boms.map((b) => ({
+      key: `bom-${b.id}`,
+      href: bomHref(b.project_id, b.id),
+      type: "BOM",
+      label: b.name,
+      meta: b.project_name ? `in ${b.project_name}` : null,
+    })),
+    ...results.orders.map((o) => ({
+      key: `order-${o.id}`,
+      href: orderHref(o.id),
+      type: "Order",
+      label: o.po_number,
+      meta: o.distributor_name,
+    })),
+  ];
+}
+
 export function HeaderCameraScan() {
   const router = useRouter();
-  const { push: pushToast } = useToast();
-  const [open, setOpen] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<PaletteResults | null>(null);
 
-  const handleDetect = useCallback(
-    (code: string) => {
-      const trimmed = code.trim();
-      if (classifyScanCode(trimmed) === "empty") return;
-      void (async () => {
-        const supabase = createClient();
-        const resolution = await resolveScanCode(supabase, trimmed);
-        if (!resolution) {
-          pushToast({ msg: `No match for "${trimmed}" — try Ctrl-K search` });
-          return;
-        }
-        setOpen(false);
-        router.push(resolution.type === "part" ? partHref(resolution.data.part.internal_pid) : boxHref(resolution.data.box.id));
-      })();
-    },
-    [router, pushToast],
-  );
+  const closeResults = useCallback(() => {
+    setResults(null);
+    setQuery("");
+  }, []);
+
+  const handleDetect = useCallback((code: string) => {
+    const trimmed = code.trim();
+    if (!trimmed) return;
+    void (async () => {
+      const outcome = await runPaletteSearch(trimmed);
+      if (outcome.kind === "scan-match") {
+        const resolution = outcome.resolution;
+        router.push(
+          resolution.type === "part" ? partHref(resolution.data.part.internal_pid) : boxHref(resolution.data.box.id),
+        );
+        return;
+      }
+      setQuery(trimmed);
+      setResults(outcome.results);
+    })();
+  }, [router]);
+
+  const rows = results ? flattenResults(results) : [];
 
   return (
     <>
       <button
         type="button"
         aria-label="Scan with camera"
-        onClick={() => setOpen(true)}
+        onClick={() => setCameraOpen(true)}
         className="flex min-h-11 min-w-11 flex-none items-center justify-center rounded-full border border-charcoal text-smoke transition-colors hover:border-slate hover:text-snow"
       >
         <span aria-hidden className="size-4 [&_svg]:size-full">
           <CameraIcon />
         </span>
       </button>
-      <CameraScanner open={open} onClose={() => setOpen(false)} onDetect={handleDetect} title="Scan a code" />
+
+      <CameraScanner open={cameraOpen} onClose={() => setCameraOpen(false)} onDetect={handleDetect} title="Scan a code" />
+
+      {results && (
+        <>
+          <div aria-hidden onClick={closeResults} className="animate-fade-in fixed inset-0 z-[70] bg-black/55" />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Scan results"
+            className="fixed inset-x-4 top-[10vh] z-[71] mx-auto max-w-[480px] overflow-hidden rounded-2xl border border-charcoal bg-surface-raised shadow-2xl"
+          >
+            <div className="flex items-center justify-between gap-3 border-b border-charcoal px-4 py-3">
+              <span className="min-w-0 flex-1 truncate text-[13px] text-smoke">
+                Results for <span className="font-mono text-snow">{query}</span>
+              </span>
+              <button
+                type="button"
+                aria-label="Close results"
+                onClick={closeResults}
+                className="flex-none text-[11px] text-faint hover:text-smoke"
+              >
+                Close
+              </button>
+            </div>
+            <div className="max-h-[60vh] overflow-y-auto p-2">
+              {isEmptyPaletteResults(results) ? (
+                <p className="px-3 py-6 text-center text-[13px] text-smoke">No matches for &ldquo;{query}&rdquo;</p>
+              ) : (
+                rows.map((row) => (
+                  <button
+                    key={row.key}
+                    type="button"
+                    onClick={() => {
+                      router.push(row.href);
+                      closeResults();
+                    }}
+                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-ash/60"
+                  >
+                    <Chip tone="neutral" size="sm" className="flex-none">
+                      {row.type}
+                    </Chip>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13px] text-snow">{row.label}</span>
+                      {row.meta && <span className="block truncate text-[12px] text-smoke">{row.meta}</span>}
+                    </span>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </>
+      )}
     </>
   );
 }
