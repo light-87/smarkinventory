@@ -142,6 +142,10 @@ survive this" — the mechanics are already machine-tested.
 
 ### 2.6 AI ordering pipeline — mock mode first, then live
 Follow **`docs/AI-ORCHESTRATION.md`** — it has the full map + experiments. Headline sequence:
+- [ ] **`/ai_orc` observatory (owner, by URL)**: worker card appears within ~10s of starting the
+      worker (RAM bars, CPU, active agents, mock/live chip); select a run → exact Opus/Sonnet
+      prompts render + one lane per line with plan → candidates → "why". Watch RAM while a run
+      fans out. (Cloud DB needs `scripts/cloud-sql/03-worker-telemetry.sql` applied once.)
 - [ ] Mock run end-to-end (no keys): workspace → run console streams lanes → review persists →
       add to cart. Judge the console: is the narration/status readable? stale-run banner on ×N
       change?

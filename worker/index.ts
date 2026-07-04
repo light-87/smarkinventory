@@ -50,6 +50,7 @@ import {
   saveMasterPlan,
 } from "./src/runs";
 import { upsertResults } from "./src/results";
+import { counters, startTelemetry } from "./src/telemetry";
 import type { ClaimedJob, ConcurrencyPreset, WorkerRunConfig } from "../types/worker";
 import { resolveTier } from "./src/caps";
 
@@ -163,6 +164,7 @@ async function runWithConcurrencyLimit<T>(items: T[], limit: number, worker: (it
 
 /** Marks a job `failed` and swallows/logs a completion failure rather than throwing over it. */
 async function failJobQuietly(state: RuntimeState, jobId: string, context: string): Promise<void> {
+  counters.jobsFailedSinceStart += 1;
   await completeJob(state.client, jobId, "failed").catch((completionError) => {
     console.error(`[worker] also failed to mark job ${jobId} failed (${context}):`, completionError);
   });
@@ -199,17 +201,25 @@ async function processOneJob(state: RuntimeState, job: ClaimedJob, config: Worke
     }
 
     const tier = tierFor(config.concurrencyPreset);
-    const { outcome, cost } = await runItemAgent({
-      line,
-      plannedSearch: job.plannedSearch,
-      depthPerItem: tier.depthPerItem,
-      clients,
-      distributorIds,
-      siteSemaphore: state.siteSemaphore,
-      rulesDigest: config.rulesDigest,
-      env: state.env,
-      claudePort: state.claudePort,
-    });
+    // The counter must drop even when the agent throws — telemetry reads it live.
+    counters.activeItemAgents += 1;
+    let agentResult!: Awaited<ReturnType<typeof runItemAgent>>;
+    try {
+      agentResult = await runItemAgent({
+        line,
+        plannedSearch: job.plannedSearch,
+        depthPerItem: tier.depthPerItem,
+        clients,
+        distributorIds,
+        siteSemaphore: state.siteSemaphore,
+        rulesDigest: config.rulesDigest,
+        env: state.env,
+        claudePort: state.claudePort,
+      });
+    } finally {
+      counters.activeItemAgents -= 1;
+    }
+    const { outcome, cost } = agentResult;
 
     if (cost.estimatedRupees > 0) {
       tracker.record(cost.estimatedRupees);
@@ -218,6 +228,7 @@ async function processOneJob(state: RuntimeState, job: ClaimedJob, config: Worke
 
     await upsertResults(state.client, job.runId, outcome.results);
     await completeJob(state.client, job.jobId, "done");
+    counters.jobsDoneSinceStart += 1;
   } catch (error) {
     console.error(`[worker] job ${job.jobId} (run ${job.runId}) failed:`, error);
     await failJobQuietly(state, job.jobId, "unexpected error");
@@ -318,6 +329,7 @@ async function main(): Promise<void> {
   const env = loadEnv();
   const state = buildRuntime(env);
   startStatusServer(state);
+  startTelemetry({ client: state.client, env, runsInFlight: () => state.runConfigCache.size });
 
   console.log(
     `[worker] starting — Claude: ${env.anthropicApiKey ? "live" : "MOCK (no ANTHROPIC_API_KEY)"}; ` +

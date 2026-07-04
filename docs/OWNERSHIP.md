@@ -290,5 +290,7 @@ bom-pipeline · `lib/matcher` (shared) ← bom-pipeline/takeout/receive · `lib/
 cart-orders/bom-pipeline/receive · `lib/scan` (scan: resolve/classify + CameraScanner component) ←
 auth-shell-header/receive/search-notifications · `lib/search` (search-notifications: partHref/boxHref)
 ← auth-shell-header · `components/projects/confirm-dialog` (projects-hub) ← bom-pipeline (delete-BOM
-confirm). If you need a function that doesn't exist in a dependency,
+confirm) · `worker/src/prompts` + `worker/src/caps` (worker: PURE prompt builders/cap constants,
+no runtime deps) ← ai-orc observatory (lib/ai-orc + /ai_orc — shows byte-for-byte what the worker
+sends, so a display copy in the app would drift). If you need a function that doesn't exist in a dependency,
 ask that package's owner (via the orchestrator), don't add it yourself.

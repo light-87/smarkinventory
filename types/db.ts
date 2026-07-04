@@ -606,6 +606,20 @@ export const AgentResultRowSchema = z.object({
 });
 export type AgentResultRow = z.infer<typeof AgentResultRowSchema>;
 
+/** `smark_worker_heartbeats` — worker process metrics for /ai_orc (0008). */
+export const WorkerHeartbeatRowSchema = z.object({
+  ...baseRow,
+  /** "hostname#pid" — upsert key; a restart replaces its own row. */
+  worker_id: z.string(),
+  hostname: z.string().nullable(),
+  pid: z.number().int().nullable(),
+  started_at: zTimestamptz.nullable(),
+  last_seen_at: zTimestamptz,
+  /** rssMb/heapUsedMb/sysFreeMb/sysTotalMb/cpuPercent/uptimeSec/activeItemAgents/runsInFlight/mode/…, see worker/src/telemetry.ts. */
+  metrics: z.record(z.string(), z.unknown()),
+});
+export type WorkerHeartbeatRow = z.infer<typeof WorkerHeartbeatRowSchema>;
+
 /** `smark_cart_items` [R2-09] — the smart cart, stage before an order. */
 export const CartItemRowSchema = z.object({
   ...baseRow,
@@ -1067,6 +1081,7 @@ export const TABLES = {
   expense_accounts: "smark_expense_accounts",
   part_field_templates: "smark_part_field_templates",
   notifications: "smark_notifications",
+  worker_heartbeats: "smark_worker_heartbeats",
 } as const;
 
 export const VIEWS = {
@@ -1132,6 +1147,7 @@ export type Database = {
       smark_expense_accounts: TableOf<ExpenseAccountRow>;
       smark_part_field_templates: TableOf<PartFieldTemplateRow>;
       smark_notifications: TableOf<NotificationRow>;
+      smark_worker_heartbeats: TableOf<WorkerHeartbeatRow>;
     };
     Views: {
       v_daily_activity: ViewOf<DailyActivityRow>;

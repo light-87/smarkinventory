@@ -33,49 +33,9 @@ import type {
   WorkerBomLine,
 } from "../../types/worker";
 
-const SYSTEM_PROMPT = `You are a per-item ordering agent for SmarkStock. A deterministic system has
-already fetched distributor listings for this BOM line and computed OBJECTIVE match flags
-(package match, MPN match quality) for each — you must NOT contradict those flags. Your job is:
-1. Optionally recommend ONE listing from the candidates whose "packageMatch" is true (package is a
-   MANDATORY rung — you may never recommend a listing that doesn't match it, and never invent one).
-2. Write one short "why" sentence citing the basis of your pick (or of the deterministic pick, if you
-   don't override it) and any faults of the alternatives. Cite the active rules digest by name if it
-   applies to this part/category.
-Return ONLY this JSON object, nothing else:
-{ "recommendedDistributorName": string | null, "why": string }`;
-
-function buildItemPrompt(line: WorkerBomLine, listings: DistributorListingResult[], rulesDigest: string): string {
-  return JSON.stringify(
-    {
-      // The complete uploaded line — description/priorityNote/extra arrive pre-aliased (types/worker.ts).
-      line: {
-        refDesignators: line.refDesignators,
-        mpn: line.mpn,
-        value: line.value,
-        footprint: line.footprint ?? null,
-        packageName: line.packageName,
-        voltage: line.voltage,
-        description: line.description ?? null,
-        manufacturer: line.manufacturer,
-        partLink: line.partLink ?? null,
-        qtyNeeded: line.qty,
-        priorityNote: line.priorityNote,
-        extra: line.extra ?? null,
-      },
-      candidates: listings.map((l) => ({
-        distributorName: l.distributorName,
-        price: l.price,
-        stockQty: l.stockQty,
-        mpnMatch: l.mpnMatch,
-        packageMatch: l.packageMatch,
-        partStatus: l.partStatus,
-      })),
-      activeRulesDigest: rulesDigest,
-    },
-    null,
-    2,
-  );
-}
+// Prompt text/payload live in prompts.ts — shared with the app's /ai_orc
+// observatory so what it displays is byte-for-byte what this module sends.
+import { ITEM_SYSTEM_PROMPT, buildItemPrompt } from "./prompts";
 
 function toResult(
   line: WorkerBomLine,
@@ -170,7 +130,7 @@ export async function runItemAgent(options: RunItemAgentOptions): Promise<RunIte
     const prompt = buildItemPrompt(line, preliminaryResults, rulesDigest);
     const call = await claudePort.complete({
       model: env.claudeModelItem,
-      system: SYSTEM_PROMPT,
+      system: ITEM_SYSTEM_PROMPT,
       userMessage: prompt,
       maxTokens: 800,
       effort: "medium",

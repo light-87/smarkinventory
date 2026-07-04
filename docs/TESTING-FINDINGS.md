@@ -38,6 +38,21 @@ Screenshot: docs/testing-screenshots/f-001.png (optional)
 
 <!-- Claude moves resolved entries here with commit hashes, so the Findings section stays short -->
 
+### F-005 · IDEA · BUILT (user-requested directly, see commit)
+Surface: NEW — /ai_orc observatory + worker telemetry
+Request: "monitoring page for run progress + server RAM/CPU; 2 GB worker box; prompt-to-agent
+visibility." Built:
+- Migration 0008 `smark_worker_heartbeats` (owner-read RLS, service-role writes) + worker
+  heartbeat every 10s: RSS/heap, system free/total MB, CPU %, active item agents, runs in
+  flight, jobs done/failed, mock-vs-live, browser gate, models. Cloud: run
+  scripts/cloud-sql/03-worker-telemetry.sql once.
+- /ai_orc (owner-only, by URL): worker fleet cards with RAM bars, capacity-math card (tier
+  fanout 2/3/6 capped at 8, per-site caps, browser double-gate — 99 parallel browsers are
+  impossible by construction), runs list, and per-run deep dive: EXACT Opus/Sonnet system +
+  user prompts (re-rendered via the new shared worker/src/prompts.ts — the same module the
+  worker calls, so zero drift) and one lane per line: plan → candidates → why → exact item
+  payload. Polls every 3s.
+
 ### F-004 · S2 · FIXED (see commit)
 Surface: BOM detail page + AI ordering pipeline
 Decision: the BOM page is a pure sheet mirror and the AI reads the complete file.

@@ -5,6 +5,14 @@
 > §3–§6 for the knobs, §7 to run and watch it, §8 for experiments, §9 for the honest list of what
 > has never touched a live service. Log problems in `docs/TESTING-FINDINGS.md` like everything else.
 
+> **Update 2026-07-04:** the easiest way to watch everything is now the **`/ai_orc` observatory**
+> (owner-only, by URL): live worker RAM/CPU heartbeats (migration 0008; cloud needs
+> `scripts/cloud-sql/03-worker-telemetry.sql` once), the exact Opus/Sonnet prompts per run, and
+> one lane per line with plan → candidates → why. Both system prompts + payload builders moved to
+> **`worker/src/prompts.ts`** (shared with the page — this doc's §2 file:line pointers into
+> planner.ts/item-agent.ts refer to text that now lives there). Agents also now receive the
+> COMPLETE BOM line (description, partLink, dnp, voltage, custom columns — F-004).
+
 ---
 
 ## 1. The big picture
