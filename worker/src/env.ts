@@ -29,6 +29,14 @@ export interface WorkerEnv {
 
   /** `computeruse | playwright | browserbase` — Phase-0 gated; default is effectively unused until §0 goes GREEN. */
   browserDriver: "computeruse" | "playwright" | "browserbase" | null;
+  /**
+   * Remote Chromium WS endpoint for PlaywrightDriver's `connectOverCDP` (e.g. a
+   * Hetzner box running a headless browser), full URL including its own auth
+   * token query param. When unset, PlaywrightDriver launches a local Chromium
+   * instead. Only takes effect once the Phase-0 gate (ALLOW_LIVE_BROWSER=1) is
+   * open — see worker/src/browser-driver.ts.
+   */
+  playwrightWsEndpoint: string | null;
 
   digikeyClientId: string | null;
   digikeyClientSecret: string | null;
@@ -71,6 +79,7 @@ export function loadEnv(): WorkerEnv {
     claudeModelMaster: optional("CLAUDE_MODEL_MASTER") ?? "claude-opus-4-8",
     claudeModelItem: optional("CLAUDE_MODEL_ITEM") ?? "claude-sonnet-5",
     browserDriver: parseBrowserDriver(optional("BROWSER_DRIVER")),
+    playwrightWsEndpoint: optional("PLAYWRIGHT_WS_ENDPOINT"),
     digikeyClientId: optional("DIGIKEY_CLIENT_ID"),
     digikeyClientSecret: optional("DIGIKEY_CLIENT_SECRET"),
     mouserApiKey: optional("MOUSER_API_KEY"),

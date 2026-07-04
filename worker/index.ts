@@ -73,7 +73,7 @@ function buildRuntime(env: WorkerEnv): RuntimeState {
     env,
     client: createServiceRoleClient(env),
     claudePort: env.anthropicApiKey ? new AnthropicRestClaudePort(env.anthropicApiKey) : undefined,
-    browserDriver: env.browserDriver ? createBrowserDriver(env.browserDriver) : null,
+    browserDriver: env.browserDriver ? createBrowserDriver(env.browserDriver, env.playwrightWsEndpoint) : null,
     siteSemaphore: createSiteSemaphore(),
     distributorClients: new Map(),
     costTrackers: new Map(),

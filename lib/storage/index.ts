@@ -13,14 +13,12 @@
  *    machine that wrote them, but NOT servable over HTTP — fine for local
  *    dev and unit tests, wrong for anything user-facing.
  *  - `R2Adapter` — the production target (bucket `smarkstock-files` per
- *    CLAUDE.md's `{appname}-files` convention). STUBBED: the constructor is
- *    env-gated (throws immediately if `CLOUDFLARE_R2_*` isn't fully
- *    configured, so a bad deploy fails at boot, not on the first upload),
- *    but every operation throws a clear "not implemented" error until an
- *    S3-compatible client is wired in — R2 is S3-compatible, so
- *    `@aws-sdk/client-s3` (+ `@aws-sdk/s3-request-presigner` for
- *    `signedUrl`) is the intended implementation. Not installed yet: no
- *    feature package should need real R2 to build against this seam.
+ *    CLAUDE.md's `{appname}-files` convention). The constructor is env-gated
+ *    (throws immediately if `CLOUDFLARE_R2_*` isn't fully configured, so a
+ *    bad deploy fails at boot, not on the first upload). Talks to R2's
+ *    S3-compatible API via `aws4fetch` (SigV4 signing over plain `fetch`,
+ *    no AWS SDK) — path-style addressing (`{endpoint}/{bucket}/{key}`),
+ *    region always `"auto"` per Cloudflare's S3-compatibility docs.
  *
  * `getStorageAdapter()` picks R2 when `CLOUDFLARE_R2_*` env is fully set,
  * else falls back to `LocalDiskAdapter` — the same code path in dev/CI and
@@ -30,6 +28,7 @@
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { dirname, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
+import { AwsClient } from "aws4fetch";
 
 /* ────────────────────────────────────────────────────────────────────────────
  * Port
@@ -196,7 +195,7 @@ export class LocalDiskAdapter implements StoragePort {
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
- * R2Adapter — stub
+ * R2Adapter
  * ──────────────────────────────────────────────────────────────────────────── */
 
 export interface R2Config {
@@ -215,20 +214,37 @@ function readR2ConfigFromEnv(): R2Config | null {
   return { endpoint, accessKeyId, secretAccessKey, bucket };
 }
 
+const R2_SERVICE = "s3";
+/** R2 has no AWS regions — `aws4fetch` just needs a non-empty scope string, and "auto" is what Cloudflare's docs use. */
+const R2_REGION = "auto";
+/** Mirrors `SignedUrlOptions`' documented default (`LocalDiskAdapter` ignores this — it can't expire). */
+const DEFAULT_SIGNED_URL_EXPIRES_SECONDS = 3600;
+
+/** First ~200 chars of a response body, for error messages — never swallow the reason a request failed. */
+async function readResponseExcerpt(response: Response): Promise<string> {
+  try {
+    return (await response.text()).slice(0, 200);
+  } catch {
+    return "";
+  }
+}
+
+async function throwForResponse(method: string, key: string, response: Response): Promise<never> {
+  const excerpt = await readResponseExcerpt(response);
+  throw new Error(
+    `R2Adapter.${method}("${key}") failed: ${response.status} ${response.statusText}${excerpt ? ` — ${excerpt}` : ""}`,
+  );
+}
+
 /**
- * Cloudflare R2 adapter — STUB. Env-gated: the constructor throws
- * immediately unless `CLOUDFLARE_R2_ENDPOINT` / `_ACCESS_KEY` / `_SECRET_KEY`
- * / `_BUCKET` are all set (see `.env.local.example`), so a misconfigured
- * deploy fails at boot rather than on the first upload.
- *
- * TODO (before Receive/labels/documents ship for real — CROSS-FEATURE R2-25
- * items 1/2/3/12): implement `put`/`get`/`signedUrl` against R2's
- * S3-compatible API. `@aws-sdk/client-s3` for put/get,
- * `@aws-sdk/s3-request-presigner` for signedUrl, path-style addressing per
- * Cloudflare's S3-compatibility docs. Every method below throws until then.
+ * Cloudflare R2 adapter — env-gated: the constructor throws immediately
+ * unless `CLOUDFLARE_R2_ENDPOINT` / `_ACCESS_KEY` / `_SECRET_KEY` / `_BUCKET`
+ * are all set (see `.env.local.example`), so a misconfigured deploy fails at
+ * boot rather than on the first upload.
  */
 export class R2Adapter implements StoragePort {
   private readonly config: R2Config;
+  private readonly client: AwsClient;
 
   constructor(config?: R2Config) {
     const resolved = config ?? readR2ConfigFromEnv();
@@ -239,25 +255,67 @@ export class R2Adapter implements StoragePort {
       );
     }
     this.config = resolved;
+    this.client = new AwsClient({
+      accessKeyId: resolved.accessKeyId,
+      secretAccessKey: resolved.secretAccessKey,
+      service: R2_SERVICE,
+      region: R2_REGION,
+      // aws4fetch defaults to 10 retries with exponential backoff on 5xx/429 — a single
+      // failing call could then take tens of seconds before surfacing. Fail fast instead;
+      // callers that need resilience retry at the application level.
+      retries: 0,
+    });
   }
 
-  async put(): Promise<StoragePutResult> {
-    return this.notImplemented("put");
+  /** Path-style object URL: `{endpoint}/{bucket}/{key}`. Validates the key (shared with `LocalDiskAdapter`). */
+  private objectUrl(key: string): string {
+    assertSafeKey(key);
+    const encodedKey = key.split("/").map(encodeURIComponent).join("/");
+    return `${this.config.endpoint.replace(/\/+$/, "")}/${this.config.bucket}/${encodedKey}`;
   }
 
-  async get(): Promise<StorageGetResult> {
-    return this.notImplemented("get");
+  async put(input: StoragePutInput): Promise<StoragePutResult> {
+    const url = this.objectUrl(input.key);
+    const buffer = await toBuffer(input.body);
+    const contentType = input.contentType ?? null;
+    const headers: HeadersInit = contentType ? { "content-type": contentType } : {};
+
+    // Zero-copy view over the same bytes: TS's BodyInit wants Uint8Array<ArrayBuffer>
+    // specifically, not Node's Buffer (typed Uint8Array<ArrayBufferLike>) — the cast is
+    // safe because toBuffer() only ever produces Node Buffers backed by a real ArrayBuffer.
+    const bodyView = new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength) as Uint8Array<ArrayBuffer>;
+    const response = await this.client.fetch(url, { method: "PUT", body: bodyView, headers });
+    if (!response.ok) await throwForResponse("put", input.key, response);
+
+    return { key: input.key, url, size: buffer.byteLength, contentType };
   }
 
-  async signedUrl(): Promise<string> {
-    return this.notImplemented("signedUrl");
+  async get(key: string): Promise<StorageGetResult> {
+    const url = this.objectUrl(key);
+    const response = await this.client.fetch(url, { method: "GET" });
+    if (response.status === 404) throw new StorageNotFoundError(key);
+    if (!response.ok) await throwForResponse("get", key, response);
+
+    const body = new Uint8Array(await response.arrayBuffer());
+    return { key, body, contentType: response.headers.get("content-type"), size: body.byteLength };
   }
 
-  private notImplemented(method: string): never {
-    throw new Error(
-      `R2Adapter.${method}() is not implemented yet. Wire up an S3-compatible client (e.g. ` +
-        `@aws-sdk/client-s3) against bucket "${this.config.bucket}" at ${this.config.endpoint} — see lib/storage/index.ts.`,
-    );
+  /**
+   * Presigned GET via SigV4 query signing — no network call. Deliberately
+   * does NOT check the key exists first (unlike `LocalDiskAdapter`): a real
+   * presigned URL is a signature over a request that hasn't happened yet
+   * (S3/R2 presigned PUTs routinely target keys that don't exist yet), and
+   * an existence check would cost an extra signed round-trip on every call.
+   * A signed URL for a missing key fails when it's actually fetched (404),
+   * not at signing time.
+   */
+  async signedUrl(key: string, options?: SignedUrlOptions): Promise<string> {
+    const expiresInSeconds = options?.expiresInSeconds ?? DEFAULT_SIGNED_URL_EXPIRES_SECONDS;
+    const url = new URL(this.objectUrl(key));
+    url.searchParams.set("X-Amz-Expires", String(expiresInSeconds));
+
+    const signedRequest = await this.client.sign(url.toString(), { method: "GET", aws: { signQuery: true } });
+    return signedRequest.url;
   }
 }
 

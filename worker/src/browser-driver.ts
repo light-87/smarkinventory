@@ -84,16 +84,24 @@ export class BrowserbaseDriver extends NotImplementedDriver {
  * import. Selector logic below is a reasonable LCSC/Unikey search-page
  * shape from public knowledge, NOT verified against the live site — the
  * spike's supervised session is where that gets corrected.
+ *
+ * When `wsEndpoint` is set (from `PLAYWRIGHT_WS_ENDPOINT`, e.g. a remote
+ * Hetzner Chromium box), connects to it via `connectOverCDP` instead of
+ * launching a local browser — same Phase-0 gate applies either way.
  */
 export class PlaywrightDriver implements BrowserDriver {
   readonly name = "PlaywrightDriver";
+
+  constructor(private readonly wsEndpoint: string | null = null) {}
 
   async searchPart(query: BrowserSearchQuery): Promise<BrowserSearchListing[]> {
     assertLiveBrowsingAllowed(this.name);
 
     // Dynamic import behind the ambient shim — see class doc above.
     const { chromium } = await import("playwright");
-    const browser = await chromium.launch({ headless: true });
+    const browser = this.wsEndpoint
+      ? await chromium.connectOverCDP(this.wsEndpoint)
+      : await chromium.launch({ headless: true });
     try {
       const page = await browser.newPage();
       const keyword = query.mpn ?? query.lcscPn ?? [query.value, query.packageName].filter(Boolean).join(" ");
@@ -104,6 +112,9 @@ export class PlaywrightDriver implements BrowserDriver {
       await page.waitForTimeout(1500);
       return await scrapeListings(page, query.siteName);
     } finally {
+      // For a `connectOverCDP` browser, `close()` just disconnects this
+      // session (per Playwright docs) rather than killing the remote
+      // Chromium process — safe to call unconditionally either way.
       await browser.close();
     }
   }
@@ -162,12 +173,15 @@ function parseStockText(text: string): number | null {
   return Number.isNaN(numeric) ? null : numeric;
 }
 
-export function createBrowserDriver(kind: "computeruse" | "playwright" | "browserbase" | null): BrowserDriver {
+export function createBrowserDriver(
+  kind: "computeruse" | "playwright" | "browserbase" | null,
+  playwrightWsEndpoint: string | null = null,
+): BrowserDriver {
   switch (kind) {
     case "computeruse":
       return new ComputerUseDriver();
     case "playwright":
-      return new PlaywrightDriver();
+      return new PlaywrightDriver(playwrightWsEndpoint);
     case "browserbase":
       return new BrowserbaseDriver();
     default:

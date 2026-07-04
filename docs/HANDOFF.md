@@ -60,11 +60,17 @@ Recovery for interrupted/errored workflow runs: TaskStop → `Workflow({scriptPa
 
 ## 4. What remains (needs Vaibhav, not code)
 
-1. **Live keys** — create Supabase cloud project + R2 bucket (`smarkstock-files`) + set
-   `ANTHROPIC_API_KEY`, distributor keys (Digikey OAuth2, Mouser, element14),
-   `WORKER_SHARED_SECRET`. Registry: `.env.local.example`. Everything activates by env presence;
-   no code changes expected. Then: run migrations against cloud, import real Stock List
-   (`scripts/import-stocklist.ts`), onboarding queue for locations/labels.
+1. **Live keys — PARTIALLY WIRED (2026-07-04 by Vaibhav).** Cloud Supabase + R2 + Anthropic +
+   worker secret exist in `.env.cloud.local` (gitignored). **`.env.local` must stay pointed at
+   the LOCAL stack** — the test suites read it; when it briefly pointed at cloud, 19 DB suites
+   ran against the empty cloud project and one invariant test made a real paid Anthropic call.
+   Cloud values belong in Vercel project env + the worker host env at deploy time.
+   Still pending on cloud: seed.sql content (ordering rules/distributors/prefs), real auth
+   users, `CLAUDE_MODEL_MASTER`/`CLAUDE_MODEL_ITEM` ids, distributor keys, real Stock List
+   import (`scripts/import-stocklist.ts`) + the locations/labels onboarding queue.
+   The R2 adapter is REAL (aws4fetch SigV4, `lib/storage/index.ts`, unit-tested with mocked
+   fetch) — the env-gated live round-trip proof is `tests/integration/storage-r2-live.test.ts`,
+   self-skips without `CLOUDFLARE_R2_*`, run it once with the cloud values to confirm.
 2. **Phase-0 spike measurement (GATE for the browser-agent path)** — harness is code-complete in
    `worker/` + `docs/spike-browser-worker.md`. Needs ANTHROPIC_API_KEY + a SUPERVISED session with
    Vaibhav (~30 real TMCS lines vs LCSC; go/no-go per FEATURES §0). Until then: API distributors

@@ -52,6 +52,7 @@ async function main(): Promise<void> {
     claudeModelMaster: "mock",
     claudeModelItem: "mock",
     browserDriver: null, // force MockDistributorClient for any "browse" distributor — see module doc
+    playwrightWsEndpoint: null,
     digikeyClientId: null,
     digikeyClientSecret: null,
     mouserApiKey: null,
