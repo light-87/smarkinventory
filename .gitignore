@@ -42,3 +42,5 @@ bun-debug.log*
 
 # playwright-mcp session logs (browser-tool scratch, never source)
 .playwright-mcp/
+
+.vercel
