@@ -27,6 +27,15 @@ function extraKeyLabel(key: string): string {
 }
 
 /**
+ * `part_link` is an arbitrary cell from an uploaded xlsx — only ever render
+ * it as a link when it's a real http(s) URL, never `javascript:`/`data:` etc.
+ */
+function safePartLink(raw: string | null): string | null {
+  if (!raw) return null;
+  return /^https?:\/\//i.test(raw.trim()) ? raw.trim() : null;
+}
+
+/**
  * Per-BOM reconcile view (plan/tab-orders-projects.md §2/§5): stat trio,
  * build-qty ×N, lines table. The table renders the uploaded file IN FULL —
  * every parsed column including Description/Manufacturer/PartLink and any
@@ -165,9 +174,9 @@ export function ReconcileView({ bom, lines, writable }: ReconcileViewProps) {
               <Td className="text-smoke">{line.manufacturer ?? "—"}</Td>
               {hasLcsc && <Td mono>{line.lcsc_pn ?? "—"}</Td>}
               <Td>
-                {line.part_link ? (
+                {safePartLink(line.part_link) ? (
                   <a
-                    href={line.part_link}
+                    href={safePartLink(line.part_link)!}
                     target="_blank"
                     rel="noreferrer"
                     className="text-silver-mist underline underline-offset-2 transition-colors hover:text-snow"
