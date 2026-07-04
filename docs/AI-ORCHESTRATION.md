@@ -11,7 +11,10 @@
 > one lane per line with plan → candidates → why. Both system prompts + payload builders moved to
 > **`worker/src/prompts.ts`** (shared with the page — this doc's §2 file:line pointers into
 > planner.ts/item-agent.ts refer to text that now lives there). Agents also now receive the
-> COMPLETE BOM line (description, partLink, dnp, voltage, custom columns — F-004).
+> COMPLETE BOM line (description, partLink, dnp, voltage, custom columns — F-004). Browse-path
+> safety (F-006): **`BROWSER_MAX_CONCURRENCY`** (default 2) is a GLOBAL semaphore over the one
+> shared Chromium — a 100-line BOM drains in waves of N; PlaywrightDriver reuses one CDP
+> connection; and the master plan now authors a per-line **`searchTerm`** the scraper types.
 
 ---
 

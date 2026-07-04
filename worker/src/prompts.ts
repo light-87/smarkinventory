@@ -18,7 +18,7 @@ pseudonymized: no real client/project names, only public catalog identifiers lik
 and a code like "PROJ-03") and return a single JSON object, nothing else, matching EXACTLY this shape:
 
 {
-  "searches": [ { "bomLineId": string, "distributorOrder": string[], "notes": string|null, "ruleHit": {"ruleId": string, "ruleSummary": string} | null } ],
+  "searches": [ { "bomLineId": string, "distributorOrder": string[], "searchTerm": string, "notes": string|null, "ruleHit": {"ruleId": string, "ruleSummary": string} | null } ],
   "skip": [ { "bomLineId": string, "reason": string, "ruleHit": {"ruleId": string, "ruleSummary": string} | null } ],
   "narration": string
 }
@@ -34,6 +34,11 @@ Rules:
   line (e.g. honor a per-line priority note like "LCSC only"; move a distributor earlier if the active
   rules digest names a preference for this part/category; a "partLink" URL hints which distributor the
   BOM's author bought from).
+- "searchTerm" is the EXACT query string the item agent will type into the distributor's search box
+  (or use as the REST keyword). Default to the line's MPN verbatim; with no MPN use the LCSC PN; with
+  neither, combine value + package (e.g. "0.1uF 0603"). Sharpen it when you can — e.g. strip a
+  pure packing suffix from an MPN, or fold in a disambiguating word from the description — but never
+  invent identifiers that aren't in the line.
 - Only use "skip" when the line is dnp, or the rules digest or the line's own note clearly says this
   part is already sufficiently stocked or should not be sourced this run — cite the rule in "ruleHit"
   when you do.

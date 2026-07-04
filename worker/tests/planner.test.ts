@@ -95,6 +95,29 @@ test("reconcilePlanWithLines fills in a sane default for a line the model's plan
   expect(ids).toContain("B"); // never silently vanishes
 });
 
+test("every planned search carries a usable searchTerm — MPN first, else LCSC, else value+package", () => {
+  const plan = mockMasterPlan(
+    config([
+      line({ bomLineId: "A", mpn: "STM32H743ZIT6" }),
+      line({ bomLineId: "B", mpn: null, lcscPn: "C14663" }),
+      line({ bomLineId: "C", mpn: null, lcscPn: null, value: "0.1uF", packageName: "0603" }),
+    ]),
+  );
+  const terms = new Map(plan.searches.map((s) => [s.bomLineId, s.searchTerm]));
+  expect(terms.get("A")).toBe("STM32H743ZIT6");
+  expect(terms.get("B")).toBe("C14663");
+  expect(terms.get("C")).toBe("0.1uF 0603");
+});
+
+test("reconcilePlanWithLines backfills a searchTerm the model omitted or blanked", () => {
+  const cfg = config([line({ bomLineId: "A", mpn: "ABC123" })]);
+  const plan = reconcilePlanWithLines(
+    { searches: [{ bomLineId: "A", distributorOrder: ["Digikey"], searchTerm: "  ", notes: null, ruleHit: null }], skip: [], narration: "" },
+    cfg,
+  );
+  expect(plan.searches[0]?.searchTerm).toBe("ABC123");
+});
+
 test("narration follows the 'Planned N searches · dispatched N item agents.' shape", () => {
   const cfg = config([line({ bomLineId: "A" }), line({ bomLineId: "B" })]);
   const plan = reconcilePlanWithLines(mockMasterPlan(cfg), cfg);

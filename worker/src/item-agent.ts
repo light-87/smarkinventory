@@ -101,6 +101,7 @@ export async function runItemAgent(options: RunItemAgentOptions): Promise<RunIte
         lcscPn: line.lcscPn,
         value: line.value,
         packageName: line.packageName,
+        searchTerm: plannedSearch.searchTerm ?? null,
         qty: line.qty,
       });
       for (const listing of listings) found.push({ listing, distributorId });

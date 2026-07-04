@@ -38,6 +38,22 @@ Screenshot: docs/testing-screenshots/f-001.png (optional)
 
 <!-- Claude moves resolved entries here with commit hashes, so the Findings section stays short -->
 
+### F-006 · IDEA · BUILT (design locked with user, see commit)
+Surface: worker browse path — single 2 GB Chromium box safety
+Locked decisions: (1) scripted scraper, master-planned — no LLM-per-page; (2) browser only
+where no API (already true: Digikey/Mouser/element14 = REST, LCSC/Unikey = browse); (3) global
+env-configurable cap. Built:
+- `BROWSER_MAX_CONCURRENCY` (default 2, clamp 1–8): ONE global semaphore every browse search
+  must acquire — across all runs and sites — layered on the per-site caps, so the shared
+  Chromium box never holds more than N pages regardless of tier/fanout. A 100-line BOM drains
+  in waves; REST lines fan out freely beside it.
+- PlaywrightDriver now REUSES one CDP/browser connection (lazy, reset on failure) instead of
+  connect-per-search; only pages open/close per search.
+- Master now authors `searchTerm` per line (exact query the agent types — MPN → LCSC →
+  value+package, may be sharpened but never invented); deterministic fallback backfills any
+  search the model omits/blanks; mock planner + re-run path fill it too; browse driver uses it
+  first. Shown per lane on /ai_orc.
+
 ### F-005 · IDEA · BUILT (user-requested directly, see commit)
 Surface: NEW — /ai_orc observatory + worker telemetry
 Request: "monitoring page for run progress + server RAM/CPU; 2 GB worker box; prompt-to-agent

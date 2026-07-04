@@ -25,13 +25,24 @@ import type { ClaudeMasterPlan, CostEstimate, PlannedSearch, SkipDecision, Worke
 export { buildMasterPrompt };
 
 /**
+ * The deterministic search-term fallback — the same derivation every
+ * executor would apply on its own: MPN verbatim → LCSC PN → value+package.
+ */
+function defaultSearchTerm(line: { mpn: string | null; lcscPn: string | null; value: string | null; packageName: string | null }): string | null {
+  return line.mpn ?? line.lcscPn ?? ([line.value, line.packageName].filter(Boolean).join(" ") || null);
+}
+
+/**
  * Defensive pass: guarantees every input line is accounted for exactly once,
  * regardless of what the model returned. Skip wins on a duplicate — it is
  * the more specific, harder-to-justify decision, so a model that both
- * "searched" and "skipped" a line most likely meant to skip it.
+ * "searched" and "skipped" a line most likely meant to skip it. A search the
+ * model returned without a usable `searchTerm` gets the deterministic
+ * default — an item agent must never start with an empty query.
  */
 export function reconcilePlanWithLines(plan: ClaudeMasterPlan, config: WorkerRunConfig): ClaudeMasterPlan {
   const validIds = new Set(config.lines.map((l) => l.bomLineId));
+  const lineById = new Map(config.lines.map((l) => [l.bomLineId, l]));
   const skipById = new Map(plan.skip.filter((s) => validIds.has(s.bomLineId)).map((s) => [s.bomLineId, s]));
   const searchById = new Map(
     plan.searches.filter((s) => validIds.has(s.bomLineId) && !skipById.has(s.bomLineId)).map((s) => [s.bomLineId, s]),
@@ -51,13 +62,17 @@ export function reconcilePlanWithLines(plan: ClaudeMasterPlan, config: WorkerRun
       continue;
     }
     const search = searchById.get(line.bomLineId);
+    const fallbackTerm = defaultSearchTerm(lineById.get(line.bomLineId) ?? line);
     searches.push(
-      search ?? {
-        bomLineId: line.bomLineId,
-        distributorOrder: enabledDistributors,
-        notes: null,
-        ruleHit: null,
-      },
+      search
+        ? { ...search, searchTerm: search.searchTerm?.trim() || fallbackTerm }
+        : {
+            bomLineId: line.bomLineId,
+            distributorOrder: enabledDistributors,
+            searchTerm: fallbackTerm,
+            notes: null,
+            ruleHit: null,
+          },
     );
   }
 
@@ -114,7 +129,13 @@ export function mockMasterPlan(config: WorkerRunConfig): ClaudeMasterPlan {
       notes = `Per-line note: "${line.priorityNote}".`;
     }
 
-    searches.push({ bomLineId: line.bomLineId, distributorOrder, notes, ruleHit: null });
+    searches.push({
+      bomLineId: line.bomLineId,
+      distributorOrder,
+      searchTerm: defaultSearchTerm(line),
+      notes,
+      ruleHit: null,
+    });
   }
 
   return {

@@ -29,6 +29,7 @@ class BrowserBackedDistributorClient implements DistributorClient {
       lcscPn: query.lcscPn,
       value: query.value,
       packageName: query.packageName,
+      searchTerm: query.searchTerm ?? null,
     });
     return listings.map(
       (listing): DistributorListing => ({

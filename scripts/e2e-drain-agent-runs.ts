@@ -57,6 +57,8 @@ async function main(): Promise<void> {
     digikeyClientSecret: null,
     mouserApiKey: null,
     element14ApiKey: null,
+    browserMaxConcurrency: 2, // irrelevant with browserDriver null, required by the shape
+
   };
 
   const state = buildRuntime(env);

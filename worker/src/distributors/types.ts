@@ -12,6 +12,13 @@ export interface DistributorSearchQuery {
   packageName: string | null;
   /** Minimum quantity the listing must be able to fill (ladder rung 6). */
   qty: number;
+  /**
+   * Master-authored exact query string (PlannedSearch.searchTerm) — browse
+   * clients type THIS into the site's search box when present; REST clients
+   * may ignore it (their APIs take structured params). Optional for
+   * backward compat with pre-change stored plans.
+   */
+  searchTerm?: string | null;
 }
 
 export interface DistributorQtyBreak {

@@ -33,7 +33,7 @@
 import { createSiteSemaphore, estimateNextCallRupees, RunCostTracker } from "./src/caps";
 import { attachPlanToJob, claimNextJobs, completeJob, markJobSkipped, releaseStaleClaims } from "./src/claim";
 import { AnthropicRestClaudePort, type ClaudePort } from "./src/claude-port";
-import { createBrowserDriver, type BrowserDriver } from "./src/browser-driver";
+import { createBrowserDriver, withGlobalBrowserLimit, type BrowserDriver } from "./src/browser-driver";
 import { createServiceRoleClient, type ServiceRoleClient } from "./src/db";
 import { createDistributorClient } from "./src/distributors";
 import type { DistributorClient } from "./src/distributors/types";
@@ -74,7 +74,11 @@ function buildRuntime(env: WorkerEnv): RuntimeState {
     env,
     client: createServiceRoleClient(env),
     claudePort: env.anthropicApiKey ? new AnthropicRestClaudePort(env.anthropicApiKey) : undefined,
-    browserDriver: env.browserDriver ? createBrowserDriver(env.browserDriver, env.playwrightWsEndpoint) : null,
+    // GLOBAL browser cap on top of per-site caps: every browse search shares
+    // ONE Chromium box, so the box-wide ceiling is what actually protects it.
+    browserDriver: env.browserDriver
+      ? withGlobalBrowserLimit(createBrowserDriver(env.browserDriver, env.playwrightWsEndpoint), env.browserMaxConcurrency)
+      : null,
     siteSemaphore: createSiteSemaphore(),
     distributorClients: new Map(),
     costTrackers: new Map(),

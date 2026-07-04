@@ -328,6 +328,8 @@ export async function reRunItem(supabase: DB, service: DB, input: { runId: strin
   const plannedSearch: PlannedSearch = {
     bomLineId: input.bomLineId,
     distributorOrder: config.distributorSequence.filter((d) => d.enabled).map((d) => d.name),
+    // Same deterministic derivation as the planner's fallback (worker/src/planner.ts defaultSearchTerm).
+    searchTerm: line.mpn ?? line.lcscPn ?? ([line.value, line.packageName].filter(Boolean).join(" ") || null),
     notes: "Re-run requested from the review screen.",
     ruleHit: null,
   };

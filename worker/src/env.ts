@@ -42,6 +42,15 @@ export interface WorkerEnv {
   digikeyClientSecret: string | null;
   mouserApiKey: string | null;
   element14ApiKey: string | null;
+
+  /**
+   * GLOBAL ceiling on concurrent browser searches across ALL runs/sites —
+   * the per-site caps bound each distributor independently, but every browse
+   * search lands on ONE shared Chromium (a ~2 GB box holds only 2–4 heavy
+   * distributor pages at once), so this single semaphore is what actually
+   * protects it. `BROWSER_MAX_CONCURRENCY`, default 2, clamped to [1, 8].
+   */
+  browserMaxConcurrency: number;
 }
 
 function optional(name: string): string | null {
@@ -84,5 +93,12 @@ export function loadEnv(): WorkerEnv {
     digikeyClientSecret: optional("DIGIKEY_CLIENT_SECRET"),
     mouserApiKey: optional("MOUSER_API_KEY"),
     element14ApiKey: optional("ELEMENT14_API_KEY"),
+    browserMaxConcurrency: parseBrowserMaxConcurrency(optional("BROWSER_MAX_CONCURRENCY")),
   };
+}
+
+function parseBrowserMaxConcurrency(raw: string | null): number {
+  const n = raw === null ? NaN : Number.parseInt(raw, 10);
+  if (!Number.isFinite(n)) return 2; // safe default for a small (2 GB) browser box
+  return Math.max(1, Math.min(8, n));
 }

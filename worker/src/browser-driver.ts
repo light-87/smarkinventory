@@ -31,6 +31,8 @@ export interface BrowserSearchQuery {
   lcscPn: string | null;
   value: string | null;
   packageName: string | null;
+  /** Master-authored exact query (PlannedSearch.searchTerm) — wins over the driver's own derivation. */
+  searchTerm?: string | null;
 }
 
 export interface BrowserSearchListing {
@@ -92,32 +94,105 @@ export class BrowserbaseDriver extends NotImplementedDriver {
 export class PlaywrightDriver implements BrowserDriver {
   readonly name = "PlaywrightDriver";
 
+  /**
+   * ONE browser connection per worker process, established lazily and REUSED
+   * across searches — connect/launch-per-search was both slow and, against a
+   * small remote Chromium box, a resource churn multiplier. Reset to null on
+   * any search failure so the next search reconnects cleanly (a dropped CDP
+   * websocket otherwise poisons every call after it).
+   */
+  private browserPromise: Promise<{ newPage(): Promise<unknown>; close(): Promise<void> }> | null = null;
+
   constructor(private readonly wsEndpoint: string | null = null) {}
+
+  private async ensureBrowser(): Promise<{ newPage(): Promise<unknown>; close(): Promise<void> }> {
+    if (!this.browserPromise) {
+      this.browserPromise = (async () => {
+        // Dynamic import behind the ambient shim — see class doc above.
+        const { chromium } = await import("playwright");
+        return this.wsEndpoint
+          ? await chromium.connectOverCDP(this.wsEndpoint)
+          : await chromium.launch({ headless: true });
+      })();
+    }
+    try {
+      return await this.browserPromise;
+    } catch (error) {
+      this.browserPromise = null; // failed connect must not be cached
+      throw error;
+    }
+  }
 
   async searchPart(query: BrowserSearchQuery): Promise<BrowserSearchListing[]> {
     assertLiveBrowsingAllowed(this.name);
 
-    // Dynamic import behind the ambient shim — see class doc above.
-    const { chromium } = await import("playwright");
-    const browser = this.wsEndpoint
-      ? await chromium.connectOverCDP(this.wsEndpoint)
-      : await chromium.launch({ headless: true });
+    const browser = await this.ensureBrowser();
+    // Minimal structural page type — real types come with the installed package.
+    const page = (await browser.newPage()) as ScrapablePage & {
+      goto(url: string, opts: { waitUntil: string }): Promise<unknown>;
+      waitForTimeout(ms: number): Promise<void>;
+      close(): Promise<void>;
+    };
     try {
-      const page = await browser.newPage();
-      const keyword = query.mpn ?? query.lcscPn ?? [query.value, query.packageName].filter(Boolean).join(" ");
+      const keyword =
+        query.searchTerm?.trim() ||
+        query.mpn ||
+        query.lcscPn ||
+        [query.value, query.packageName].filter(Boolean).join(" ");
       const searchUrl = buildSearchUrl(query.siteName, keyword);
       await page.goto(searchUrl, { waitUntil: "domcontentloaded" });
       // Human-pacing per FEATURES §15 ("human pacing" on browser-only sites) —
       // a fixed small delay, not a scraping-defeating randomized one.
       await page.waitForTimeout(1500);
       return await scrapeListings(page, query.siteName);
+    } catch (error) {
+      // Assume the connection may be poisoned — drop it; next search reconnects.
+      this.browserPromise = null;
+      throw error;
     } finally {
-      // For a `connectOverCDP` browser, `close()` just disconnects this
-      // session (per Playwright docs) rather than killing the remote
-      // Chromium process — safe to call unconditionally either way.
-      await browser.close();
+      // Close only the PAGE — the shared browser connection stays up. For a
+      // connectOverCDP browser this frees the remote tab immediately.
+      await page.close().catch(() => undefined);
     }
   }
+}
+
+/**
+ * Wraps a driver with the GLOBAL browser semaphore (env
+ * `BROWSER_MAX_CONCURRENCY`, default 2): every browse search — any run, any
+ * site — must acquire a slot before touching Chromium. Per-site caps bound
+ * each distributor; THIS bounds the one shared browser box (a 2 GB server
+ * holds ~2–4 heavy distributor pages). A 100-line BOM drains in waves of N.
+ */
+export function withGlobalBrowserLimit(driver: BrowserDriver, maxConcurrent: number): BrowserDriver {
+  const limit = Math.max(1, maxConcurrent);
+  let inFlight = 0;
+  const waiters: Array<() => void> = [];
+
+  const acquire = async (): Promise<() => void> => {
+    // Loop, don't assume: a caller that arrives between a release and this
+    // waiter waking could have taken the freed slot already.
+    while (inFlight >= limit) {
+      await new Promise<void>((resolve) => waiters.push(resolve));
+    }
+    inFlight += 1;
+    return () => {
+      inFlight -= 1;
+      waiters.shift()?.();
+    };
+  };
+
+  return {
+    name: `${driver.name} (global cap ${limit})`,
+    async searchPart(query: BrowserSearchQuery): Promise<BrowserSearchListing[]> {
+      const release = await acquire();
+      try {
+        return await driver.searchPart(query);
+      } finally {
+        release();
+      }
+    },
+  };
 }
 
 function buildSearchUrl(siteName: string, keyword: string): string {

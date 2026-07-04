@@ -242,6 +242,14 @@ export interface PlannedSearch {
   bomLineId: string;
   /** Distributor NAMES in the order to try for THIS line — a reorder/subset of the run's sequence. */
   distributorOrder: string[];
+  /**
+   * Master-authored EXACT query string the item agent should search with
+   * (typed into a browse site's search box / used as the REST keyword) —
+   * usually the MPN, but the master may sharpen it (e.g. strip a packing
+   * suffix, or use value+package for MPN-less lines). Optional: absent on
+   * pre-change stored plans; executors fall back to their own derivation.
+   */
+  searchTerm?: string | null;
   /** Short "why" basis for this line's plan (surfaces as run-log narration). */
   notes: string | null;
   ruleHit: RuleHit | null;

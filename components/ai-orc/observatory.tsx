@@ -229,6 +229,12 @@ function LaneCard({ lane }: { lane: RunLane }) {
         lane.plannedSearch && (
           <p className="mt-2 text-caption text-smoke">
             Planned order: <span className="font-mono text-silver-mist">{lane.plannedSearch.distributorOrder.join(" → ")}</span>
+            {lane.plannedSearch.searchTerm ? (
+              <>
+                {" · search "}
+                <span className="font-mono text-silver-mist">&ldquo;{lane.plannedSearch.searchTerm}&rdquo;</span>
+              </>
+            ) : null}
             {lane.plannedSearch.notes ? ` · ${lane.plannedSearch.notes}` : ""}
             {lane.plannedSearch.ruleHit ? ` · rule: ${lane.plannedSearch.ruleHit.ruleSummary}` : ""}
           </p>
