@@ -3,7 +3,14 @@
  * (docs/OWNERSHIP.md: owned by `scan`).
  */
 
-export { startCameraScan, isBarcodeDetectorSupported, type CameraBackend, type CameraController } from "./camera";
+export {
+  shouldEmitScannedCode,
+  computeDownscaleDimensions,
+  CAMERA_SCAN_DEDUPE_MS,
+  CAMERA_SCAN_DOWNSCALE_MAX_WIDTH,
+  type LastScannedCode,
+  type FrameDimensions,
+} from "./camera-frame";
 export {
   createInitialHidBufferState,
   pushHidKey,

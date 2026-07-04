@@ -1,6 +1,7 @@
 "use client";
 
 import { BoxScanCard } from "@/components/scan/box-scan-card";
+import { CameraScanner } from "@/components/scan/camera-scanner";
 import { OfflineBanner } from "@/components/scan/offline-banner";
 import { PartScanCard } from "@/components/scan/part-scan-card";
 import { ScannerZone } from "@/components/scan/scanner-zone";
@@ -42,11 +43,15 @@ export function ScanScreen({ canWrite }: ScanScreenProps) {
         code={scanner.code}
         onCodeChange={scanner.onCodeChange}
         onKeyDown={scanner.onKeyDown}
-        cameraOn={scanner.cameraOn}
-        cameraError={scanner.cameraError}
-        fallbackContainerId={scanner.fallbackContainerId}
-        videoRef={scanner.videoRef}
-        onToggleCamera={scanner.toggleCamera}
+        onOpenCamera={scanner.openCamera}
+      />
+
+      <CameraScanner
+        open={scanner.cameraOpen}
+        continuous
+        title="Scan a code"
+        onClose={scanner.closeCamera}
+        onDetect={scanner.handleCameraDetect}
       />
 
       {!scanner.resolution && (

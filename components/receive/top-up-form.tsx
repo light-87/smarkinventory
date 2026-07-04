@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState, useTransition } from "react";
+import { CameraScanner } from "@/components/scan/camera-scanner";
+import { CameraIcon } from "@/components/scan/icons";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Field, Input } from "@/components/ui/input";
@@ -22,6 +24,7 @@ export function TopUpForm({ presetPid }: TopUpFormProps) {
   const [found, setFound] = useState<TopUpPreview | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [qty, setQty] = useState("");
+  const [cameraOpen, setCameraOpen] = useState(false);
 
   const handleFind = useCallback((nextCode: string) => {
     if (!nextCode.trim()) return;
@@ -32,6 +35,15 @@ export function TopUpForm({ presetPid }: TopUpFormProps) {
       setNotFound(result === null);
     });
   }, []);
+
+  /** Camera onDetect — fills the PID field and looks it up exactly as typing + Enter would. */
+  const handleCameraDetect = useCallback(
+    (detectedCode: string) => {
+      setCode(detectedCode);
+      handleFind(detectedCode);
+    },
+    [handleFind],
+  );
 
   // `code`/`found` already seed from `presetPid` at mount (see useState above) —
   // ReceiveScreen only ever mounts a FRESH TopUpForm when switching tabs, so this
@@ -89,7 +101,19 @@ export function TopUpForm({ presetPid }: TopUpFormProps) {
         <Button size="lg" onClick={() => handleFind(code)} loading={isFinding} className="self-end">
           Find
         </Button>
+        <button
+          type="button"
+          aria-label="Scan with camera"
+          onClick={() => setCameraOpen(true)}
+          className="flex h-11 w-11 flex-none items-center justify-center self-end rounded-full border border-charcoal text-smoke transition-colors hover:border-slate hover:text-snow"
+        >
+          <span aria-hidden className="size-4 [&_svg]:size-full">
+            <CameraIcon />
+          </span>
+        </button>
       </div>
+
+      <CameraScanner open={cameraOpen} onClose={() => setCameraOpen(false)} onDetect={handleCameraDetect} title="Scan a PID" />
 
       {notFound && <div className="mt-3 text-[13px] text-smark-orange-soft">No part found for &ldquo;{code}&rdquo;.</div>}
 

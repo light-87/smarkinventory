@@ -44,7 +44,12 @@ if (typeof process.versions.bun === "undefined") {
       await expect(input).toBeVisible();
       await expect(input).toBeFocused();
 
-      await expect(page.getByRole("button", { name: /camera/i })).toBeVisible();
+      // Scoped to `<main>` (components/shell/app-shell.tsx mounts `<Header>`
+      // as a SIBLING of `<main>`, not inside it) — the header also grew its
+      // own "Scan with camera" button (components/shell/header-search.tsx),
+      // which an unscoped /camera/i also matches, alongside this page's own
+      // ScannerZone "Camera" button.
+      await expect(page.locator("main").getByRole("button", { name: /camera/i })).toBeVisible();
     });
 
     test("an unresolved code shows a 'No match' toast instead of crashing the page", async ({ page }) => {

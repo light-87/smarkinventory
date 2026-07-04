@@ -27,7 +27,6 @@
     "aws4fetch": "^1.0.20",
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
-    "html5-qrcode": "^2.3.8",
     "next": "^16.2.10",
     "pdf-lib": "^1.17.1",
     "qrcode": "^1.5.4",
@@ -38,7 +37,8 @@
     "tailwind-merge": "^3.6.0",
     "xlsx": "^0.18.5",
     "zod": "^4.4.3",
-    "zustand": "^5.0.14"
+    "zustand": "^5.0.14",
+    "zxing-wasm": "^3.1.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1",

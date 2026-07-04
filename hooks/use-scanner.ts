@@ -3,8 +3,10 @@
 /**
  * hooks/use-scanner.ts — wires the scan surface together: the focus-trapped
  * HID buffer (lib/scan/hid-buffer), code resolution (lib/scan/resolve), the
- * camera toggle (lib/scan/camera), the offline movement queue
- * (lib/scan/offline-queue), and the movement/undo write path
+ * full-screen camera overlay (components/scan/camera-scanner.tsx — this hook
+ * just owns its open/closed state and feeds its detections through the same
+ * `resolveCode` path as the HID buffer/manual input), the offline movement
+ * queue (lib/scan/offline-queue), and the movement/undo write path
  * (lib/movements) into one hook `app/(app)/scan/page.tsx` + components/scan
  * consume.
  *
@@ -16,8 +18,8 @@
  * tests/invariants/{undo-pairing,qty-rollup}.test.ts.
  */
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
-import type { KeyboardEvent as ReactKeyboardEvent, RefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ui/toast";
 import {
@@ -30,9 +32,7 @@ import {
   listOfflineMovements,
   pushHidKey,
   resolveScanCode,
-  startCameraScan,
   syncOfflineMovements,
-  type CameraController,
   type HidBufferState,
   type ScanResolution,
 } from "@/lib/scan";
@@ -54,11 +54,12 @@ export interface UseScannerResult {
   closeResult: () => void;
 
   // ── camera ────────────────────────────────────────────────────────────
-  cameraOn: boolean;
-  cameraError: string | null;
-  fallbackContainerId: string;
-  videoRef: RefObject<HTMLVideoElement | null>;
-  toggleCamera: () => void;
+  /** Whether the full-screen camera overlay (components/scan/camera-scanner.tsx) is open. */
+  cameraOpen: boolean;
+  openCamera: () => void;
+  closeCamera: () => void;
+  /** Feeds a code detected by the camera overlay through the same resolution path as the HID buffer/manual input. */
+  handleCameraDetect: (code: string) => void;
 
   // ── offline queue ─────────────────────────────────────────────────────
   queuedCount: number;
@@ -95,17 +96,13 @@ export interface UseScannerOptions {
 export function useScanner({ canWrite = true }: UseScannerOptions = {}): UseScannerResult {
   const supabase = useMemo(() => createClient(), []);
   const { push: pushToast } = useToast();
-  const fallbackContainerId = `scan${useId().replace(/[^a-zA-Z0-9-]/g, "-")}camera`;
 
   const [code, setCode] = useState("");
   const [resolution, setResolution] = useState<ScanResolution | null>(null);
   const [resolving, setResolving] = useState(false);
   const [resolveError, setResolveError] = useState<string | null>(null);
 
-  const [cameraOn, setCameraOn] = useState(false);
-  const [cameraError, setCameraError] = useState<string | null>(null);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const cameraControllerRef = useRef<CameraController | null>(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
 
   const [queuedCount, setQueuedCount] = useState(() => listOfflineMovements().length);
 
@@ -246,35 +243,13 @@ export function useScanner({ canWrite = true }: UseScannerOptions = {}): UseScan
   }, []);
 
   // ── camera ──────────────────────────────────────────────────────────────
-  const toggleCamera = useCallback(() => {
-    if (cameraOn) {
-      void cameraControllerRef.current?.stop();
-      cameraControllerRef.current = null;
-      setCameraOn(false);
-      return;
-    }
-    setCameraError(null);
-    void startCameraScan({
-      videoElement: videoRef.current,
-      fallbackContainerId,
-      onDetect: (detectedCode) => void resolveCode(detectedCode),
-      onError: (error) => setCameraError(error.message),
-    })
-      .then((controller) => {
-        cameraControllerRef.current = controller;
-        setCameraOn(true);
-      })
-      .catch((error: unknown) => {
-        setCameraError(error instanceof Error ? error.message : "Could not start the camera");
-        setCameraOn(false);
-      });
-  }, [cameraOn, fallbackContainerId, resolveCode]);
-
-  useEffect(() => {
-    return () => {
-      void cameraControllerRef.current?.stop();
-    };
-  }, []);
+  // The overlay (components/scan/camera-scanner.tsx) owns its own
+  // stream/decoder lifecycle entirely — it acquires the camera when `open`
+  // becomes true and tears it down on close/unmount, so this hook only needs
+  // to track whether it's open and forward its detections into `resolveCode`.
+  const openCamera = useCallback(() => setCameraOpen(true), []);
+  const closeCamera = useCallback(() => setCameraOpen(false), []);
+  const handleCameraDetect = useCallback((detectedCode: string) => void resolveCode(detectedCode), [resolveCode]);
 
   const setStep = useCallback((next: number) => {
     setStepState(Math.max(MIN_STEP, Math.round(next)));
@@ -388,11 +363,10 @@ export function useScanner({ canWrite = true }: UseScannerOptions = {}): UseScan
     resolving,
     resolveError,
     closeResult,
-    cameraOn,
-    cameraError,
-    fallbackContainerId,
-    videoRef,
-    toggleCamera,
+    cameraOpen,
+    openCamera,
+    closeCamera,
+    handleCameraDetect,
     queuedCount,
     step,
     setStep,

@@ -287,5 +287,7 @@ integrator (one PR-equivalent per change, so parallel packages never collide):
 takeout/receive · `lib/labels` (receive) ← shelves/part-detail · `lib/import` (import) ←
 bom-pipeline · `lib/matcher` (shared) ← bom-pipeline/takeout/receive · `lib/notifications`
 (search-notifications) ← cart-orders/projects-hub/ai-memory/portal · `lib/ai` (ai-memory) ←
-cart-orders/bom-pipeline/receive. If you need a function that doesn't exist in a dependency,
+cart-orders/bom-pipeline/receive · `lib/scan` (scan: resolve/classify + CameraScanner component) ←
+auth-shell-header/receive/search-notifications · `lib/search` (search-notifications: partHref/boxHref)
+← auth-shell-header. If you need a function that doesn't exist in a dependency,
 ask that package's owner (via the orchestrator), don't add it yourself.
