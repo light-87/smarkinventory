@@ -77,7 +77,16 @@ function buildRuntime(env: WorkerEnv): RuntimeState {
     // GLOBAL browser cap on top of per-site caps: every browse search shares
     // ONE Chromium box, so the box-wide ceiling is what actually protects it.
     browserDriver: env.browserDriver
-      ? withGlobalBrowserLimit(createBrowserDriver(env.browserDriver, env.playwrightWsEndpoint), env.browserMaxConcurrency)
+      ? withGlobalBrowserLimit(
+          createBrowserDriver(
+            env.browserDriver,
+            env.playwrightWsEndpoint,
+            env.browserProxyServer
+              ? { server: env.browserProxyServer, username: env.browserProxyUsername, password: env.browserProxyPassword }
+              : null,
+          ),
+          env.browserMaxConcurrency,
+        )
       : null,
     siteSemaphore: createSiteSemaphore(),
     distributorClients: new Map(),

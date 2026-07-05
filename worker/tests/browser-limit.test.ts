@@ -6,7 +6,25 @@
  */
 
 import { expect, test } from "bun:test";
-import { withGlobalBrowserLimit, type BrowserDriver, type BrowserSearchQuery } from "../src/browser-driver";
+import {
+  buildCdpEndpointWithProxy,
+  withGlobalBrowserLimit,
+  type BrowserDriver,
+  type BrowserSearchQuery,
+} from "../src/browser-driver";
+
+test("buildCdpEndpointWithProxy bakes the proxy into browserless launch args (F-012)", () => {
+  const base = "ws://box:3001?token=abc";
+  expect(buildCdpEndpointWithProxy(base, null)).toBe(base);
+
+  const withProxy = buildCdpEndpointWithProxy(base, { server: "http://gate.example.com:7777" });
+  expect(withProxy.startsWith(`${base}&launch=`)).toBe(true);
+  const launchJson = decodeURIComponent(withProxy.split("&launch=")[1]!);
+  expect(JSON.parse(launchJson)).toEqual({ args: ["--proxy-server=http://gate.example.com:7777"] });
+
+  // No existing query → '?' not '&'
+  expect(buildCdpEndpointWithProxy("ws://box:3001", { server: "socks5://127.0.0.1:1080" })).toContain("ws://box:3001?launch=");
+});
 
 function query(siteName: string): BrowserSearchQuery {
   return { siteName, mpn: "X", lcscPn: null, value: null, packageName: null, searchTerm: "X" };

@@ -44,6 +44,19 @@ export interface WorkerEnv {
   element14ApiKey: string | null;
 
   /**
+   * Residential proxy for the scraping browser (F-012) — LCSC's Akamai
+   * blocks datacenter IPs outright, so browsing FROM the box requires its
+   * Chromium to exit via a residential IP. `BROWSER_PROXY_SERVER` e.g.
+   * "http://gate.provider.com:7777" or "socks5://127.0.0.1:1080".
+   * Username/password apply to LOCAL launches only — the remote-browserless
+   * path passes `--proxy-server` (credential-less; IP-whitelist the box at
+   * the proxy provider instead).
+   */
+  browserProxyServer: string | null;
+  browserProxyUsername: string | null;
+  browserProxyPassword: string | null;
+
+  /**
    * GLOBAL ceiling on concurrent browser searches across ALL runs/sites —
    * the per-site caps bound each distributor independently, but every browse
    * search lands on ONE shared Chromium (a ~2 GB box holds only 2–4 heavy
@@ -96,6 +109,9 @@ export function loadEnv(): WorkerEnv {
     digikeyClientSecret: optional("DIGIKEY_CLIENT_SECRET"),
     mouserApiKey: optional("MOUSER_API_KEY"),
     element14ApiKey: optional("ELEMENT14_API_KEY"),
+    browserProxyServer: optional("BROWSER_PROXY_SERVER"),
+    browserProxyUsername: optional("BROWSER_PROXY_USERNAME"),
+    browserProxyPassword: optional("BROWSER_PROXY_PASSWORD"),
     browserMaxConcurrency: parseBrowserMaxConcurrency(optional("BROWSER_MAX_CONCURRENCY")),
   };
 }

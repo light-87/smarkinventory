@@ -114,6 +114,27 @@ export class BrowserbaseDriver extends NotImplementedDriver {
 const SCRAPE_USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 
+/** Residential proxy for the scraping browser — the fix that lets LCSC browsing run FROM the datacenter box. */
+export interface BrowserProxyConfig {
+  /** e.g. "http://gate.provider.com:7777" or "socks5://127.0.0.1:1080" */
+  server: string;
+  username?: string | null;
+  password?: string | null;
+}
+
+/**
+ * For a REMOTE browserless box, the proxy must be a Chromium LAUNCH argument
+ * (browserless v2 accepts a `launch` JSON query param) — a context-level
+ * proxy doesn't apply to an already-running CDP browser. Credentialed
+ * proxies over this path need IP-whitelist auth (whitelist the box's IP at
+ * the proxy provider); `--proxy-server` cannot carry a username/password.
+ */
+export function buildCdpEndpointWithProxy(wsEndpoint: string, proxy: BrowserProxyConfig | null): string {
+  if (!proxy) return wsEndpoint;
+  const launch = JSON.stringify({ args: [`--proxy-server=${proxy.server}`] });
+  return `${wsEndpoint}${wsEndpoint.includes("?") ? "&" : "?"}launch=${encodeURIComponent(launch)}`;
+}
+
 export class PlaywrightDriver implements BrowserDriver {
   readonly name = "PlaywrightDriver";
 
@@ -128,7 +149,10 @@ export class PlaywrightDriver implements BrowserDriver {
    */
   private contextPromise: Promise<ScrapableContext> | null = null;
 
-  constructor(private readonly wsEndpoint: string | null = null) {}
+  constructor(
+    private readonly wsEndpoint: string | null = null,
+    private readonly proxy: BrowserProxyConfig | null = null,
+  ) {}
 
   private launches = 0;
 
@@ -137,9 +161,25 @@ export class PlaywrightDriver implements BrowserDriver {
       this.contextPromise = (async () => {
         // Dynamic import behind the ambient shim — see class doc above.
         const { chromium } = await import("playwright");
+        // Proxy plumbing differs by mode: a LOCAL launch takes playwright's
+        // own proxy option (supports username/password); a REMOTE browserless
+        // connect needs the proxy baked into Chromium's launch args (see
+        // buildCdpEndpointWithProxy — IP-whitelist auth only).
         const browser = this.wsEndpoint
-          ? await chromium.connectOverCDP(this.wsEndpoint)
-          : await chromium.launch({ headless: true });
+          ? await chromium.connectOverCDP(buildCdpEndpointWithProxy(this.wsEndpoint, this.proxy))
+          : await chromium.launch({
+              headless: true,
+              ...(this.proxy
+                ? {
+                    proxy: {
+                      server: this.proxy.server,
+                      username: this.proxy.username ?? undefined,
+                      password: this.proxy.password ?? undefined,
+                    },
+                  }
+                : {}),
+            });
+        if (this.proxy) console.log(`[browser] scraping traffic routed via proxy ${this.proxy.server.replace(/\/\/.*@/, "//***@")}`);
         this.launches += 1;
         const n = this.launches;
         console.log(`[browser] ${this.wsEndpoint ? "connected" : "launched"} browser #${n}`);
@@ -403,12 +443,13 @@ function parseStockText(text: string): number | null {
 export function createBrowserDriver(
   kind: "computeruse" | "playwright" | "browserbase" | null,
   playwrightWsEndpoint: string | null = null,
+  proxy: BrowserProxyConfig | null = null,
 ): BrowserDriver {
   switch (kind) {
     case "computeruse":
       return new ComputerUseDriver();
     case "playwright":
-      return new PlaywrightDriver(playwrightWsEndpoint);
+      return new PlaywrightDriver(playwrightWsEndpoint, proxy);
     case "browserbase":
       return new BrowserbaseDriver();
     default:

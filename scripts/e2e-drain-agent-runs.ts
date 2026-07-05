@@ -1,6 +1,6 @@
-#!/usr/bin/env bun
+﻿#!/usr/bin/env bun
 /**
- * scripts/e2e-drain-agent-runs.ts — for tests/e2e/ordering-run-review.spec.ts
+ * scripts/e2e-drain-agent-runs.ts â€” for tests/e2e/ordering-run-review.spec.ts
  * ONLY: synchronously ticks the worker's own poll loop (worker/index.ts's
  * exported `buildRuntime`/`pollOnce`) a bounded number of times so a run
  * enqueued via the Ordering Workspace reaches a terminal status
@@ -13,7 +13,7 @@
  * script forces `browserDriver: null` and `anthropicApiKey: null` so every
  * distributor resolves to the deterministic `MockDistributorClient`
  * (worker/src/distributors/index.ts) and the planner/item-agent take their
- * mock paths (worker/src/planner.ts, worker/src/item-agent.ts) — no network
+ * mock paths (worker/src/planner.ts, worker/src/item-agent.ts) â€” no network
  * call, no live key, ever, regardless of what's in the ambient environment.
  * The e2e spec itself is responsible for pointing every fixture BOM's
  * distributor sequence at ONLY a "browse"-type distributor (LCSC) with no
@@ -22,7 +22,7 @@
  * no recorded fixture (worker/src/distributors/record-replay.ts).
  *
  * Run via `bun run scripts/e2e-drain-agent-runs.ts` (mirrors
- * tests/e2e/global-setup.ts's `execFileSync("bun", ["run", ...])` pattern) —
+ * tests/e2e/global-setup.ts's `execFileSync("bun", ["run", ...])` pattern) â€”
  * NOT added as a package.json script (package.json is integrator-owned per
  * docs/OWNERSHIP.md; this file is invoked by its path instead).
  */
@@ -39,7 +39,7 @@ function requireEnv(...names: string[]): string {
     if (v) return v;
   }
   throw new Error(
-    `e2e-drain-agent-runs: none of ${names.join("/")} are set — run via \`bunx playwright test\` (see docs/DEV.md), which loads .env.local.`,
+    `e2e-drain-agent-runs: none of ${names.join("/")} are set â€” run via \`bunx playwright test\` (see docs/DEV.md), which loads .env.local.`,
   );
 }
 
@@ -48,15 +48,18 @@ async function main(): Promise<void> {
     supabaseUrl: requireEnv("SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL"),
     supabaseServiceRoleKey: requireEnv("SUPABASE_SERVICE_ROLE_KEY"),
     workerSharedSecret: null,
-    anthropicApiKey: null, // force the deterministic mock planner/item-agent path — see module doc
+    anthropicApiKey: null, // force the deterministic mock planner/item-agent path â€” see module doc
     claudeModelMaster: "mock",
     claudeModelItem: "mock",
-    browserDriver: null, // force MockDistributorClient for any "browse" distributor — see module doc
+    browserDriver: null, // force MockDistributorClient for any "browse" distributor â€” see module doc
     playwrightWsEndpoint: null,
     digikeyClientId: null,
     digikeyClientSecret: null,
     mouserApiKey: null,
     element14ApiKey: null,
+    browserProxyServer: null,
+    browserProxyUsername: null,
+    browserProxyPassword: null,
     browserMaxConcurrency: 2, // irrelevant with browserDriver null, required by the shape
 
   };

@@ -38,6 +38,19 @@ Screenshot: docs/testing-screenshots/f-001.png (optional)
 
 <!-- Claude moves resolved entries here with commit hashes, so the Findings section stays short -->
 
+### F-012 · IDEA · BUILT (user decision: everything runs on the box)
+Surface: worker browse path — residential proxy support so LCSC/Unikey scraping can run
+FROM the Hetzner box (Akamai blocks its datacenter IP directly — F-008 constraint).
+Built: `BROWSER_PROXY_SERVER` (+ optional `BROWSER_PROXY_USERNAME`/`_PASSWORD`) on the
+worker env → PlaywrightDriver routes ALL scraping traffic through it. Two modes:
+- LOCAL launch: playwright's own proxy option (supports username/password).
+- REMOTE browserless (the box): proxy baked into Chromium launch args via the ws URL's
+  `launch` JSON param (`buildCdpEndpointWithProxy`) — `--proxy-server` cannot carry
+  credentials, so use IP-WHITELIST auth at the proxy provider (whitelist 167.233.229.51).
+USER TO-DO before box deployment: pick a residential proxy provider (Decodo/IPRoyal/etc.,
+~$4–10/mo at our volume), whitelist the box IP, set BROWSER_PROXY_SERVER in the box env.
+Until then the worker keeps running from the PC (residential IP, no proxy needed).
+
 ### F-011 · IDEA · REVERTED (user decision — data quality over convenience)
 LCSC stays on the BROWSER SCRAPER alone. The jlcsearch hybrid (built + verified in
 cb4e41d) was removed the same day: its stock snapshot disagreed with lcsc.com's own
