@@ -198,6 +198,12 @@ export interface EnqueueRunInput {
   bomId: string;
   tier: ConcurrencyPreset;
   actorId: string;
+  /**
+   * Sandbox test runs (/ai_orc): only the FIRST N to-order lines (by line #)
+   * get planner context + jobs — the rest of the BOM is left out of the run
+   * entirely, so a 5-line trial costs 5 lanes, not 100. Omit for real runs.
+   */
+  lineLimit?: number;
 }
 
 /**
@@ -209,11 +215,20 @@ export interface EnqueueRunInput {
 export async function enqueueRun(supabase: DB, service: DB, input: EnqueueRunInput): Promise<EnqueueRunResult> {
   const loaded = await loadBomContext(supabase, input.bomId);
   if ("error" in loaded) return { ok: false, error: loaded.error };
-  const { bom, project, toOrderLines, inStockLines, effectiveSequence } = loaded;
+  const { bom, project, inStockLines, effectiveSequence } = loaded;
 
-  if (toOrderLines.length === 0) {
+  if (loaded.toOrderLines.length === 0) {
     return { ok: false, error: "Nothing to order — every line on this BOM is already in stock." };
   }
+
+  // Sandbox line limit: first N lines by sheet order (see EnqueueRunInput doc).
+  const lineLimit =
+    typeof input.lineLimit === "number" && Number.isFinite(input.lineLimit) && input.lineLimit >= 1
+      ? Math.floor(input.lineLimit)
+      : null;
+  const toOrderLines = lineLimit
+    ? [...loaded.toOrderLines].sort((a, b) => (a.line_no ?? 0) - (b.line_no ?? 0)).slice(0, lineLimit)
+    : loaded.toOrderLines;
 
   // Digest read needs the service client (smark_learned_rules_doc is owner-only RLS; see buildAliasedRunContext doc).
   const { plannerContext, rulesDigestVersion, rulesDigestAliased } = await buildAliasedRunContext(service, {
@@ -280,7 +295,7 @@ export async function enqueueRun(supabase: DB, service: DB, input: EnqueueRunInp
     per_site_cap: INFORMATIONAL_PER_SITE_CAP,
     est_cost: dryRun.estimatedRupees,
     actual_cost: null,
-    plan: { config, masterPlan: null, appMeta: { buildQtyAtRun: bom.build_qty } },
+    plan: { config, masterPlan: null, appMeta: { buildQtyAtRun: bom.build_qty, lineLimit } },
     rules_doc_version: rulesDigestVersion || null,
     started_by: input.actorId,
   });

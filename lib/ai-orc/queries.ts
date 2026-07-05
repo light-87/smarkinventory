@@ -178,6 +178,8 @@ export interface RunDeepDive {
   rulesDigest: string;
   overallPriorities: string;
   distributorSequence: { name: string; enabled: boolean; rank: number }[];
+  /** Sandbox runs only (/ai_orc test bench): the first-N-lines cap this run was enqueued with. */
+  lineLimit: number | null;
   lanes: RunLane[];
 }
 
@@ -185,6 +187,7 @@ interface PlanEnvelope {
   config?: WorkerRunConfig;
   masterPlan?: ClaudeMasterPlan | null;
   failureReason?: string;
+  appMeta?: { buildQtyAtRun?: number; lineLimit?: number | null };
 }
 
 function whyFromRaw(raw: unknown): string | null {
@@ -297,6 +300,7 @@ export async function getRunDeepDive(service: DB, runId: string): Promise<RunDee
     rulesDigest: config?.rulesDigest ?? "",
     overallPriorities: config?.overallPriorities ?? "",
     distributorSequence: (config?.distributorSequence ?? []).map((d) => ({ name: d.name, enabled: d.enabled, rank: d.rank })),
+    lineLimit: typeof envelope.appMeta?.lineLimit === "number" ? envelope.appMeta.lineLimit : null,
     lanes,
   };
 }

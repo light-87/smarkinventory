@@ -17,6 +17,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Chip } from "@/components/ui/chip";
 import { formatINR, formatNumber } from "@/lib/format";
+import { SandboxPanel } from "@/components/ai-orc/sandbox-panel";
 import { CONCURRENCY_TIER_PRESETS } from "@/types/worker";
 import { DEFAULT_SITE_CAP, MAX_FANOUT_WIDTH, PER_SITE_CAPS } from "@/worker/src/caps";
 import type { RunDeepDive, RunLane, RunListEntry, WorkerCard } from "@/lib/ai-orc/queries";
@@ -342,6 +343,9 @@ export function Observatory() {
         {error && <Chip tone="accent">{error}</Chip>}
       </div>
 
+      {/* Sandbox — upload + limited test run */}
+      <SandboxPanel onRunStarted={setSelectedRunId} />
+
       {/* Worker fleet */}
       <section className="flex flex-col gap-3">
         <div className="text-caption font-medium uppercase tracking-wide text-graphite">Workers</div>
@@ -416,6 +420,7 @@ export function Observatory() {
           <Card padding="lg">
             <div className="flex flex-wrap items-center gap-2">
               <Chip tone={RUN_STATUS_TONE[run.status] ?? "default"}>{run.status}</Chip>
+              {run.lineLimit !== null && <Chip tone="accent" mono>{`test · first ${run.lineLimit} lines`}</Chip>}
               <Chip mono>tier {run.tier}</Chip>
               <Chip mono>{run.fanoutWidth} wide</Chip>
               <Chip mono>depth {run.depthPerItem}</Chip>

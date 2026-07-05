@@ -38,6 +38,19 @@ Screenshot: docs/testing-screenshots/f-001.png (optional)
 
 <!-- Claude moves resolved entries here with commit hashes, so the Findings section stays short -->
 
+### F-007 · IDEA · BUILT (user-requested directly, see commit)
+Surface: /ai_orc — sandbox test bench
+Request: "upload a BOM and set up ordering from /ai_orc, and test with 5 items only first —
+see how long it takes and how accurate it is before the full 100-line run." Built:
+- Sandbox panel at the top of /ai_orc (owner-only, same as the page): pick a recent BOM or
+  upload a fresh .xlsx (same parser/storage path as Projects), choose lines-to-test (default
+  5, max 50) + tier (default economy), Start test run → the run auto-selects in the deep dive.
+- `lineLimit` on lib/runs/enqueue.ts: only the FIRST N to-order lines (by sheet line #) get
+  planner context + jobs — a 5-line trial costs 5 lanes and a 5-line rupee ceiling, never the
+  whole BOM. Stamped in plan.appMeta; deep dive shows a "test · first N lines" chip.
+- Regression test: tests/integration/ai-orc-sandbox-line-limit.test.ts (limit picks by
+  line_no, not insert order; jobs count matches; appMeta stamped).
+
 ### F-006 · IDEA · BUILT (design locked with user, see commit)
 Surface: worker browse path — single 2 GB Chromium box safety
 Locked decisions: (1) scripted scraper, master-planned — no LLM-per-page; (2) browser only
