@@ -6,14 +6,14 @@ import { Card, SectionLabel } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
-import { regenerateShareTokenAction } from "@/lib/projects/actions";
+import { regenerateShareTokenAction } from "@/lib/pm/actions";
 
 export interface ShareLinkControlsProps {
   projectId: string;
   shareToken: string | null;
 }
 
-/** Client-portal share-link controls (R2-30/§11): copy `/p/:share_token`, regenerate = revoke (owner-only). */
+/** Client-portal share-link controls (owner-only): copy `/p/:share_token`, regenerate = revoke. */
 export function ShareLinkControls({ projectId, shareToken }: ShareLinkControlsProps) {
   const router = useRouter();
   const { push } = useToast();
@@ -35,12 +35,12 @@ export function ShareLinkControls({ projectId, shareToken }: ShareLinkControlsPr
       return;
     }
     startTransition(async () => {
-      try {
-        const result = await regenerateShareTokenAction(projectId);
+      const result = await regenerateShareTokenAction(projectId);
+      if (result.ok) {
         setToken(result.token);
         router.refresh();
-      } catch (error) {
-        push({ msg: error instanceof Error ? error.message : "Couldn't generate a link." });
+      } else {
+        push({ msg: result.error });
       }
     });
   }
@@ -51,7 +51,7 @@ export function ShareLinkControls({ projectId, shareToken }: ShareLinkControlsPr
       {link ? (
         <>
           <Input readOnly value={link} onFocus={(e) => e.currentTarget.select()} mono />
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="outline" onClick={copy}>
               Copy link
             </Button>

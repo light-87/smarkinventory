@@ -1,19 +1,19 @@
 import { Card, SectionLabel } from "@/components/ui/card";
 import { Chip } from "@/components/ui/chip";
 import { formatDate, formatINR } from "@/lib/format";
-import type { ExpenseRow } from "@/types/db";
+import type { ProjectIncomeRow } from "@/lib/pm/queries";
 
-export interface PaymentsStripProps {
-  payments: readonly ExpenseRow[];
+export interface IncomeStripProps {
+  income: readonly ProjectIncomeRow[];
 }
 
 /**
- * Overview payments strip (R2-15): income entries linked to this project,
- * entered via Expenses — "one finance ledger, two views". Owner + accountant
- * only (the page gates who ever calls this; RLS hides the rows regardless).
+ * Overview income strip — carried forward from the old payments strip
+ * (`smark_expenses`, entry_type='income'). Owner + accountant only (the page
+ * gates who ever calls this; RLS additionally scopes the rows).
  */
-export function PaymentsStrip({ payments }: PaymentsStripProps) {
-  const total = payments.reduce((sum, p) => sum + p.amount, 0);
+export function IncomeStrip({ income }: IncomeStripProps) {
+  const total = income.reduce((sum, p) => sum + p.amount, 0);
 
   return (
     <Card padding="none">
@@ -21,15 +21,15 @@ export function PaymentsStrip({ payments }: PaymentsStripProps) {
         <SectionLabel>Payments received</SectionLabel>
         <span className="font-mono text-[15px] text-snow">{formatINR(total)}</span>
       </div>
-      {payments.length === 0 ? (
+      {income.length === 0 ? (
         <div className="px-5 py-6 text-center text-caption text-smoke">No payments recorded against this project yet.</div>
       ) : (
         <ul className="divide-y divide-border-hairline">
-          {payments.map((p) => (
+          {income.map((p) => (
             <li key={p.id} className="flex items-center justify-between gap-3 px-5 py-3 text-[13px]">
               <div className="flex items-center gap-2.5">
-                <span className="text-smoke">{formatDate(p.entry_date)}</span>
-                {p.is_draft && <Chip tone="accent">Draft</Chip>}
+                <span className="text-smoke">{formatDate(p.entryDate)}</span>
+                {p.isDraft && <Chip tone="accent">Draft</Chip>}
                 {p.vendor && <span className="text-silver-mist">{p.vendor}</span>}
               </div>
               <span className="font-mono text-snow">{formatINR(p.amount)}</span>

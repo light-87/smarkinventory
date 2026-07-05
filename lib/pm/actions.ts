@@ -9,6 +9,7 @@
  * Mirrors lib/attendance/actions.ts's shape.
  */
 
+import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { TABLES } from "@/types/db";
 import { isOwner } from "@/lib/auth/roles";
@@ -83,6 +84,52 @@ export async function setShowTimeToClientAction(input: SetShowTimeToClientInput)
   const result = await core.setShowTimeToClient(supabase, parsed);
   if (result.ok) revalidateProject(parsed.projectId);
   return result;
+}
+
+/**
+ * Capability token for `/p/:share_token` — regenerate = revoke the old link.
+ * Carried forward from the old `lib/projects/actions.ts`
+ * `regenerateShareTokenAction` (same `randomBytes(18).toString("base64url")`
+ * scheme) — `smark_projects.share_token` is unchanged by migration 0010.
+ */
+export async function regenerateShareTokenAction(projectId: string): Promise<{ ok: true; token: string } | { ok: false; error: string }> {
+  const { supabase } = await requirePmOwner();
+  const token = randomBytes(18).toString("base64url");
+
+  const { error } = await supabase.from(TABLES.projects).update({ share_token: token }).eq("id", projectId);
+  if (error) return { ok: false, error: error.message };
+
+  revalidateProject(projectId);
+  return { ok: true, token };
+}
+
+/**
+ * Documents tab delete (owner or the uploader) — carried forward from the old
+ * `lib/projects/documents-actions.ts` `deleteProjectDocumentAction` (same
+ * "owner or uploader" rule, soft delete via `deleted_at`).
+ */
+export async function deleteProjectDocumentAction(projectId: string, documentId: string): Promise<ActionResult> {
+  const { supabase, actorId, role } = await requirePmWriter();
+
+  const { data: doc, error: fetchError } = await supabase
+    .from(TABLES.project_documents)
+    .select("id, uploaded_by")
+    .eq("id", documentId)
+    .maybeSingle();
+  if (fetchError) return { ok: false, error: fetchError.message };
+  if (!doc) return { ok: false, error: "Document not found." };
+  if (role !== "owner" && doc.uploaded_by !== actorId) {
+    return { ok: false, error: "Only the owner or the uploader can delete this document." };
+  }
+
+  const { error } = await supabase
+    .from(TABLES.project_documents)
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", documentId);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath(`/projects/${projectId}/documents`);
+  return { ok: true };
 }
 
 /* ────────────────────────────────────────────────────────────────────────────

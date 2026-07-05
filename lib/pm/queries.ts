@@ -16,6 +16,7 @@ import type {
   BugStatus,
   ChangeRequestStatus,
   Database,
+  ProjectDocumentRow,
   ReportedSource,
   TaskSource,
   TaskStatus,
@@ -57,6 +58,150 @@ export async function listProjects(supabase: DB): Promise<PmProjectView[]> {
     showTimeToClient: p.show_time_to_client,
     importedAt: p.imported_at,
     archivedAt: p.archived_at,
+  }));
+}
+
+/** Single project row — project-hub layout/pages. */
+export async function getPmProject(supabase: DB, projectId: string): Promise<PmProjectView | null> {
+  const { data, error } = await supabase
+    .from(TABLES.projects)
+    .select("id, name, client, show_time_to_client, imported_at, archived_at")
+    .eq("id", projectId)
+    .maybeSingle();
+  assertNoError(error, "smark_projects (single)");
+  if (!data) return null;
+  return {
+    id: data.id,
+    name: data.name,
+    client: data.client,
+    showTimeToClient: data.show_time_to_client,
+    importedAt: data.imported_at,
+    archivedAt: data.archived_at,
+  };
+}
+
+export interface PmProjectFull extends PmProjectView {
+  notes: string | null;
+  shareToken: string | null;
+}
+
+/** Full row (incl. notes + share_token) for the owner-only overview controls. */
+export async function getPmProjectFull(supabase: DB, projectId: string): Promise<PmProjectFull | null> {
+  const { data, error } = await supabase
+    .from(TABLES.projects)
+    .select("id, name, client, notes, show_time_to_client, imported_at, archived_at, share_token")
+    .eq("id", projectId)
+    .maybeSingle();
+  assertNoError(error, "smark_projects (full)");
+  if (!data) return null;
+  return {
+    id: data.id,
+    name: data.name,
+    client: data.client,
+    notes: data.notes,
+    showTimeToClient: data.show_time_to_client,
+    importedAt: data.imported_at,
+    archivedAt: data.archived_at,
+    shareToken: data.share_token,
+  };
+}
+
+/**
+ * Projects an engineer has at least one task assignment on — the employee
+ * scoping `listProjects` deliberately omits (that function returns every
+ * project, no actor filter, per its own doc comment).
+ */
+export async function listProjectsForEmployee(supabase: DB, userId: string): Promise<PmProjectView[]> {
+  const myTasks = await getMyTasks(supabase, userId);
+  const projectIds = Array.from(new Set(myTasks.map((t) => t.projectId)));
+  if (projectIds.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from(TABLES.projects)
+    .select("id, name, client, show_time_to_client, imported_at, archived_at")
+    .in("id", projectIds)
+    .order("created_at", { ascending: false });
+  assertNoError(error, "smark_projects (for employee)");
+
+  return (data ?? []).map((p) => ({
+    id: p.id,
+    name: p.name,
+    client: p.client,
+    showTimeToClient: p.show_time_to_client,
+    importedAt: p.imported_at,
+    archivedAt: p.archived_at,
+  }));
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Engineers picker (task-assignee UI) — plain read-only lookup, no writes.
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+export interface EngineerOption {
+  id: string;
+  username: string;
+  displayName: string | null;
+}
+
+/** Active `employee`-role logins — feeds the owner's per-task assignee picker. */
+export async function listEngineers(supabase: DB): Promise<EngineerOption[]> {
+  const { data, error } = await supabase
+    .from(TABLES.app_users)
+    .select("id, username, display_name")
+    .eq("role", "employee")
+    .eq("active", true)
+    .order("display_name", { ascending: true });
+  assertNoError(error, "smark_app_users (engineers)");
+  return (data ?? []).map((u) => ({ id: u.id, username: u.username, displayName: u.display_name }));
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Income strip — carried forward from the old lib/projects/queries.ts
+ * `getProjectPayments` (same `smark_expenses` filter), reimplemented here so
+ * the PM module never imports lib/expenses or the old lib/projects package.
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+export interface ProjectIncomeRow {
+  id: string;
+  entryDate: string;
+  amount: number;
+  vendor: string | null;
+  isDraft: boolean;
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Documents — unchanged table (smark_project_documents), unchanged upload
+ * route (app/api/projects/documents/route.ts); read here so the Documents
+ * page never reaches for the deleted lib/projects/queries.ts.
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+export async function getProjectDocuments(supabase: DB, projectId: string): Promise<ProjectDocumentRow[]> {
+  const { data, error } = await supabase
+    .from(TABLES.project_documents)
+    .select("*")
+    .eq("project_id", projectId)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false });
+  assertNoError(error, "smark_project_documents");
+  return (data ?? []) as ProjectDocumentRow[];
+}
+
+/** Income (entry_type='income') recorded against a project — owner/accountant only in the UI. */
+export async function getProjectIncome(supabase: DB, projectId: string): Promise<ProjectIncomeRow[]> {
+  const { data, error } = await supabase
+    .from(TABLES.expenses)
+    .select("id, entry_date, amount, vendor, is_draft")
+    .eq("project_id", projectId)
+    .eq("entry_type", "income")
+    .is("deleted_at", null)
+    .order("entry_date", { ascending: false });
+  assertNoError(error, "smark_expenses (project income)");
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    entryDate: r.entry_date,
+    amount: r.amount,
+    vendor: r.vendor,
+    isDraft: r.is_draft,
   }));
 }
 

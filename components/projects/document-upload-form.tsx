@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
 
-/** Documents tab — upload via StoragePort, required display name ("store everything with its name", R2-16). */
+/** Documents tab — upload via StoragePort (R2), required display name. Unchanged upload API surface. */
 export function DocumentUploadForm({ projectId }: { projectId: string }) {
   const router = useRouter();
   const { push } = useToast();

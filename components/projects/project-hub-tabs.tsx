@@ -8,30 +8,21 @@ interface HubTab {
   id: string;
   label: string;
   href: string;
-  badge?: number;
 }
 
 export interface ProjectHubTabsProps {
   projectId: string;
-  openTaskCount: number;
 }
 
-/**
- * Project-hub section nav (plan/tab-orders-projects.md R2-03 hub layout):
- * Overview · BOMs (bom-pipeline's own segment — this package only links to
- * it, per docs/OWNERSHIP.md) · Team & hours · Documents · Notes & tasks
- * (open-task badge, R2-06).
- */
-export function ProjectHubTabs({ projectId, openTaskCount }: ProjectHubTabsProps) {
+/** Project-hub section nav: Overview · BOMs (bom-pipeline's own segment, untouched) · Documents. */
+export function ProjectHubTabs({ projectId }: ProjectHubTabsProps) {
   const pathname = usePathname();
   const base = `/projects/${projectId}`;
 
   const tabs: HubTab[] = [
     { id: "overview", label: "Overview", href: base },
     { id: "boms", label: "BOMs", href: `${base}/boms` },
-    { id: "team", label: "Team & hours", href: `${base}/team` },
     { id: "documents", label: "Documents", href: `${base}/documents` },
-    { id: "notes", label: "Notes & tasks", href: `${base}/notes`, badge: openTaskCount },
   ];
 
   return (
@@ -50,11 +41,6 @@ export function ProjectHubTabs({ projectId, openTaskCount }: ProjectHubTabsProps
             )}
           >
             {tab.label}
-            {!!tab.badge && tab.badge > 0 && (
-              <span className="rounded-full bg-smark-orange px-1.5 py-0.5 font-mono text-[10px] text-obsidian">
-                {tab.badge}
-              </span>
-            )}
           </Link>
         );
       })}

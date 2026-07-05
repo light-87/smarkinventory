@@ -6,7 +6,7 @@ import { Card, SectionLabel } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast";
 import { formatDate } from "@/lib/format";
 import type { ProjectDocumentRow } from "@/types/db";
-import { deleteProjectDocumentAction } from "@/lib/projects/documents-actions";
+import { deleteProjectDocumentAction } from "@/lib/pm/actions";
 
 function formatBytes(bytes: number | null): string {
   if (!bytes) return "—";
@@ -22,7 +22,7 @@ export interface DocumentsListProps {
   isOwner: boolean;
 }
 
-/** Documents tab list: name · size · uploaded by/at · download · delete (owner or uploader, R2-16). */
+/** Documents tab list: name · size · uploaded at · download · delete (owner or uploader). */
 export function DocumentsList({ projectId, documents, currentUserId, isOwner }: DocumentsListProps) {
   const router = useRouter();
   const { push } = useToast();
@@ -31,11 +31,11 @@ export function DocumentsList({ projectId, documents, currentUserId, isOwner }: 
   function remove(id: string, name: string) {
     if (!window.confirm(`Delete "${name}"?`)) return;
     startTransition(async () => {
-      try {
-        await deleteProjectDocumentAction(projectId, id);
+      const result = await deleteProjectDocumentAction(projectId, id);
+      if (result.ok) {
         router.refresh();
-      } catch (error) {
-        push({ msg: error instanceof Error ? error.message : "Couldn't delete that document." });
+      } else {
+        push({ msg: result.error });
       }
     });
   }
@@ -74,7 +74,7 @@ export function DocumentsList({ projectId, documents, currentUserId, isOwner }: 
                     type="button"
                     onClick={() => remove(doc.id, doc.display_name)}
                     disabled={isPending}
-                    className="cursor-pointer text-smoke hover:text-smark-orange disabled:opacity-50"
+                    className="min-h-11 min-w-11 cursor-pointer text-smoke hover:text-smark-orange disabled:opacity-50"
                   >
                     Delete
                   </button>

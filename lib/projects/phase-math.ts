@@ -2,6 +2,15 @@
  * lib/projects/phase-math.ts — pure phase-timeline math (FEATURES.md §10,
  * plan/tab-orders-projects.md R2-30).
  *
+ * INTENTIONALLY SURVIVES the old-PM-layer removal (rest of `lib/projects/**`
+ * and `components/projects/**` deleted, replaced by `lib/pm/**` — see
+ * migration 0010): `lib/portal/phase-math.ts` (client-portal package, outside
+ * this rebuild's scope) re-exports `computeOnTrack`/`computeProgressPct`/
+ * `isTimelineComplete` straight from this file rather than duplicating them.
+ * Deleting it would silently break that fenced, do-not-edit package. No other
+ * file in this module survives — this is a pure, dependency-free leaf with no
+ * import of anything else in `lib/projects/**`, so keeping it costs nothing.
+ *
  * No Supabase, no Next.js, no Date.now() default side effects beyond an
  * injectable `today` — every function here is a plain data transform so it's
  * exhaustively unit-testable (tests/unit/phases-math.test.ts) without a DB.
