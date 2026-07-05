@@ -9,8 +9,7 @@ export interface SettingsLinkRow {
 
 /**
  * Link-out rows to sections other packages own (docs/OWNERSHIP.md): Users &
- * roles (auth-shell's `app/(app)/settings/users/**`) and Expense accounts
- * (expenses' `app/(app)/settings/expense-accounts/**`). This card only
+ * roles (auth-shell's `app/(app)/settings/users/**`). This card only
  * navigates there — it never renders their data or duplicates their writes.
  */
 export function SettingsLinksCard({ rows }: { rows: SettingsLinkRow[] }) {

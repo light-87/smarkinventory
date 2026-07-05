@@ -1,9 +1,8 @@
 /**
  * lib/daily/export.ts — day/range export (R2-33: "Export a day (or range) as
- * CSV/xlsx — movements + attendance + hours (+ expenses for owner/
- * accountant)"). Only this module touches the `xlsx` package — the row
- * shaping itself lives in `lib/daily/compute.ts` (pure, unit-testable without
- * pulling `xlsx` in).
+ * CSV/xlsx — movements + attendance + hours"). Only this module touches the
+ * `xlsx` package — the row shaping itself lives in `lib/daily/compute.ts`
+ * (pure, unit-testable without pulling `xlsx` in).
  *
  * `lib/inventory/csv.ts` already hand-rolls RFC 4180 CSV encoding, but it's
  * inventory-owned and not in this package's cross-import allowlist
@@ -33,14 +32,11 @@ import { utils, write } from "xlsx";
 import {
   ATTENDANCE_EXPORT_HEADERS,
   attendanceExportRow,
-  EXPENSE_EXPORT_HEADERS,
-  expenseExportRow,
   HOURS_EXPORT_HEADERS,
   hoursExportRow,
   MOVEMENT_EXPORT_HEADERS,
   movementExportRow,
   type AttendanceExportInput,
-  type ExpenseExportInput,
   type HoursExportInput,
 } from "./compute";
 import type { MovementDailyRow } from "./compute";
@@ -49,8 +45,6 @@ export interface DailyExportData {
   movements: { row: MovementDailyRow; actorName: string }[];
   attendance: AttendanceExportInput[];
   hours: HoursExportInput[];
-  /** `null` when the caller (employee) has no access to Expenses at all. */
-  expenses: ExpenseExportInput[] | null;
 }
 
 const FORMULA_INJECTION_LEAD_CHARS = new Set(["=", "+", "-", "@", "\t", "\r"]);
@@ -77,7 +71,7 @@ function toCsvBlock(title: string, headers: readonly string[], rows: (string | n
   return lines.join("\r\n");
 }
 
-/** One combined CSV — a titled block per section (movements/attendance/hours[/expenses]). */
+/** One combined CSV — a titled block per section (movements/attendance/hours). */
 export function buildDailyExportCsv(data: DailyExportData): string {
   const blocks = [
     toCsvBlock(
@@ -88,13 +82,10 @@ export function buildDailyExportCsv(data: DailyExportData): string {
     toCsvBlock("Attendance", ATTENDANCE_EXPORT_HEADERS, data.attendance.map(attendanceExportRow)),
     toCsvBlock("Hours", HOURS_EXPORT_HEADERS, data.hours.map(hoursExportRow)),
   ];
-  if (data.expenses) {
-    blocks.push(toCsvBlock("Expenses", EXPENSE_EXPORT_HEADERS, data.expenses.map(expenseExportRow)));
-  }
   return blocks.join("\r\n\r\n");
 }
 
-/** One workbook, one sheet per section (movements/attendance/hours[/expenses]). */
+/** One workbook, one sheet per section (movements/attendance/hours). */
 export function buildDailyExportXlsx(data: DailyExportData): Buffer {
   const wb = utils.book_new();
 
@@ -112,14 +103,6 @@ export function buildDailyExportXlsx(data: DailyExportData): Buffer {
 
   const hoursSheet = utils.aoa_to_sheet([[...HOURS_EXPORT_HEADERS], ...data.hours.map((row) => sanitizeRow(hoursExportRow(row)))]);
   utils.book_append_sheet(wb, hoursSheet, "Hours");
-
-  if (data.expenses) {
-    const expensesSheet = utils.aoa_to_sheet([
-      [...EXPENSE_EXPORT_HEADERS],
-      ...data.expenses.map((row) => sanitizeRow(expenseExportRow(row))),
-    ]);
-    utils.book_append_sheet(wb, expensesSheet, "Expenses");
-  }
 
   return write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer;
 }

@@ -130,18 +130,6 @@ export function AttendanceIcon(props: IconProps) {
   );
 }
 
-export function ExpensesIcon(props: IconProps) {
-  return (
-    <IconBase {...props}>
-      <circle cx="12" cy="12" r="9" />
-      <path d="M9 8h6.5" />
-      <path d="M9 11.2h4.5" />
-      <path d="M9.3 11.2c3.6 0 5.7.9 5.7 3.1S12.6 17 9 17" />
-      <path d="M9.3 17 14.5 17" />
-    </IconBase>
-  );
-}
-
 export function AiMemoryIcon(props: IconProps) {
   return (
     <IconBase {...props}>
@@ -240,7 +228,6 @@ export const NAV_ICONS: Record<string, (props: IconProps) => ReactNode> = {
   cart: CartIcon,
   daily_reports: DailyReportsIcon,
   attendance: AttendanceIcon,
-  expenses: ExpensesIcon,
   profile: ProfileIcon,
   ai_memory: AiMemoryIcon,
   settings: SettingsIcon,

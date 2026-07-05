@@ -297,29 +297,3 @@ export interface HoursExportInput {
 export function hoursExportRow(row: HoursExportInput): (string | number)[] {
   return [formatDate(row.workDate), row.personName, row.projectName, row.hours, row.note ?? ""];
 }
-
-export const EXPENSE_EXPORT_HEADERS = ["Date", "Type", "Amount (INR)", "Category", "Vendor", "Note", "Draft"] as const;
-
-export interface ExpenseExportInput {
-  entryDate: string;
-  entryType: "expense" | "income";
-  amount: number;
-  category: string;
-  vendor: string | null;
-  note: string | null;
-  /** PO-auto-created, unconfirmed entry (finding #7) — carried through so the export
-   * visibly labels it instead of silently mixing it into confirmed spend. */
-  isDraft: boolean;
-}
-
-export function expenseExportRow(row: ExpenseExportInput): (string | number)[] {
-  return [
-    formatDate(row.entryDate),
-    row.entryType,
-    row.amount,
-    row.category,
-    row.vendor ?? "",
-    row.note ?? "",
-    row.isDraft ? "yes" : "",
-  ];
-}

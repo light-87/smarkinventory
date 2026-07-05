@@ -6,7 +6,6 @@ import {
   getActiveUsers,
   getAllActiveProjects,
   getAttendanceForDay,
-  getExpensesForRange,
   getHoursForDay,
   getMovementsForRange,
   getMyProjectOptions,
@@ -18,10 +17,9 @@ import { DayHeader } from "@/components/daily/day-header";
 import { AttendanceSection, type TeamRow } from "@/components/daily/attendance-section";
 import { MovementsCard } from "@/components/daily/movements-card";
 import { OrderingActivityCard } from "@/components/daily/ordering-activity-card";
-import { ExpensesCard } from "@/components/daily/expenses-card";
 import { ExportPanel } from "@/components/daily/export-panel";
 import { EmptyState } from "@/components/ui/empty-state";
-import type { ExpenseDailyRow, ProjectOption } from "@/lib/daily/queries";
+import type { ProjectOption } from "@/lib/daily/queries";
 
 export const metadata: Metadata = { title: "Daily Reports" };
 
@@ -76,15 +74,13 @@ export default async function DailyReportsPage({
 
   const canWriteSelf = canWrite(user.role, "daily_reports");
   const showTeamTable = scope === "all";
-  const showExpenses = canSee(user.role, "expenses");
   const bounds = dayToIsoBounds(viewedDate);
 
   const supabase = await createClient();
 
   const emptyProjects: Section<ProjectOption[]> = { data: [], error: null };
-  const emptyExpenses: Section<ExpenseDailyRow[]> = { data: null, error: null };
 
-  const [peopleSection, myProjectsSection, allProjectsSection, attendanceSection, hoursSection, movementsSection, orderingSection, expensesSection] =
+  const [peopleSection, myProjectsSection, allProjectsSection, attendanceSection, hoursSection, movementsSection, orderingSection] =
     await Promise.all([
       loadSection(getActiveUsers(supabase)),
       canWriteSelf ? loadSection(getMyProjectOptions(supabase, user.id)) : Promise.resolve(emptyProjects),
@@ -93,7 +89,6 @@ export default async function DailyReportsPage({
       loadSection(getHoursForDay(supabase, viewedDate)),
       loadSection(getMovementsForRange(supabase, bounds, actorFilter)),
       loadSection(getOrderingActivityForRange(supabase, bounds, actorFilter)),
-      showExpenses ? loadSection(getExpensesForRange(supabase, viewedDate, viewedDate)) : Promise.resolve(emptyExpenses),
     ]);
 
   const people = peopleSection.data ?? [];
@@ -150,7 +145,6 @@ export default async function DailyReportsPage({
 
       <MovementsCard rows={movementsSection.data} error={movementsSection.error} nameById={nameById} />
       <OrderingActivityCard items={orderingSection.data} error={orderingSection.error} nameById={nameById} />
-      {showExpenses && <ExpensesCard rows={expensesSection.data} error={expensesSection.error} />}
 
       <ExportPanel defaultDate={viewedDate} personParam={personParam} />
     </div>

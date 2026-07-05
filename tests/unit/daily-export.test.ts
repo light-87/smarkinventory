@@ -2,8 +2,6 @@ import { describe, expect, test } from "bun:test";
 import {
   ATTENDANCE_EXPORT_HEADERS,
   attendanceExportRow,
-  EXPENSE_EXPORT_HEADERS,
-  expenseExportRow,
   HOURS_EXPORT_HEADERS,
   hoursExportRow,
   MOVEMENT_EXPORT_HEADERS,
@@ -17,6 +15,10 @@ import { buildDailyExportCsv, buildDailyExportXlsx, type DailyExportData } from 
  * directly for column order/content; the CSV/xlsx assembly (lib/daily/
  * export.ts, the only module that imports `xlsx`) is asserted at the
  * structural level (section titles present, a real xlsx Buffer comes back).
+ *
+ * The Expenses section (columns/row-builder/sheet) was removed along with
+ * the Expenses tab/UI — Daily Reports' export is movements/attendance/hours
+ * only now.
  */
 
 const sampleMovement: MovementDailyRow = {
@@ -43,9 +45,6 @@ const sampleData: DailyExportData = {
     },
   ],
   hours: [{ workDate: "2026-07-03", personName: "Suresh", projectName: "TMCS Gen4", hours: 6.5, note: "PCB bring-up" }],
-  expenses: [
-    { entryDate: "2026-07-03", entryType: "expense", amount: 4500, category: "Materials", vendor: "Digikey", note: null, isDraft: false },
-  ],
 };
 
 describe("row builders — column order matches the *_EXPORT_HEADERS", () => {
@@ -69,17 +68,6 @@ describe("row builders — column order matches the *_EXPORT_HEADERS", () => {
     expect(row).toHaveLength(HOURS_EXPORT_HEADERS.length);
     expect(row).toEqual(["3 Jul 2026", "Suresh", "TMCS Gen4", 6.5, "PCB bring-up"]);
   });
-
-  test("expenseExportRow", () => {
-    const row = expenseExportRow(sampleData.expenses![0]!);
-    expect(row).toHaveLength(EXPENSE_EXPORT_HEADERS.length);
-    expect(row).toEqual(["3 Jul 2026", "expense", 4500, "Materials", "Digikey", "", ""]);
-  });
-
-  test("expenseExportRow labels a draft entry (finding #7) instead of mixing it in unmarked", () => {
-    const row = expenseExportRow({ ...sampleData.expenses![0]!, isDraft: true });
-    expect(row[row.length - 1]).toBe("yes");
-  });
 });
 
 describe("buildDailyExportCsv", () => {
@@ -88,16 +76,9 @@ describe("buildDailyExportCsv", () => {
     const movementsIdx = csv.indexOf("Movements");
     const attendanceIdx = csv.indexOf("Attendance");
     const hoursIdx = csv.indexOf("Hours");
-    const expensesIdx = csv.indexOf("Expenses");
     expect(movementsIdx).toBeGreaterThanOrEqual(0);
     expect(attendanceIdx).toBeGreaterThan(movementsIdx);
     expect(hoursIdx).toBeGreaterThan(attendanceIdx);
-    expect(expensesIdx).toBeGreaterThan(hoursIdx);
-  });
-
-  test("omits the Expenses block entirely when the caller has no access (employee)", () => {
-    const csv = buildDailyExportCsv({ ...sampleData, expenses: null });
-    expect(csv).not.toContain("Expenses");
   });
 
   test("quotes a field containing a comma (RFC 4180)", () => {
@@ -116,11 +97,5 @@ describe("buildDailyExportXlsx", () => {
     // .xlsx is a zip container — "PK" signature.
     expect(buf[0]).toBe(0x50);
     expect(buf[1]).toBe(0x4b);
-  });
-
-  test("omits the Expenses sheet when the caller has no access", () => {
-    const withExpenses = buildDailyExportXlsx(sampleData);
-    const withoutExpenses = buildDailyExportXlsx({ ...sampleData, expenses: null });
-    expect(withoutExpenses.length).toBeLessThan(withExpenses.length);
   });
 });

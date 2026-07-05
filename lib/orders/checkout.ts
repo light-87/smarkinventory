@@ -24,14 +24,16 @@
  * lines + cart-item flip, by letting the INSERT hit RLS and throwing —
  * corrupting the group (order placed, PO number burned, cart line gone, but
  * the action reports failure and there's no draft). Fixed by checking
- * `canWrite(role, "expenses")` BEFORE attempting the insert (never rely on
- * RLS to tell us; decide the same way the policy would, and never throw
- * afterwards) — the order still places cleanly and every active owner is
- * notified to log the spend manually instead. The real bridge (a SECURITY
- * DEFINER function, or an `is_draft`-scoped INSERT policy admitting
- * employee) would let the employee create the draft directly — flagged
- * notes-for-integrator; migrations 0001–0005 are frozen for this package
- * (docs/OWNERSHIP.md), so that part of the fix can't land here.
+ * `canWriteExpenseDraft(role)` (./expense-write.ts — a standalone stand-in
+ * for the removed Expenses tab's `ROLE_MATRIX.expenses` gate) BEFORE
+ * attempting the insert (never rely on RLS to tell us; decide the same way
+ * the policy would, and never throw afterwards) — the order still places
+ * cleanly and every active owner is notified to log the spend manually
+ * instead. The real bridge (a SECURITY DEFINER function, or an
+ * `is_draft`-scoped INSERT policy admitting employee) would let the employee
+ * create the draft directly — flagged notes-for-integrator; migrations
+ * 0001–0005 are frozen for this package (docs/OWNERSHIP.md), so that part of
+ * the fix can't land here.
  *
  * The same privilege gap made an UNPRICED order (total === 0 — common; "we
  * will ask them to add price for it, manual now" per plan/tab-on-order.md
@@ -48,9 +50,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CartItemRow, Database } from "@/types/db";
 import { TABLES } from "@/types/db";
-import { canWrite, type Role } from "@/lib/auth/roles";
-import { notify, notifyExpenseDraft } from "@/lib/notifications";
-import { formatINR } from "@/lib/format";
+import type { Role } from "@/lib/auth/roles";
+import { canWriteExpenseDraft, insertDraftExpense } from "./expense-write";
 import type { CheckoutGroupInput } from "./types";
 import { splitQtyAcrossDemand } from "./split";
 
@@ -79,13 +80,6 @@ async function fetchOpenCartItems(supabase: DB, ids: readonly string[]): Promise
   const { data, error } = await supabase.from(TABLES.cart_items).select("*").in("id", ids).eq("status", "open");
   if (error) throw error;
   return data ?? [];
-}
-
-/** Every currently-active owner — the notify audience when a draft can't be auto-created (see module doc). */
-async function activeOwnerIds(supabase: DB): Promise<string[]> {
-  const { data, error } = await supabase.from(TABLES.app_users).select("id").eq("role", "owner").eq("active", true);
-  if (error) throw error;
-  return (data ?? []).map((row) => row.id);
 }
 
 async function checkoutOneGroup(supabase: DB, actorId: string, role: Role, group: CheckoutGroupInput): Promise<CheckoutGroupResult> {
@@ -140,7 +134,7 @@ async function checkoutOneGroup(supabase: DB, actorId: string, role: Role, group
   let draftExpenseCreated = false;
   let draftExpensePending = false;
 
-  if (total > 0 && canWrite(role, "expenses")) {
+  if (total > 0 && canWriteExpenseDraft(role)) {
     const { data: distributor, error: distributorError } = await supabase
       .from(TABLES.distributors)
       .select("name")
@@ -151,55 +145,25 @@ async function checkoutOneGroup(supabase: DB, actorId: string, role: Role, group
     const lineProjectIds = new Set(orderLineInserts.map((l) => l.project_id).filter((id): id is string => Boolean(id)));
     const singleProjectId = lineProjectIds.size === 1 ? Array.from(lineProjectIds)[0]! : null;
 
-    const { data: expense, error: expenseError } = await supabase
-      .from(TABLES.expenses)
-      .insert({
-        entry_type: "expense",
-        amount: total,
-        currency: "INR",
-        entry_date: new Date().toISOString().slice(0, 10),
-        category: "Materials",
-        vendor: distributor?.name ?? null,
-        project_id: singleProjectId,
-        note: `PO ${poNumber}`,
-        is_draft: true,
-        source_order_id: order.id,
-        created_by: actorId,
-      })
-      .select("id")
-      .single();
-    if (expenseError) throw expenseError;
+    await insertDraftExpense(supabase, {
+      amount: total,
+      vendor: distributor?.name ?? null,
+      projectId: singleProjectId,
+      poNumber,
+      orderId: order.id,
+      actorId,
+    });
     draftExpenseCreated = true;
-    void expense;
-
-    await notifyExpenseDraft(supabase, { poNumber, amount: total });
   } else if (total > 0) {
-    // Role can't write Expenses (e.g. employee) — RLS would reject the insert
-    // above outright (findings #1/#5). Place the order, skip the draft, and
-    // tell every owner so one of them logs it manually — see module doc.
+    // Role can't write the cost record (e.g. employee) — RLS would reject the
+    // insert above. The order still places; the cost just isn't auto-captured.
+    // (The old owner FYI + "add it in Expenses" prompt was dropped when the
+    // Expenses UI was removed — there's no surface to complete a draft in.)
     draftExpensePending = true;
-    const owners = await activeOwnerIds(supabase);
-    await notify(supabase, {
-      userIds: owners,
-      kind: "expense_draft",
-      title: `PO ${poNumber} needs an expense entry`,
-      body: `${formatINR(total)} — placed by a role that can't draft it automatically; add it in Expenses.`,
-      link: "/expenses",
-    });
   } else {
-    // total === 0 — unpriced order (finding #3). The DB CHECK (amount > 0)
-    // blocks a placeholder draft for ANY role, so there's nothing to insert
-    // yet; still tell every owner so R2-12's "owner confirms" isn't silently
-    // dropped once prices land.
+    // total === 0 — unpriced order; the DB CHECK (amount > 0) blocks a draft
+    // for any role, so nothing is inserted until prices land.
     draftExpensePending = true;
-    const owners = await activeOwnerIds(supabase);
-    await notify(supabase, {
-      userIds: owners,
-      kind: "expense_draft",
-      title: `PO ${poNumber} placed without prices`,
-      body: "Add unit prices, then record this order's expense manually — no draft was auto-created for a ₹0 total.",
-      link: "/expenses",
-    });
   }
 
   return { distributorId: group.distributorId, poNumber, ok: true, orderId: order.id, draftExpenseCreated, draftExpensePending };

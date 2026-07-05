@@ -13,8 +13,13 @@
  * | Dashboard · Inventory · Shelves · Scan · Bulk takeout · Receive | full  | full      | read-only    |
  * | Projects (BOMs, runs, review, cart-add) · Cart & checkout       | full  | full      | read-only    |
  * | Daily Reports                                                   | all   | self only | read all     |
- * | Expenses (+charts, AI spend)                                    | full  | hidden    | read + write |
  * | AI Memory approve · Settings · user management                  | full  | hidden    | hidden       |
+ *
+ * Expenses (the tab, its charts, the AI spend meter, and the
+ * `expense_accounts` Settings screen) was removed as a UI surface — see
+ * lib/orders/expense-write.ts for the one bit of expense-writing behavior
+ * (checkout's draft-expense row) that survives standalone, without depending
+ * on an `Area` here.
  */
 
 import { AppRoleSchema, type AppRole } from "@/types/db";
@@ -25,8 +30,6 @@ export const ROLES: readonly Role[] = AppRoleSchema.options;
 
 /**
  * App areas = the gateable surfaces (nav truth, FEATURES §5).
- * `expense_accounts` is split out because the accountant writes expense
- * ENTRIES but only reads accounts (owner-only CRUD, SCHEMA §7 [R2-28]).
  */
 export const AREAS = [
   "dashboard",
@@ -39,8 +42,6 @@ export const AREAS = [
   "cart",
   "daily_reports",
   "attendance",
-  "expenses",
-  "expense_accounts",
   "ai_memory",
   "settings",
   "users",
@@ -77,9 +78,6 @@ export const ROLE_MATRIX: Record<Area, Record<Role, Access>> = {
   // employee self (mark self, own leave/comp requests, own calendar),
   // accountant read (day/month calendar visibility, no write).
   attendance: { owner: "full", employee: "self", accountant: "read" },
-  // Row 4 — Expenses: accountant read + WRITE (Q-01 client amendment)
-  expenses: { owner: "full", employee: "hidden", accountant: "full" },
-  expense_accounts: { owner: "full", employee: "hidden", accountant: "read" },
   // Row 5 — owner-only
   ai_memory: { owner: "full", employee: "hidden", accountant: "hidden" },
   settings: { owner: "full", employee: "hidden", accountant: "hidden" },

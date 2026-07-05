@@ -16,9 +16,9 @@ export const metadata: Metadata = { title: "Settings" };
 /**
  * `/settings` (plan/tab-settings.md, FEATURES.md §5.16) — owner-only hub
  * (§2: "AI Memory approve · Settings · user management" row). Sections owned
- * by other packages (Users & roles → auth-shell, Expense accounts →
- * expenses) are link-outs only; everything else on this page is owned here
- * (docs/OWNERSHIP.md "Settings completion (R2-28 + R2-01 leftovers)").
+ * by other packages (Users & roles → auth-shell) are link-outs only;
+ * everything else on this page is owned here (docs/OWNERSHIP.md "Settings
+ * completion (R2-28 + R2-01 leftovers)").
  */
 export default async function SettingsPage() {
   const user = await getSessionUser();
@@ -40,7 +40,6 @@ export default async function SettingsPage() {
         rows={[
           { href: "/settings/users", title: "Users & roles", description: "Add employees/accountants, reset passwords, deactivate" },
           { href: "/settings/employees", title: "Employees", description: "Profiles + documents (DOB, DOJ, PAN, bank, uploads)" },
-          { href: "/settings/expense-accounts", title: "Expense accounts", description: "Cash / bank / UPI accounts for Expenses" },
         ]}
       />
 

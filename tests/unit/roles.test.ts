@@ -33,8 +33,10 @@ describe("ROLES", () => {
 
 describe("ROLE_MATRIX — verbatim FEATURES.md §2 / SCHEMA.md RLS matrix", () => {
   // Rows 1–2 + row 5's owner-only surfaces come straight from the FEATURES §2
-  // table; `expense_accounts` and `users` are the SCHEMA.md "RLS matrix —
-  // FINAL" split-outs (owner-only CRUD on accounts; accountant reads them).
+  // table; `users` is the SCHEMA.md "RLS matrix — FINAL" split-out. Expenses
+  // and expense_accounts were removed as gateable Areas along with the
+  // Expenses tab/UI — see lib/orders/expense-write.ts for the standalone
+  // write-permission check checkout.ts uses in their place.
   const expected: Record<Area, Record<(typeof ROLES)[number], Access>> = {
     dashboard: { owner: "full", employee: "full", accountant: "read" },
     inventory: { owner: "full", employee: "full", accountant: "read" },
@@ -46,8 +48,6 @@ describe("ROLE_MATRIX — verbatim FEATURES.md §2 / SCHEMA.md RLS matrix", () =
     cart: { owner: "full", employee: "full", accountant: "read" },
     daily_reports: { owner: "full", employee: "self", accountant: "read" },
     attendance: { owner: "full", employee: "self", accountant: "read" },
-    expenses: { owner: "full", employee: "hidden", accountant: "full" },
-    expense_accounts: { owner: "full", employee: "hidden", accountant: "read" },
     ai_memory: { owner: "full", employee: "hidden", accountant: "hidden" },
     settings: { owner: "full", employee: "hidden", accountant: "hidden" },
     users: { owner: "full", employee: "hidden", accountant: "hidden" },
@@ -79,11 +79,7 @@ describe("ROLE_MATRIX — verbatim FEATURES.md §2 / SCHEMA.md RLS matrix", () =
     expect(ROLE_MATRIX.ai_memory.employee).toBe("hidden");
   });
 
-  test("accountant gets WRITE on expenses (Q-01 client amendment, not read-only)", () => {
-    expect(ROLE_MATRIX.expenses.accountant).toBe("full");
-  });
-
-  test("accountant is read-only everywhere else it can see (never write ops/projects/cart)", () => {
+  test("accountant is read-only everywhere it can see (never write ops/projects/cart)", () => {
     const readOnlyAreas: Area[] = [
       "dashboard",
       "inventory",
@@ -95,7 +91,6 @@ describe("ROLE_MATRIX — verbatim FEATURES.md §2 / SCHEMA.md RLS matrix", () =
       "cart",
       "daily_reports",
       "attendance",
-      "expense_accounts",
     ];
     for (const area of readOnlyAreas) {
       expect(ROLE_MATRIX[area].accountant).toBe("read");
@@ -111,7 +106,7 @@ describe("accessFor", () => {
   test("reads straight from the matrix", () => {
     expect(accessFor("owner", "settings")).toBe("full");
     expect(accessFor("employee", "daily_reports")).toBe("self");
-    expect(accessFor("accountant", "expenses")).toBe("full");
+    expect(accessFor("accountant", "dashboard")).toBe("read");
   });
 });
 
@@ -130,11 +125,7 @@ describe("canWrite", () => {
     expect(canWrite("owner", "inventory")).toBe(true); // full
     expect(canWrite("employee", "daily_reports")).toBe(true); // self
     expect(canWrite("accountant", "inventory")).toBe(false); // read
-    expect(canWrite("employee", "expenses")).toBe(false); // hidden
-  });
-
-  test("accountant can write expenses (Q-01 amendment)", () => {
-    expect(canWrite("accountant", "expenses")).toBe(true);
+    expect(canWrite("employee", "settings")).toBe(false); // hidden
   });
 });
 
@@ -158,10 +149,8 @@ describe("visibleAreas", () => {
     expect(visibleAreas("owner")).toEqual([...AREAS]);
   });
 
-  test("employee is missing expenses, expense_accounts, ai_memory, settings, users", () => {
+  test("employee is missing ai_memory, settings, users", () => {
     const hidden = visibleAreas("employee");
-    expect(hidden).not.toContain("expenses");
-    expect(hidden).not.toContain("expense_accounts");
     expect(hidden).not.toContain("ai_memory");
     expect(hidden).not.toContain("settings");
     expect(hidden).not.toContain("users");
@@ -173,8 +162,7 @@ describe("visibleAreas", () => {
     expect(areas).not.toContain("ai_memory");
     expect(areas).not.toContain("settings");
     expect(areas).not.toContain("users");
-    expect(areas).toContain("expenses");
-    expect(areas).toContain("expense_accounts");
+    expect(areas).toContain("dashboard");
   });
 
   test("returned in nav order (AREAS order), not alphabetical or role-specific order", () => {
