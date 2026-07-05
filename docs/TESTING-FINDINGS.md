@@ -38,7 +38,17 @@ Screenshot: docs/testing-screenshots/f-001.png (optional)
 
 <!-- Claude moves resolved entries here with commit hashes, so the Findings section stays short -->
 
-### F-011 · IDEA · BUILT (user found the API, see commit) — LCSC via free jlcsearch API
+### F-011 · IDEA · REVERTED (user decision — data quality over convenience)
+LCSC stays on the BROWSER SCRAPER alone. The jlcsearch hybrid (built + verified in
+cb4e41d) was removed the same day: its stock snapshot disagreed with lcsc.com's own
+displayed stock (201,594 vs 27,150 for C85866) and it carries a single price point
+instead of the full qty-break ladder. For ordering decisions the page a human would buy
+from is the source of truth, and the scraper reads exactly that (real stock, full price
+ladder, sister-part fuzzy matches). jlcsearch remains an option later for cheap
+pre-screening (existence checks) if scrape volume ever becomes a problem — the client
+lives in git history at cb4e41d.
+Original build notes: ─────────────────────────────────────────────
+Surface: worker LCSC path — jlcsearch community API (jlcsearch.tscircuit.com, keyless)
 Surface: worker LCSC path — jlcsearch community API (jlcsearch.tscircuit.com, keyless)
 User found the aklofas/kicad-happy skill docs describing it. Verified live: exact MPN /
 C-code lookups return structured package/stock/price with NO browser and NO Akamai

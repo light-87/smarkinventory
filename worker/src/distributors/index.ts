@@ -9,7 +9,6 @@ import type { BrowserDriver } from "../browser-driver";
 import type { WorkerEnv } from "../env";
 import { createDigikeyClient } from "./digikey";
 import { createElement14Client } from "./element14";
-import { LcscJlcSearchClient } from "./lcsc";
 import { createMouserClient } from "./mouser";
 import { MockDistributorClient } from "./mock";
 import type { DistributorClient, DistributorListing, DistributorSearchQuery } from "./types";
@@ -83,15 +82,14 @@ export function createDistributorClient(
     return new MockDistributorClient(descriptor.name, "rest");
   }
 
+  // LCSC deliberately stays on the browser scraper ALONE (F-011 reverted by
+  // user decision): the free jlcsearch API disagreed with lcsc.com's own
+  // displayed stock (201k vs 27k for the same part) and only carries one
+  // price point — for ordering decisions, the numbers on the page a human
+  // would buy from are the source of truth, and the scraper reads exactly
+  // those (real stock, full qty-break ladder, sister-part fuzzy matches).
   if (descriptor.apiType === "browse" && browserDriver) {
-    const scraper = new BrowserBackedDistributorClient(descriptor.name, browserDriver);
-    // LCSC upgrade (F-011): the free keyless jlcsearch API answers exact
-    // MPN/C-code lookups without a browser (and without Akamai IP-blocking);
-    // the scraper stays as the fallback for near-miss/sister parts the API
-    // can't find. Only wired when a browser driver exists — mock/e2e setups
-    // (browserDriver null) keep their deterministic MockDistributorClient.
-    if (descriptor.name === "LCSC") return new LcscJlcSearchClient(scraper);
-    return scraper;
+    return new BrowserBackedDistributorClient(descriptor.name, browserDriver);
   }
 
   // "browse" with no driver configured, or api_type "none" — mock.
