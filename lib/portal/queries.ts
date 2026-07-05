@@ -12,8 +12,10 @@ import { cache } from "react";
 import { createPortalAnonClient } from "./anon-client";
 import {
   EMPTY_PORTAL_SHARED,
+  PortalPmPayloadSchema,
   PortalProjectPayloadSchema,
   PortalSharedPayloadSchema,
+  type PortalPmPayload,
   type PortalProjectPayload,
   type PortalSharedPayload,
 } from "./types";
@@ -56,6 +58,33 @@ export const getPortalShared = cache(async (token: string): Promise<PortalShared
   if (!parsed.success) {
     console.error("[portal] portal_get_shared payload failed validation:", parsed.error.message);
     return EMPTY_PORTAL_SHARED;
+  }
+  return parsed.data;
+});
+
+/**
+ * `portal_get_pm(p_token)` (supabase/migrations/0010_pm.sql) — task list +
+ * progress. Null on any failure (bad/archived token, RPC error, or a payload
+ * that fails validation): the page treats a null PM payload as "nothing to
+ * show" rather than 404ing the whole portal, since `getPortalProject`
+ * already owns the not-found decision for this token.
+ */
+export const getPortalPm = cache(async (token: string): Promise<PortalPmPayload | null> => {
+  if (!token) return null;
+
+  const supabase = createPortalAnonClient();
+  const { data, error } = await supabase.rpc("portal_get_pm", { p_token: token });
+
+  if (error) {
+    console.error("[portal] portal_get_pm RPC failed:", error.message);
+    return null;
+  }
+  if (data === null) return null;
+
+  const parsed = PortalPmPayloadSchema.safeParse(data);
+  if (!parsed.success) {
+    console.error("[portal] portal_get_pm payload failed validation:", parsed.error.message);
+    return null;
   }
   return parsed.data;
 });

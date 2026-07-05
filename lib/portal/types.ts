@@ -92,3 +92,43 @@ export const PortalSharedPayloadSchema = z
 export type PortalSharedPayload = z.infer<typeof PortalSharedPayloadSchema>;
 
 export const EMPTY_PORTAL_SHARED: PortalSharedPayload = { activities: [], documents: [] };
+
+/**
+ * `portal_get_pm(p_token)` result (supabase/migrations/0010_pm.sql) — the
+ * client-facing project-management view: task list + progress. Same
+ * `.strict()` whitelist rationale as the schemas above: an accidentally
+ * widened RPC payload (e.g. a future edit that started returning a raw
+ * `smark_time_logs` row) fails to parse instead of silently reaching a
+ * component.
+ */
+export const PortalTaskStatusSchema = z.enum(["open", "awaiting_client_input", "submitted", "done"]);
+export type PortalTaskStatus = z.infer<typeof PortalTaskStatusSchema>;
+
+/**
+ * `estimated_hours`/`actual_hours` are `null` whenever the owner's
+ * `show_time_to_client` toggle is off (0010_pm.sql `portal_get_pm`) — NEVER
+ * fabricate or assume a value when null; components must omit hours
+ * entirely in that case rather than rendering "0h" or similar.
+ */
+export const PortalTaskSchema = z
+  .object({
+    id: z.string(),
+    title: z.string(),
+    status: PortalTaskStatusSchema,
+    assignees: z.array(z.string()),
+    estimated_hours: z.number().nullable(),
+    actual_hours: z.number().nullable(),
+  })
+  .strict();
+export type PortalTask = z.infer<typeof PortalTaskSchema>;
+
+/** `portal_get_pm(p_token)` result — null when the RPC itself returned null (bad/archived token). */
+export const PortalPmPayloadSchema = z
+  .object({
+    project_id: z.string(),
+    name: z.string(),
+    progress: z.number(),
+    tasks: z.array(PortalTaskSchema),
+  })
+  .strict();
+export type PortalPmPayload = z.infer<typeof PortalPmPayloadSchema>;

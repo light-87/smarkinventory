@@ -1,14 +1,16 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
+import { ChangeRequestForm } from "@/components/portal/change-request-form";
 import { CommentForm } from "@/components/portal/comment-form";
 import { DocumentsList } from "@/components/portal/documents-list";
 import { PhaseTimeline } from "@/components/portal/phase-timeline";
+import { PmDashboard } from "@/components/portal/pm-dashboard";
 import { PortalHeader } from "@/components/portal/portal-header";
 import { ProgressPanel } from "@/components/portal/progress-panel";
 import { UpdatesFeed } from "@/components/portal/updates-feed";
 import { lastPhaseEndDate } from "@/lib/portal/phase-math";
-import { getPortalProject, getPortalShared } from "@/lib/portal/queries";
+import { getPortalPm, getPortalProject, getPortalShared } from "@/lib/portal/queries";
 
 /**
  * `/p/[token]` — the public client portal (FEATURES.md §17,
@@ -39,7 +41,11 @@ export async function generateMetadata({ params }: PortalPageProps): Promise<Met
 
 export default async function PortalPage({ params }: PortalPageProps) {
   const { token } = await params;
-  const [project, shared] = await Promise.all([getPortalProject(token), getPortalShared(token)]);
+  const [project, shared, pm] = await Promise.all([
+    getPortalProject(token),
+    getPortalShared(token),
+    getPortalPm(token),
+  ]);
 
   // Unknown token, regenerated token, and an archived project's token all
   // resolve to the exact same `null` here — no distinction leaked (FEATURES §11).
@@ -60,6 +66,23 @@ export default async function PortalPage({ params }: PortalPageProps) {
 
       <Card padding="lg">
         <ProgressPanel phases={project.phases} />
+      </Card>
+
+      {pm && (
+        <Card padding="none">
+          <CardHeader title="Tasks" />
+          <CardBody>
+            <PmDashboard token={token} progress={pm.progress} tasks={pm.tasks} />
+          </CardBody>
+        </Card>
+      )}
+
+      <Card padding="lg">
+        <h2 className="mb-1 text-[15px] font-medium text-snow">Request a change</h2>
+        <p className="mb-4 text-body-sm text-smoke">
+          Need something added or adjusted? Let Smark know.
+        </p>
+        <ChangeRequestForm token={token} projectId={project.project_id} />
       </Card>
 
       <Card padding="none">
