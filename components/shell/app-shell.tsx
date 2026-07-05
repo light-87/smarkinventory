@@ -9,6 +9,8 @@ import { Header } from "./header";
 import { BottomBar } from "./bottom-bar";
 import { MoreSheet } from "./more-sheet";
 import { RegisterServiceWorker } from "./register-service-worker";
+import { NavigationProgressProvider } from "./navigation-progress";
+import { TopProgressBar } from "./top-progress-bar";
 
 /**
  * The authed shell: desktop rail + header, mobile bottom bar + More sheet,
@@ -37,23 +39,26 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
     // so `clientWidth` and the fixed elements' containing block agree again
     // — Rail already assumed this shape (`sticky top-0 h-dvh` + its own
     // internal `overflow-y-auto` nav list).
-    <div className="flex h-dvh overflow-hidden bg-obsidian">
-      <Rail role={user.role} pathname={pathname} />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <Header user={user} pathname={pathname} />
-        {/* id targeted by the scroll-lock effect every modal/drawer/sheet
-            uses (Drawer, MoreSheet, CommandPalette, ConfirmDialog) — `main`,
-            not `document.body`, is the element that actually scrolls now,
-            so locking `body`'s overflow alone would no longer stop the
-            background from scrolling under an open overlay. */}
-        <main id="app-scroll-region" className="min-w-0 flex-1 overflow-y-auto pb-[76px] md:pb-0">
-          {children}
-        </main>
+    <NavigationProgressProvider>
+      <div className="flex h-dvh overflow-hidden bg-obsidian">
+        <TopProgressBar />
+        <Rail role={user.role} pathname={pathname} />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <Header user={user} pathname={pathname} />
+          {/* id targeted by the scroll-lock effect every modal/drawer/sheet
+              uses (Drawer, MoreSheet, CommandPalette, ConfirmDialog) — `main`,
+              not `document.body`, is the element that actually scrolls now,
+              so locking `body`'s overflow alone would no longer stop the
+              background from scrolling under an open overlay. */}
+          <main id="app-scroll-region" className="min-w-0 flex-1 overflow-y-auto pb-[calc(76px_+_env(safe-area-inset-bottom))] md:pb-0">
+            {children}
+          </main>
+        </div>
+        <BottomBar role={user.role} pathname={pathname} onMore={() => setMoreOpen(true)} />
+        <MoreSheet open={moreOpen} onClose={() => setMoreOpen(false)} role={user.role} />
+        <ToastViewport className="!bottom-[calc(76px_+_env(safe-area-inset-bottom))] md:!bottom-7" />
+        <RegisterServiceWorker />
       </div>
-      <BottomBar role={user.role} pathname={pathname} onMore={() => setMoreOpen(true)} />
-      <MoreSheet open={moreOpen} onClose={() => setMoreOpen(false)} role={user.role} />
-      <ToastViewport className="!bottom-[76px] md:!bottom-7" />
-      <RegisterServiceWorker />
-    </div>
+    </NavigationProgressProvider>
   );
 }

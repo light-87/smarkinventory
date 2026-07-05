@@ -5,6 +5,7 @@ import { cn } from "@/lib/cn";
 import { type Role } from "@/lib/auth/roles";
 import { isNavItemActive, visibleMobilePrimaryItems } from "@/lib/nav";
 import { MoreIcon, NAV_ICONS } from "./icons";
+import { NavLinkPending } from "./nav-link-pending";
 
 /**
  * Mobile bottom bar (<768px, R2-22): Dashboard · Inventory · Scan · Projects
@@ -22,9 +23,13 @@ export function BottomBar({
   const items = visibleMobilePrimaryItems(role);
 
   return (
+    // 60px of tab content ABOVE the safe-area inset. Putting the inset as
+    // padding *inside* a fixed 60px height squished/clipped the icons+labels on
+    // phones with a home indicator; growing the height by the inset keeps the
+    // tap targets full-size and the inset padding sits over the indicator.
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 flex h-[60px] border-t border-charcoal bg-obsidian/95 backdrop-blur md:hidden"
-      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      className="fixed inset-x-0 bottom-0 z-40 flex border-t border-charcoal bg-obsidian/95 backdrop-blur md:hidden"
+      style={{ height: "calc(60px + env(safe-area-inset-bottom))", paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       {items.map((item) => {
         const Icon = NAV_ICONS[item.id];
@@ -42,6 +47,7 @@ export function BottomBar({
               {Icon ? <Icon /> : null}
             </span>
             {item.label}
+            <NavLinkPending />
           </Link>
         );
       })}

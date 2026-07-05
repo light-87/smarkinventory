@@ -11,6 +11,7 @@ import {
   type NavItem,
 } from "@/lib/nav";
 import { NAV_ICONS } from "./icons";
+import { NavLinkPending } from "./nav-link-pending";
 
 /**
  * Desktop left rail (>=768px) — grouped Overview / Operate / Projects / Team,
@@ -79,6 +80,7 @@ function RailLink({ item, active }: { item: NavItem; active: boolean }) {
         {Icon ? <Icon /> : null}
       </span>
       {item.label}
+      <NavLinkPending spinner />
     </Link>
   );
 }

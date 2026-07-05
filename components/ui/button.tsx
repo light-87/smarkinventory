@@ -1,4 +1,8 @@
+"use client";
+
 import type { ComponentPropsWithRef, ReactNode } from "react";
+import { useTransition } from "react";
+import { useFormStatus } from "react-dom";
 import { cn } from "@/lib/cn";
 
 export type ButtonVariant = "primary" | "outline" | "accent-outline" | "ghost";
@@ -34,11 +38,20 @@ const SIZE_CLASSES: Record<ButtonSize, string> = {
 /**
  * SmarkStock pill button (prototype: orange fill w/ #121212 label, or
  * transparent pill w/ 1px charcoal border). Radius is always 9999px.
+ *
+ * Pending state: a `type="submit"` button automatically shows the spinner +
+ * disables itself while its nearest ancestor `<form>`'s server action is
+ * running, via `useFormStatus` — outside a `<form>` (or for non-submit
+ * buttons) that hook safely returns `pending: false`, so this is a no-op
+ * everywhere else. This is what makes existing submit buttons across the
+ * app get pending feedback "for free" without editing each form; pass an
+ * explicit `loading` prop to override (or use `PendingButton` below for
+ * buttons that trigger `router` navigation or other non-form actions).
  */
 export function Button({
   variant = "primary",
   size = "md",
-  loading = false,
+  loading,
   fullWidth = false,
   icon,
   className,
@@ -47,10 +60,13 @@ export function Button({
   type = "button",
   ...props
 }: ButtonProps) {
+  const { pending: formPending } = useFormStatus();
+  const isPending = loading ?? (type === "submit" && formPending);
+
   return (
     <button
       type={type}
-      disabled={disabled || loading}
+      disabled={disabled || isPending}
       className={cn(
         "inline-flex cursor-pointer items-center justify-center gap-2 rounded-full transition-colors select-none",
         "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-smark-orange",
@@ -62,7 +78,7 @@ export function Button({
       )}
       {...props}
     >
-      {loading ? (
+      {isPending ? (
         <span
           aria-hidden
           className="size-4 flex-none animate-spin rounded-full border-2 border-current border-t-transparent motion-reduce:animate-none"
@@ -74,5 +90,34 @@ export function Button({
       ) : null}
       {children}
     </button>
+  );
+}
+
+export interface PendingButtonProps extends Omit<ButtonProps, "loading" | "onClick"> {
+  /** Router navigation, server-action call, or any other non-form async work. */
+  onClick: () => void | Promise<void>;
+}
+
+/**
+ * `Button`'s auto-pending only covers `type="submit"` inside a real `<form>`
+ * (`useFormStatus`). For buttons that instead call `router.push`,
+ * `router.refresh`, or an async handler directly, wrap the click in a
+ * transition here so the same spinner + disabled affordance shows while it
+ * resolves — one shared component instead of a `useTransition` in every
+ * caller.
+ */
+export function PendingButton({ onClick, ...props }: PendingButtonProps) {
+  const [isPending, startTransition] = useTransition();
+
+  return (
+    <Button
+      {...props}
+      loading={isPending}
+      onClick={() => {
+        startTransition(async () => {
+          await onClick();
+        });
+      }}
+    />
   );
 }

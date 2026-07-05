@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { Role } from "@/lib/auth/roles";
 import { visibleMoreSheetItems } from "@/lib/nav";
 import { NAV_ICONS } from "./icons";
+import { NavLinkPending } from "./nav-link-pending";
 
 /**
  * Mobile "More" bottom sheet (R2-22) — every role-visible surface NOT in the
@@ -71,6 +72,7 @@ export function MoreSheet({
                   {Icon ? <Icon /> : null}
                 </span>
                 {item.label}
+                <NavLinkPending />
               </Link>
             );
           })}

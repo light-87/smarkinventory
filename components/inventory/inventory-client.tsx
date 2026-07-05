@@ -27,7 +27,7 @@ export function InventoryClient({ listResult, drawerPid, drawerResult }: Invento
 
   if (!listResult.ok) {
     return (
-      <div className="flex h-[calc(100dvh-120px)] items-center justify-center p-8 md:h-[calc(100dvh-60px)]">
+      <div className="flex h-full items-center justify-center p-8">
         <EmptyState
           tone="subtle"
           title="Couldn't load inventory"
@@ -44,7 +44,7 @@ export function InventoryClient({ listResult, drawerPid, drawerResult }: Invento
     !!drawerPid && (!drawerResult || (drawerResult.ok && drawerResult.data.part.internal_pid !== drawerPid));
 
   return (
-    <div className="flex h-[calc(100dvh-120px)] min-h-0 md:h-[calc(100dvh-60px)]">
+    <div className="flex h-full min-h-0">
       <FacetSidebar
         groups={filters.facetGroups}
         isGroupOpen={filters.isGroupOpen}

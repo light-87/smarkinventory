@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { CameraScanner } from "@/components/scan/camera-scanner";
 import { CameraIcon } from "@/components/scan/icons";
@@ -123,7 +124,7 @@ export function HeaderCameraScan() {
 
       <CameraScanner open={cameraOpen} onClose={() => setCameraOpen(false)} onDetect={handleDetect} title="Scan a code" />
 
-      {results && (
+      {results && createPortal(
         <>
           <div aria-hidden onClick={closeResults} className="animate-fade-in fixed inset-0 z-[70] bg-black/55" />
           <div
@@ -171,7 +172,8 @@ export function HeaderCameraScan() {
               )}
             </div>
           </div>
-        </>
+        </>,
+        document.body,
       )}
     </>
   );

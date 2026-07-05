@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/cn";
@@ -324,7 +325,12 @@ export function CameraScanner({
     ? "Loading scanner…"
     : (statusLine ?? "Point the camera at an ESD-plastic or Big-Box QR");
 
-  return (
+  // Portal to <body>: the header (components/shell/header.tsx) has a
+  // backdrop-filter, which makes it the containing block for any fixed-position
+  // descendant. Rendered inline, this full-screen overlay would be trapped
+  // inside the 60px header instead of covering the viewport. The portal escapes
+  // that stacking/containing context so `fixed inset-0` means the whole screen.
+  return createPortal(
     <div className="fixed inset-0 z-[75] flex flex-col bg-black">
       {/* header */}
       <div
@@ -419,6 +425,7 @@ export function CameraScanner({
           </Button>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
