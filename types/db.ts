@@ -247,7 +247,10 @@ export type ExpenseAccountType = z.infer<typeof ExpenseAccountTypeSchema>;
 export const FieldTypeSchema = z.enum(["text", "number"]);
 export type FieldType = z.infer<typeof FieldTypeSchema>;
 
-/** §7 `smark_notifications.kind` [R2-36] — extended (0009) with the attendance module's four kinds. */
+/**
+ * §7 `smark_notifications.kind` [R2-36] — extended (0009) with the attendance
+ * module's four kinds, and (0010) with the PM module's three kinds.
+ */
 export const NotificationKindSchema = z.enum([
   "arrival",
   "task_assigned",
@@ -260,6 +263,9 @@ export const NotificationKindSchema = z.enum([
   "leave_pending",
   "comp_decided",
   "leave_decided",
+  "bug_reported",
+  "change_requested",
+  "client_input_provided",
 ]);
 export type NotificationKind = z.infer<typeof NotificationKindSchema>;
 
@@ -274,6 +280,38 @@ export type LeaveReason = z.infer<typeof LeaveReasonSchema>;
 /** (0009) `smark_leave_requests.status` / `smark_comp_work.status` — shared approval lifecycle. */
 export const ApprovalStatusSchema = z.enum(["pending", "approved", "rejected"]);
 export type ApprovalStatus = z.infer<typeof ApprovalStatusSchema>;
+
+/** (0010) `smark_tasks.status`. */
+export const TaskStatusSchema = z.enum(["open", "awaiting_client_input", "submitted", "done"]);
+export type TaskStatus = z.infer<typeof TaskStatusSchema>;
+
+/** (0010) `smark_tasks.source`. */
+export const TaskSourceSchema = z.enum(["manual", "change_request"]);
+export type TaskSource = z.infer<typeof TaskSourceSchema>;
+
+/** (0010) `smark_bugs.classification` — only `bug` + `confirmed` counts toward effectiveness. */
+export const BugClassificationSchema = z.enum(["bug", "change_request"]);
+export type BugClassification = z.infer<typeof BugClassificationSchema>;
+
+/** (0010) `smark_bugs.status` — owner-triaged lifecycle. */
+export const BugStatusSchema = z.enum(["open", "confirmed", "dismissed", "resolved"]);
+export type BugStatus = z.infer<typeof BugStatusSchema>;
+
+/** (0010) `smark_bugs.reported_source`. */
+export const ReportedSourceSchema = z.enum(["client", "owner", "engineer"]);
+export type ReportedSource = z.infer<typeof ReportedSourceSchema>;
+
+/** (0010) `smark_change_requests.status`. */
+export const ChangeRequestStatusSchema = z.enum(["pending", "accepted", "rejected"]);
+export type ChangeRequestStatus = z.infer<typeof ChangeRequestStatusSchema>;
+
+/** (0010) `smark_change_requests.requested_source`. */
+export const RequestedSourceSchema = z.enum(["client", "owner"]);
+export type RequestedSource = z.infer<typeof RequestedSourceSchema>;
+
+/** (0010) `smark_task_holds.ended_source`. */
+export const HoldEndedSourceSchema = z.enum(["client", "owner"]);
+export type HoldEndedSource = z.infer<typeof HoldEndedSourceSchema>;
 
 /* ────────────────────────────────────────────────────────────────────────────
  * Typed jsonb payloads
@@ -434,6 +472,10 @@ export const ProjectRowSchema = z.object({
   /** [R2-32] archive releases demand, freezes activity, suspends portal. */
   archived_at: zTimestamptz.nullable(),
   created_by: zUuid.nullable(),
+  /** (0010) owner toggle — portal_get_pm() includes task hours only when true. */
+  show_time_to_client: z.boolean(),
+  /** (0010) non-null = created by scripts/import-clockify.ts (legacy project, no KPI). */
+  imported_at: zTimestamptz.nullable(),
 });
 export type ProjectRow = z.infer<typeof ProjectRowSchema>;
 
@@ -916,6 +958,89 @@ export const TimeEntryRowSchema = z.object({
 });
 export type TimeEntryRow = z.infer<typeof TimeEntryRowSchema>;
 
+/* ────────────────────────────────────────────────────────────────────────────
+ * (0010) Project management — tasks, assignees, time logs, bugs, change
+ * requests, holds. See supabase/migrations/0010_pm.sql header.
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+/** (0010) `smark_tasks`. */
+export const TaskRowSchema = z.object({
+  ...baseRow,
+  project_id: zUuid,
+  title: z.string(),
+  description: z.string().nullable(),
+  status: TaskStatusSchema,
+  source: TaskSourceSchema,
+  origin_change_request_id: zUuid.nullable(),
+  submitted_at: zTimestamptz.nullable(),
+  done_at: zTimestamptz.nullable(),
+  created_by: zUuid.nullable(),
+});
+export type TaskRow = z.infer<typeof TaskRowSchema>;
+
+/** (0010) `smark_task_assignees` — per-engineer estimated hours live here. */
+export const TaskAssigneeRowSchema = z.object({
+  ...baseRow,
+  task_id: zUuid,
+  user_id: zUuid,
+  /** numeric(6,1). */
+  estimated_hours: z.number(),
+  assigned_by: zUuid.nullable(),
+});
+export type TaskAssigneeRow = z.infer<typeof TaskAssigneeRowSchema>;
+
+/** (0010) `smark_time_logs` — description is MANDATORY. Distinct from legacy `smark_time_entries`. */
+export const TimeLogRowSchema = z.object({
+  ...baseRow,
+  task_id: zUuid,
+  user_id: zUuid,
+  work_date: zDateOnly,
+  /** numeric(5,1). */
+  hours: z.number(),
+  description: z.string(),
+  created_by: zUuid.nullable(),
+});
+export type TimeLogRow = z.infer<typeof TimeLogRowSchema>;
+
+/** (0010) `smark_bugs` — only status=confirmed AND classification=bug counts toward effectiveness. */
+export const BugRowSchema = z.object({
+  ...baseRow,
+  task_id: zUuid,
+  description: z.string(),
+  classification: BugClassificationSchema,
+  status: BugStatusSchema,
+  reported_source: ReportedSourceSchema,
+  /** Null when reported via the client portal (no smark_app_users identity). */
+  reported_by: zUuid.nullable(),
+  decided_by: zUuid.nullable(),
+});
+export type BugRow = z.infer<typeof BugRowSchema>;
+
+/** (0010) `smark_change_requests` — accepting one spawns a smark_tasks row. */
+export const ChangeRequestRowSchema = z.object({
+  ...baseRow,
+  project_id: zUuid,
+  description: z.string(),
+  status: ChangeRequestStatusSchema,
+  requested_source: RequestedSourceSchema,
+  resulting_task_id: zUuid.nullable(),
+  decided_by: zUuid.nullable(),
+});
+export type ChangeRequestRow = z.infer<typeof ChangeRequestRowSchema>;
+
+/** (0010) `smark_task_holds` — an open row (`ended_at` null) = task awaiting client input. */
+export const TaskHoldRowSchema = z.object({
+  ...baseRow,
+  task_id: zUuid,
+  reason: z.string(),
+  started_at: zTimestamptz,
+  ended_at: zTimestamptz.nullable(),
+  started_by: zUuid.nullable(),
+  ended_source: HoldEndedSourceSchema.nullable(),
+  ended_by: zUuid.nullable(),
+});
+export type TaskHoldRow = z.infer<typeof TaskHoldRowSchema>;
+
 /** `smark_project_activities` [R2-06] — append-only feed (15-min author edit
  * window enforced in app). */
 export const ProjectActivityRowSchema = z.object({
@@ -1141,6 +1266,12 @@ export const TABLES = {
   comp_work: "smark_comp_work",
   project_members: "smark_project_members",
   time_entries: "smark_time_entries",
+  tasks: "smark_tasks",
+  task_assignees: "smark_task_assignees",
+  time_logs: "smark_time_logs",
+  bugs: "smark_bugs",
+  change_requests: "smark_change_requests",
+  task_holds: "smark_task_holds",
   project_activities: "smark_project_activities",
   project_documents: "smark_project_documents",
   ai_aliases: "smark_ai_aliases",
@@ -1210,6 +1341,12 @@ export type Database = {
       smark_comp_work: TableOf<CompWorkRow>;
       smark_project_members: TableOf<ProjectMemberRow>;
       smark_time_entries: TableOf<TimeEntryRow>;
+      smark_tasks: TableOf<TaskRow>;
+      smark_task_assignees: TableOf<TaskAssigneeRow>;
+      smark_time_logs: TableOf<TimeLogRow>;
+      smark_bugs: TableOf<BugRow>;
+      smark_change_requests: TableOf<ChangeRequestRow>;
+      smark_task_holds: TableOf<TaskHoldRow>;
       smark_project_activities: TableOf<ProjectActivityRow>;
       smark_project_documents: TableOf<ProjectDocumentRow>;
       smark_ai_aliases: TableOf<AiAliasRow>;

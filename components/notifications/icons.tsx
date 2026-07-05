@@ -144,6 +144,42 @@ function AttendanceDecidedIcon(props: IconProps) {
   );
 }
 
+/** `bug_reported` — a flagged defect on a submitted task. */
+function BugReportedIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <circle cx="12" cy="13" r="6" />
+      <path d="M12 7V4.5" />
+      <path d="M8.5 8.5 6.5 6.5" />
+      <path d="M15.5 8.5 17.5 6.5" />
+      <path d="M6 13H3.5" />
+      <path d="M20.5 13H18" />
+    </IconBase>
+  );
+}
+
+/** `change_requested` — a proposed edit awaiting owner accept/reject. */
+function ChangeRequestedIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M7 7h8l-2.3-2.3" />
+      <path d="M17 17H9l2.3 2.3" />
+      <path d="M7 7v4" />
+      <path d="M17 17v-4" />
+    </IconBase>
+  );
+}
+
+/** `client_input_provided` — an "awaiting client input" hold just cleared. */
+function ClientInputProvidedIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9 12.3 11.2 14.5 15.5 9.8" />
+    </IconBase>
+  );
+}
+
 /** `kind` → icon (SCHEMA.md §7 `smark_notifications.kind`), the single lookup the bell uses per row. */
 export const KIND_ICONS: Record<NotificationKind, (props: IconProps) => ReactNode> = {
   arrival: ArrivalIcon,
@@ -157,4 +193,7 @@ export const KIND_ICONS: Record<NotificationKind, (props: IconProps) => ReactNod
   leave_pending: LeavePendingIcon,
   comp_decided: AttendanceDecidedIcon,
   leave_decided: AttendanceDecidedIcon,
+  bug_reported: BugReportedIcon,
+  change_requested: ChangeRequestedIcon,
+  client_input_provided: ClientInputProvidedIcon,
 };

@@ -24,6 +24,11 @@
  *     ACTIVE owner (FEATURES §2: AI-memory approval, expense confirmation,
  *     and stock oversight are owner-scoped concerns; resolved here via
  *     `activeOwnerIds` so callers don't need to know which user is owner).
+ *   - `bug_reported`, `change_requested` → every active owner (pm module;
+ *     the client-portal path for these two inserts the row directly in SQL —
+ *     supabase/migrations/0010_pm.sql — these wrappers cover the in-app path).
+ *   - `client_input_provided` → the task's assignees (caller-supplied; the
+ *     client-portal path also notifies active owners directly in SQL).
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -236,6 +241,66 @@ export async function notifyLeaveDecided(
   });
   if (!row) throw new Error("notifyLeaveDecided: insert returned no row");
   return row;
+}
+
+/**
+ * A bug/issue was reported against a task (pm). The client-portal path
+ * (portal_report_bug, supabase/migrations/0010_pm.sql) inserts this kind
+ * directly in SQL — this wrapper is for the in-app path (owner/engineer
+ * reporting via lib/pm/actions.ts reportBugAction). Audience: every active owner.
+ */
+export async function notifyBugReported(
+  client: Client,
+  params: { projectId: string; taskTitle: string; description: string },
+): Promise<NotificationRow[]> {
+  const owners = await activeOwnerIds(client);
+  return notify(client, {
+    userIds: owners,
+    kind: "bug_reported",
+    title: `Issue reported: ${params.taskTitle}`,
+    body: params.description.slice(0, 140),
+    link: projectHref(params.projectId),
+  });
+}
+
+/**
+ * A change request was filed against a project (pm). The client-portal path
+ * (portal_request_change, 0010_pm.sql) inserts this kind directly in SQL —
+ * this wrapper is for the in-app owner-originated path. Audience: every
+ * active owner (other than the requester, in a multi-owner shop).
+ */
+export async function notifyChangeRequested(
+  client: Client,
+  params: { projectId: string; description: string },
+): Promise<NotificationRow[]> {
+  const owners = await activeOwnerIds(client);
+  return notify(client, {
+    userIds: owners,
+    kind: "change_requested",
+    title: "A change was requested",
+    body: params.description.slice(0, 140),
+    link: projectHref(params.projectId),
+  });
+}
+
+/**
+ * A hold ("awaiting client input") on a task was cleared (pm). The
+ * client-portal path (portal_mark_input_provided, 0010_pm.sql) inserts this
+ * kind directly in SQL — this wrapper is for the in-app owner-ends-hold path.
+ * Audience: the task's assignees (passed in by the caller, which already
+ * knows them from lib/pm/queries.ts).
+ */
+export async function notifyClientInputProvided(
+  client: Client,
+  params: { projectId: string; taskTitle: string; assigneeUserIds: string[] },
+): Promise<NotificationRow[]> {
+  return notify(client, {
+    userIds: params.assigneeUserIds,
+    kind: "client_input_provided",
+    title: `Input provided: ${params.taskTitle}`,
+    body: null,
+    link: projectHref(params.projectId),
+  });
 }
 
 /** A client-portal visitor left a comment (portal). Audience: every active owner. */
