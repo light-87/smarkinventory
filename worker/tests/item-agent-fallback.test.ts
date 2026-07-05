@@ -1,10 +1,11 @@
 /**
- * worker/tests/item-agent-fallback.test.ts — the not-found fallback ladder
- * (user decision 2026-07-05): the tier's `depthPerItem` caps how many
- * distributors are searched for PRICE COMPARISON, but when that walk finds
- * NOTHING the agent must keep walking the REST of the master's order —
- * REST APIs first, browse sites last — and only report "not found" after
- * the whole ladder came up empty.
+ * worker/tests/item-agent-fallback.test.ts — the FULL-ladder search
+ * (user decisions 2026-07-05, F-009 → F-010): every distributor in the
+ * master's order is searched for every line — REST APIs and browse sites
+ * alike — and ALL hits accumulate so the pick/Sonnet judge see the complete
+ * market. "Not found" therefore means the entire ladder came up empty.
+ * depthPerItem no longer truncates the walk (best result first; cost tuning
+ * is a later, deliberate step).
  */
 
 import { expect, test } from "bun:test";
@@ -34,15 +35,15 @@ function line(): WorkerBomLine {
   };
 }
 
-function listing(distributorName: string): DistributorListing {
+function listing(distributorName: string, price = 1): DistributorListing {
   return {
     distributorName,
     title: "test part",
     mpn: "TEST-MPN-1",
     packageName: "0805",
-    price: 1,
+    price,
     currency: "USD",
-    qtyBreaks: [{ qty: 1, unitPrice: 1 }],
+    qtyBreaks: [{ qty: 1, unitPrice: price }],
     stockQty: 100,
     partStatus: "active",
     orderLink: "https://example.invalid/p",
@@ -76,7 +77,7 @@ function makeOptions(searched: string[], clientResults: Record<string, Distribut
   return {
     line: line(),
     plannedSearch,
-    depthPerItem: 2,
+    depthPerItem: 2, // deliberately SMALLER than the ladder — must not truncate anything
     clients,
     distributorIds,
     siteSemaphore: createSiteSemaphore(),
@@ -85,41 +86,37 @@ function makeOptions(searched: string[], clientResults: Record<string, Distribut
   };
 }
 
-test("zero results within depth → keeps walking the ladder and stops at the first hit", async () => {
+test("EVERY distributor in the ladder is searched, regardless of depthPerItem, and all hits accumulate", async () => {
   const searched: string[] = [];
   const result = await runItemAgent(
     makeOptions(searched, {
-      A: [], // within depth
-      B: [], // within depth (depthPerItem = 2)
-      C: [], // fallback rung 1 — still nothing
-      D: [listing("D")], // fallback rung 2 — HIT, walk stops here
-      E: [listing("E")], // must never be searched
+      A: [listing("A", 2)],
+      B: [],
+      C: [listing("C", 1)], // beyond the old depth cap of 2 — must STILL be searched
+      D: [listing("D", 3)],
     }),
   );
 
   expect(searched).toEqual(["A", "B", "C", "D"]);
-  expect(result.outcome.results.length).toBe(1);
-  expect(result.outcome.results[0]!.distributorName).toBe("D");
+  expect(result.outcome.results.map((r) => r.distributorName).sort()).toEqual(["A", "C", "D"]);
+  // The complete market means the cheapest package-matched exact hit wins.
+  expect(result.outcome.results.find((r) => r.isRecommended)?.distributorName).toBe("C");
 });
 
-test("results within depth → NO fallback walk (depth caps price comparison)", async () => {
-  const searched: string[] = [];
-  const result = await runItemAgent(
-    makeOptions(searched, {
-      A: [listing("A")],
-      B: [listing("B")],
-      C: [listing("C")], // beyond depth — not searched when depth already found options
-    }),
-  );
-
-  expect(searched).toEqual(["A", "B"]);
-  expect(result.outcome.results.length).toBe(2);
-});
-
-test("nothing anywhere → empty results after the WHOLE ladder was searched", async () => {
+test("nothing anywhere → empty results only after the WHOLE ladder was searched", async () => {
   const searched: string[] = [];
   const result = await runItemAgent(makeOptions(searched, { A: [], B: [], C: [], D: [] }));
 
   expect(searched).toEqual(["A", "B", "C", "D"]);
   expect(result.outcome.results).toEqual([]);
+});
+
+test("an unknown/disabled distributor in the order is skipped without failing the line", async () => {
+  const searched: string[] = [];
+  const options = makeOptions(searched, { A: [], B: [listing("B")] });
+  options.plannedSearch.distributorOrder = ["A", "Ghost", "B"]; // "Ghost" has no client
+  const result = await runItemAgent(options);
+
+  expect(searched).toEqual(["A", "B"]);
+  expect(result.outcome.results.length).toBe(1);
 });

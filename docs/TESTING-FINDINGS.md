@@ -38,6 +38,17 @@ Screenshot: docs/testing-screenshots/f-001.png (optional)
 
 <!-- Claude moves resolved entries here with commit hashes, so the Findings section stays short -->
 
+### F-010 · IDEA · BUILT (user decision, see commit) — full-ladder search, quality first
+Decision (user): "call all — API calls don't cost much, and we're giving the results to the
+agent anyway. Don't think about cost right now; finding the best item matters, cost can be
+reduced after." Built: the item agent now searches EVERY distributor in the master's order
+for EVERY line (REST + browse), accumulating all hits — supersedes F-009's zero-result-only
+fallback. depthPerItem no longer truncates the search (kept as a stored config knob / future
+cost lever). Wall-clock note: browse sites serialize (LCSC cap 1), so full-ladder adds
+seconds per line, not rupees. Also queued: when distributor API keys land in env, wire each
+REST client per its official docs; distributors with NO obtainable key get site-specific
+scrapers instead.
+
 ### F-009 · S2 · FIXED (user decision, see commit) — not-found fallback ladder
 Surface: worker item agent + run console + /ai_orc lanes
 Decision (user): if a line isn't found in the first API, try the next, then the browser

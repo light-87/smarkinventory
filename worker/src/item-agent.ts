@@ -67,6 +67,12 @@ function toResult(
 export interface RunItemAgentOptions {
   line: WorkerBomLine;
   plannedSearch: PlannedSearch;
+  /**
+   * UNUSED for search truncation since F-010 (the walk covers the FULL
+   * distributor ladder — user decision: best result first, cost later).
+   * Kept in the options shape because it's still a stored/displayed run
+   * config knob and a future cost lever.
+   */
   depthPerItem: number;
   /** distributor name → client, resolved by distributors/index.ts for this run. */
   clients: ReadonlyMap<string, DistributorClient>;
@@ -84,7 +90,7 @@ export interface RunItemAgentResult {
 }
 
 export async function runItemAgent(options: RunItemAgentOptions): Promise<RunItemAgentResult> {
-  const { line, plannedSearch, depthPerItem, clients, distributorIds, siteSemaphore, rulesDigest, env, claudePort } = options;
+  const { line, plannedSearch, clients, distributorIds, siteSemaphore, rulesDigest, env, claudePort } = options;
 
   const found: Array<{ listing: DistributorListing; distributorId: string }> = [];
 
@@ -109,23 +115,15 @@ export async function runItemAgent(options: RunItemAgentOptions): Promise<RunIte
     }
   }
 
-  // Primary walk: the first depthPerItem distributors, ACCUMULATING results
-  // so the pick can compare prices across sources.
-  const attemptOrder = plannedSearch.distributorOrder.slice(0, Math.max(1, depthPerItem));
-  for (const distributorName of attemptOrder) {
+  // FULL-ladder walk (user decision 2026-07-05, F-010): search EVERY
+  // distributor in the master's order and accumulate everything — the pick
+  // and the Sonnet judge see the complete market, and "not found" means the
+  // whole ladder genuinely came up empty. Distributor searches are code
+  // (REST/scrape), so breadth costs seconds, not rupees; the tier's
+  // depthPerItem is no longer a search truncation knob (best result first —
+  // cost tuning comes later, per the user).
+  for (const distributorName of plannedSearch.distributorOrder) {
     await searchOne(distributorName);
-  }
-
-  // Not-found fallback (user decision 2026-07-05): when the depth-limited
-  // walk found NOTHING, keep walking the REST of the master's ladder —
-  // including browse-only sites — stopping at the first distributor that
-  // returns anything. The tier's depth caps how much we spend comparing
-  // prices, not how hard we look before declaring a part unfindable.
-  if (found.length === 0) {
-    for (const distributorName of plannedSearch.distributorOrder.slice(attemptOrder.length)) {
-      await searchOne(distributorName);
-      if (found.length > 0) break;
-    }
   }
 
   if (found.length === 0) {
