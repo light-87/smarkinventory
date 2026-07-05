@@ -5,28 +5,24 @@
  * app/(app)/projects/[projectId]/ordering/[bomId]/page.tsx renders
  * (plan/tab-ordering-workspace.md).
  *
- * "Run ordering →" enqueues (lib/runs/enqueue.ts) then navigates straight to
- * the Agent Run console (app/(app)/projects/[projectId]/runs/[runId]) —
- * matching the prototype's flow "Run ordering → Agent run console". Falls
- * back to an inline confirmation + refresh if the navigation itself somehow
- * doesn't fire, so the saved-run summary above still appears either way.
+ * Browser-agent sourcing itself now runs exclusively through the SmarkStock
+ * Desktop app (`createDesktopRun`, `lib/runs/enqueue.ts`) — this workspace no
+ * longer starts a run; it's setup only (distributor sequence, priorities,
+ * dry-run estimate). See docs/desktop-web-handoff-prompt.md.
  */
 
-import { useState, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
 import { SegmentedControl, type SegmentedOption } from "@/components/ui/segmented-control";
 import { DistributorSequenceCard } from "./distributor-sequence-card";
 import { PrioritiesCard } from "./priorities-card";
 import { MemoryContextCardView, StandardRulesCard } from "./memory-rules-cards";
 import { computeDryRunEstimate } from "@/lib/runs/dry-run";
-import { runOrderingAction } from "@/app/(app)/projects/[projectId]/ordering/[bomId]/actions";
 import { formatINR, formatNumber } from "@/lib/format";
 import type { WorkspaceData } from "@/lib/runs/types";
 import type { ConcurrencyPreset } from "@/types/worker";
+import { useState } from "react";
 
 const TIER_OPTIONS: readonly SegmentedOption<ConcurrencyPreset>[] = [
   { value: "economy", label: "Economy" },
@@ -41,28 +37,10 @@ export interface WorkspaceViewProps {
 }
 
 export function WorkspaceView({ projectId, data, writable }: WorkspaceViewProps) {
-  const router = useRouter();
   const [tier, setTier] = useState<ConcurrencyPreset>("balanced");
-  const [isPending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-  const [startedRunId, setStartedRunId] = useState<string | null>(null);
 
   const estimate = computeDryRunEstimate({ toOrderLineCount: data.toOrderLineCount, tier });
   const nothingToOrder = data.toOrderLineCount === 0;
-
-  function runOrdering() {
-    setError(null);
-    setStartedRunId(null);
-    startTransition(async () => {
-      const result = await runOrderingAction({ bomId: data.bom.id, tier });
-      if (result.ok) {
-        setStartedRunId(result.runId);
-        router.push(`/projects/${projectId}/runs/${result.runId}`);
-      } else {
-        setError(result.error);
-      }
-    });
-  }
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-5 sm:px-6">
@@ -114,7 +92,7 @@ export function WorkspaceView({ projectId, data, writable }: WorkspaceViewProps)
       <MemoryContextCardView memory={data.memory} />
       <StandardRulesCard rules={data.standardRules} />
 
-      {/* Search depth + dry-run ₹ + Run ordering */}
+      {/* Search depth + dry-run ₹ estimate */}
       <Card padding="lg">
         <div className="mb-1 text-[15px] font-medium text-snow">Search depth</div>
         <div className="mb-3.5 text-caption text-smoke">More depth is more thorough and costs more — per-site caps always apply.</div>
@@ -142,21 +120,11 @@ export function WorkspaceView({ projectId, data, writable }: WorkspaceViewProps)
           )}
         </div>
 
-        {writable && !nothingToOrder && (
-          <div className="mt-4">
-            <Button size="lg" fullWidth loading={isPending} onClick={runOrdering}>
-              Run ordering →
-            </Button>
+        {!nothingToOrder && (
+          <div className="mt-4 rounded-lg border border-charcoal bg-surface-well px-3.5 py-3 text-[13px] text-silver-mist">
+            Source this BOM from the SmarkStock Desktop app on your computer.
           </div>
         )}
-
-        {startedRunId && (
-          <div className="mt-3 rounded-lg border border-charcoal bg-surface-well px-3.5 py-3 text-[13px] text-silver-mist">
-            Run started — the browser-worker will pick it up (run{" "}
-            <span className="font-mono text-snow">{startedRunId.slice(0, 8)}</span>). Track it from the dashboard.
-          </div>
-        )}
-        {error && <div className="mt-3 text-caption text-smark-orange-soft">{error}</div>}
       </Card>
     </div>
   );

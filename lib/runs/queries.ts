@@ -329,6 +329,37 @@ async function getSourcingLanes(
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
+ * Latest run per BOM (BOM list's "in review" CTA — R2 desktop-pivot handoff)
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+export interface BomLatestRunStatus {
+  runId: string;
+  status: AgentRunRow["status"];
+}
+
+/**
+ * Latest run per BOM, keyed by `bom_id`. Both `enqueueRun`/`reRunWholeOrder`
+ * and `createDesktopRun` (`lib/runs/enqueue.ts`) always repoint
+ * `smark_boms.saved_run_id` at the run they just created, so `saved_run_id`
+ * IS the newest run for that BOM — a single batched lookup by those ids is
+ * enough, no need to re-derive "newest" with an `ORDER BY created_at` per
+ * BOM. Works identically for desktop- and worker-created runs — both paths
+ * update the same column the same way.
+ */
+export async function getLatestRunStatusByBomIds(supabase: DB, savedRunIds: readonly (string | null)[]): Promise<Map<string, BomLatestRunStatus>> {
+  const map = new Map<string, BomLatestRunStatus>();
+  const ids = Array.from(new Set(savedRunIds.filter((id): id is string => Boolean(id))));
+  if (ids.length === 0) return map;
+
+  const { data, error } = await supabase.from(TABLES.agent_runs).select("id, bom_id, status").in("id", ids);
+  assertNoError(error, "smark_agent_runs (latest run by bom)");
+  for (const row of data ?? []) {
+    map.set(row.bom_id, { runId: row.id, status: row.status });
+  }
+  return map;
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
  * Agent Run console
  * ──────────────────────────────────────────────────────────────────────────── */
 

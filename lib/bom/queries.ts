@@ -55,6 +55,8 @@ export interface BomListRow {
   createdInApp: boolean;
   uploadedByName: string | null;
   createdAt: string;
+  /** Newest run for this BOM (`smark_boms.saved_run_id`) — `null` until a run has ever been started. */
+  savedRunId: string | null;
 }
 
 async function countMatchStatesByBom(supabase: DB, bomIds: readonly string[]): Promise<Map<string, { inStock: number; toOrder: number }>> {
@@ -110,6 +112,7 @@ export async function listBomsForProject(supabase: DB, projectId: string): Promi
       createdInApp: bom.created_in_app,
       uploadedByName: bom.uploaded_by ? (uploaderNames.get(bom.uploaded_by) ?? null) : null,
       createdAt: bom.created_at,
+      savedRunId: bom.saved_run_id,
     };
   });
 }

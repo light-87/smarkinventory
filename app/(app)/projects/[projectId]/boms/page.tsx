@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getSessionUser } from "@/lib/auth/session";
 import { canWrite } from "@/lib/auth/roles";
 import { getProjectHeader, listBomsForProject } from "@/lib/bom/queries";
+import { getLatestRunStatusByBomIds } from "@/lib/runs/queries";
 import { BomListTable } from "@/components/bom/bom-list-table";
 
 export const metadata: Metadata = { title: "BOMs" };
@@ -29,6 +30,16 @@ export default async function BomsPage({ params }: BomsPageProps) {
   const boms = await listBomsForProject(supabase, projectId);
   const writable = sessionUser != null && canWrite(sessionUser.role, "projects");
 
+  // "In review" CTA — surface the BOM's most recent run when it's sitting in
+  // review, whether that run was desktop- or worker-created (docs/desktop-
+  // web-handoff-prompt.md §2).
+  const latestRunByBom = await getLatestRunStatusByBomIds(supabase, boms.map((b) => b.savedRunId));
+  const reviewRunIdByBom = new Map(
+    Array.from(latestRunByBom.entries())
+      .filter(([, run]) => run.status === "review")
+      .map(([bomId, run]) => [bomId, run.runId] as const),
+  );
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -46,7 +57,7 @@ export default async function BomsPage({ params }: BomsPageProps) {
         )}
       </div>
 
-      <BomListTable projectId={projectId} boms={boms} writable={writable} />
+      <BomListTable projectId={projectId} boms={boms} writable={writable} reviewRunIdByBom={reviewRunIdByBom} />
     </div>
   );
 }

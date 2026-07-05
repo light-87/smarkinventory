@@ -27,10 +27,12 @@ export interface BomListTableProps {
   boms: BomListRow[];
   /** Owner/employee — shows the per-row delete control. */
   writable?: boolean;
+  /** BOM id → its newest run's id, present only when that run's status is "review" (desktop-web-handoff-prompt.md §2). */
+  reviewRunIdByBom?: ReadonlyMap<string, string>;
 }
 
 /** BOMs list for a project (plan/tab-orders-projects.md R2-03) — name, split, ×N, sourcing status. */
-export function BomListTable({ projectId, boms, writable = false }: BomListTableProps) {
+export function BomListTable({ projectId, boms, writable = false, reviewRunIdByBom }: BomListTableProps) {
   const router = useRouter();
   const [pendingDelete, setPendingDelete] = useState<BomListRow | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -97,7 +99,21 @@ export function BomListTable({ projectId, boms, writable = false }: BomListTable
                 </Chip>
               </Td>
               <Td>
-                <Chip tone={SOURCING_TONE[bom.sourcingStatus]}>{SOURCING_LABEL[bom.sourcingStatus]}</Chip>
+                <div className="flex items-center gap-2">
+                  <Chip tone={SOURCING_TONE[bom.sourcingStatus]}>{SOURCING_LABEL[bom.sourcingStatus]}</Chip>
+                  {reviewRunIdByBom?.get(bom.id) && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        router.push(`/projects/${projectId}/runs/${reviewRunIdByBom.get(bom.id)}/review`);
+                      }}
+                      className="inline-flex h-7 items-center rounded-full bg-smark-orange/15 px-2.5 text-[12px] font-medium text-smark-orange transition-colors hover:bg-smark-orange/25"
+                    >
+                      In review →
+                    </button>
+                  )}
+                </div>
               </Td>
               <Td className="text-smoke">
                 {formatDate(bom.createdAt)}
