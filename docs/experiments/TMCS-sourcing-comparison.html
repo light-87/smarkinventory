@@ -1,0 +1,391 @@
+<!doctype html><html><head><meta charset="utf-8"><title>TMCS Sourcing Comparison</title>
+<style>
+ body{font-family:Segoe UI,Arial,sans-serif;font-size:11px;margin:24px;color:#111}
+ h1{font-size:20px} h2{font-size:15px;margin-top:22px}
+ table{border-collapse:collapse;width:100%} td,th{border:1px solid #bbb;padding:4px 6px;vertical-align:top;text-align:left}
+ th{background:#f0f0f0} small{color:#555} a{color:#0645ad;text-decoration:none;word-break:break-all}
+ .cls{font-weight:bold;padding:1px 4px;border-radius:3px}
+ .EXACT{background:#c8f7c5}.FAMILY{background:#e2f7c5}.AGENT\+{background:#c5e8f7}.DIFFERENT{background:#f7ecc5}.MISS{background:#f7c5c5}
+ .kpi{display:inline-block;border:1px solid #ccc;border-radius:6px;padding:8px 14px;margin:4px 8px 4px 0}
+</style></head><body>
+<h1>TMCS 96x32 Matrix — AI Sourcing Experiment (50 lines)</h1>
+<p>Input: <b>TMCS_96x32_Matrix_V1.2_test_raw.xlsx</b> — 25 lines with MPN, 25 without (seeded random). Ground truth: engineer-filled PartLink / LCSC PN in TMCS_96x32_Matrix_V1.2.xlsx. Date: 2026-07-05.</p>
+
+<h2>Arms</h2>
+<p><b>Arm A — Hybrid (production mirror):</b> DigiKey/Mouser/element14 REST APIs pre-fetched by code (free), Haiku 4.5 judge via Batch API (50% off) + prompt caching; web search+fetch only for LCSC and API gaps.<br>
+<b>Arm B — Browser agent:</b> real Brave (CDP) loading live LCSC/DigiKey/Mouser/element14/Unikey pages from a residential IP; Haiku reads the pages and judges. Zero bot blocks encountered.</p>
+
+<h2>Cost &amp; time</h2>
+<div class="kpi"><b>Arm A</b><br>₹123 total · ₹2.5/line<br>52 web searches · batch 50 lines</div>
+<div class="kpi"><b>Arm B</b><br>₹38 total · ₹0.8/line<br>33 min wall clock · scraping free</div>
+<div class="kpi"><b>100-line extrapolation</b><br>Arm A ≈ ₹247 · Arm B ≈ ₹77 + ~67 min</div>
+
+<h2>Scorecard vs engineer</h2>
+<table><tr><th></th><th>EXACT</th><th>FAMILY</th><th>AGENT+</th><th>DIFFERENT</th><th>MISS</th></tr>
+<tr><td><b>Arm A (hybrid)</b></td><td>25</td><td>1</td><td>10</td><td>9</td><td>5</td></tr>
+<tr><td><b>Arm B (browser)</b></td><td>25</td><td>1</td><td>11</td><td>10</td><td>3</td></tr></table>
+<p><small>EXACT = same LCSC PN or MPN as the engineer. FAMILY = variant of the engineer's part. AGENT+ = engineer left the line empty, agent found a valid option. DIFFERENT = disagrees with the engineer — needs human review (the agent may be better: check price/stock via the links). MISS = nothing usable.</small></p>
+
+<h2>Per-line results</h2>
+<table>
+<tr><th>Line</th><th>Input</th><th>Engineer</th><th>Arm A pick</th><th>Arm B pick</th></tr>
+<tr>
+    <td>#3<br><small>C4</small></td>
+    <td>330nF C0805<br><small>no MPN</small></td>
+    <td>C107132<br><small></small></td>
+    <td><span class="cls DIFFERENT">DIFFERENT</span> <a href="https://www.digikey.com/en/products/detail/kemet/C0805C334K5REC7210/8645285">C0805C334K5REC7210</a><br><small>DigiKey · 0.22 USD</small></td>
+    <td><span class="cls DIFFERENT">DIFFERENT</span> <a href="https://www.digikey.com/en/products/filter/ceramic-capacitors/60?s=N4IgTCBcDaIMxwAwDsBiACRAORBWEAugL5A">C0805C334K5REC7210</a><br><small>DigiKey · 0.22 USD</small></td>
+  </tr>
+<tr>
+    <td>#4<br><small>C7,C8</small></td>
+    <td>10pF C0805<br><small>no MPN</small></td>
+    <td>C107107<br><small></small></td>
+    <td><span class="cls DIFFERENT">DIFFERENT</span> <a href="https://www.mouser.in/ProductDetail/KYOCERA-AVX/08053A100FAT2A?qs=9g9l2Gjnh0tSPqr3vG%2F6kQ%3D%3D">08053A100FAT2A</a><br><small>Mouser · 0.29 USD</small></td>
+    <td><span class="cls DIFFERENT">DIFFERENT</span> <a href="https://in.element14.com/c/passive-components/capacitors?st=10pF+0805">VJ0805A100GXAPW1BC</a><br><small>element14 · 7.57 INR</small></td>
+  </tr>
+<tr>
+    <td>#5<br><small>C9</small></td>
+    <td>0.1uF C0805<br><small>no MPN</small></td>
+    <td>—<br><small></small></td>
+    <td><span class="cls AGENT+">AGENT+</span> <a href="https://www.digikey.com/en/products/detail/samsung-electro-mechanics/CL21B104KBCNNNC/3886661">CL21B104KBCNNNC</a><br><small>DigiKey · 0.1 USD</small></td>
+    <td><span class="cls AGENT+">AGENT+</span> <a href="https://www.lcsc.com/search?q=0.1uF%200805">CC0805JPX7R9BB104</a><br><small>LCSC · 0.0187 USD</small></td>
+  </tr>
+<tr>
+    <td>#13<br><small>C20,C23</small></td>
+    <td>47uF/10V C1206<br><small>no MPN</small></td>
+    <td>C94034<br><small></small></td>
+    <td><span class="cls DIFFERENT">DIFFERENT</span> <a href="https://www.digikey.com/en/products/detail/samsung-electro-mechanics/CL31A476MPHNNNE/3888721">CL31A476MPHNNNE</a><br><small>DigiKey · 0.49 USD</small></td>
+    <td><span class="cls DIFFERENT">DIFFERENT</span> <a href="https://www.lcsc.com/search?q=47uF%2010V%201206">C53330106</a><br><small>LCSC · 0.0393 USD</small></td>
+  </tr>
+<tr>
+    <td>#18<br><small>C28,C29,C30</small></td>
+    <td>15uF C1411<br><small>25TQC15MYFB</small></td>
+    <td>C139564<br><small>25TQC15MYFB</small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://www.mouser.in/ProductDetail/Panasonic/25TQC15MYFB?qs=OE1iw1LrrPHHv7w%2FsqDr0w%3D%3D">25TQC15MYFB</a><br><small>Mouser · 2.15 USD</small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://www.digikey.com/en/products/detail/panasonic-industry/25TQC15MYFB/4146576?s=N4IgTCBcDa4KwBUCKBhAjHAsgTQGICEQBdAXyA">25TQC15MYFB</a><br><small>DigiKey · 1.181 USD</small></td>
+  </tr>
+<tr>
+    <td>#20<br><small>C32</small></td>
+    <td>4.7uF/10V C0805<br><small>CL21A475KPFNNNG</small></td>
+    <td><a href="https://www.digikey.in/en/products/detail/samsung-electro-mechanics/CL21A475KPFNNNG/3894442">link</a><br><small>CL21A475KPFNNNG</small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://www.digikey.com/en/products/detail/samsung-electro-mechanics/CL21A475KPFNNNG/3894442">CL21A475KPFNNNG</a><br><small>DigiKey · 0.1 USD</small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://www.digikey.com/en/products/detail/samsung-electro-mechanics/CL21A475KPFNNNG/3894442?s=N4IgTCBcDaIMIBkwEYCCAWA7AVgNIAUAxAOVIHEQBdAXyA">CL21A475KPFNNNG</a><br><small>DigiKey · 0.1 USD</small></td>
+  </tr>
+<tr>
+    <td>#23<br><small>C134</small></td>
+    <td>10uF/25V C0603<br><small>no MPN</small></td>
+    <td>C194427<br><small></small></td>
+    <td><span class="cls DIFFERENT">DIFFERENT</span> <a href="https://in.element14.com/-/-/-/dp/3582854">GRM188R61E106KA73D</a><br><small>element14 · 9.72 INR</small></td>
+    <td><span class="cls DIFFERENT">DIFFERENT</span> <a href="https://www.lcsc.com/product-detail/C5360828.html">TCC0603X5R106M250CT</a><br><small>LCSC · 0.0488 USD</small></td>
+  </tr>
+<tr>
+    <td>#24<br><small>C144</small></td>
+    <td>15pF C0603<br><small>no MPN</small></td>
+    <td>C107037<br><small></small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://www.lcsc.com/product-detail/C107037.html">CC0603JRNPO9BN150</a><br><small>LCSC · 0.0057 USD</small></td>
+    <td><span class="cls DIFFERENT">DIFFERENT</span> <a href="https://in.element14.com/c/passive-components/capacitors?st=15pF+0603">CC0603JRNPO9BN150</a><br><small>element14 · 0.036 USD</small></td>
+  </tr>
+<tr>
+    <td>#25<br><small>C276,C277</small></td>
+    <td>18pF C0603<br><small>0603N180J500CT</small></td>
+    <td><a href="https://www.digikey.in/product-detail/en/walsin-technology-corporation/0603N180J500CT/1292-1494-1-ND/9355498">link</a><br><small>0603N180J500CT</small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://www.digikey.com/en/products/detail/walsin-technology-corporation/0603N180J500CT/9354991">0603N180J500CT</a><br><small>DigiKey · 0.021 USD</small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://www.lcsc.com/product-detail/C123538.html">0603N180J500CT</a><br><small>LCSC · 0.0041 USD</small></td>
+  </tr>
+<tr>
+    <td>#28<br><small>C293,C294</small></td>
+    <td>10uF C0805<br><small>no MPN</small></td>
+    <td>—<br><small></small></td>
+    <td><span class="cls AGENT+">AGENT+</span> <a href="https://www.digikey.com/en/products/detail/kemet/C0805C106K8PACTU/1090830">C0805C106K8PACTU</a><br><small>DigiKey · 0.13 USD</small></td>
+    <td><span class="cls AGENT+">AGENT+</span> <a href="https://in.element14.com/c/passive-components/capacitors?st=10uF+0805">C2012X7R1A106K125AC</a><br><small>element14 · 1.79 USD</small></td>
+  </tr>
+<tr>
+    <td>#30<br><small>D2,D56</small></td>
+    <td>BZT52C10 SOD-123F<br><small>BZT52C10</small></td>
+    <td>C460782<br><small>BZT52C10</small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://www.digikey.com/en/products/detail/diotec-semiconductor/BZT52C10/22192226">BZT52C10</a><br><small>DigiKey · 0.17 USD</small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://www.lcsc.com/product-detail/C173431.html">BZT52C10</a><br><small>LCSC · 0.0164 USD</small></td>
+  </tr>
+<tr>
+    <td>#31<br><small>D3,D4</small></td>
+    <td>B340A-13-F DO-214AC<br><small>B340A-13-F</small></td>
+    <td>—<br><small>B340A-13-F</small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://www.digikey.com/en/products/detail/diodes-incorporated/B340A-13-F/725015">B340A-13-F</a><br><small>DigiKey · 0.48 USD</small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://www.lcsc.com/search?q=B340A-13-F">B340A-13-F</a><br><small>LCSC · 0.0574 USD</small></td>
+  </tr>
+<tr>
+    <td>#33<br><small>D6</small></td>
+    <td>LED LED_0805_2012Metric<br><small>no MPN</small></td>
+    <td>—<br><small></small></td>
+    <td><span class="cls AGENT+">AGENT+</span> <a href="https://www.lcsc.com/product-detail/Light-Emitting-Diodes-LED_0805_C205444.html">ORH-R35A</a><br><small>LCSC · 0.0094 USD</small></td>
+    <td><span class="cls AGENT+">AGENT+</span> <a href="https://www.lcsc.com/search?q=LED">LED7706TR</a><br><small>LCSC · 2.2971 USD</small></td>
+  </tr>
+<tr>
+    <td>#40<br><small>D93</small></td>
+    <td>PRTR5V0U2F FNL6_SOT886_NEX<br><small>PRTR5V0U2F,115</small></td>
+    <td>C2937001<br><small>PRTR5V0U2F,115</small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://www.lcsc.com/product-detail/TVS_Nexperia-PRTR5V0U2F-115_C478118.html">PRTR5V0U2F,115</a><br><small>LCSC · 0.1185 USD</small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://www.lcsc.com/product-detail/C478118.html">PRTR5V0U2F,115</a><br><small>LCSC · 0.1185 USD</small></td>
+  </tr>
+<tr>
+    <td>#42<br><small>F1,F2,F3,F4,F5,F6,F7,F8,F9,F10,F11,F12,F13,F14,F15,F16,F17,F18,F19,F20,F21,F22,F23,F24,F25,F26,F27,F28,F29,F30,F31,F32</small></td>
+    <td>SMD0603B001TF Fuse_0603_1608Metric<br><small>SMD0603B001TF</small></td>
+    <td><a href="https://www.digikey.in/en/products/detail/yageo/SMD0603B001TF/26283750?s=N4IgTCBcDaIMoFkAiAGAbCgzAIRSgjACoBiIAugL5A">link</a><br><small>SMD0603B001TF</small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://www.mouser.in/ProductDetail/YAGEO/SMD0603B001TF?qs=jcD%2FCkGBYeN756lFqS8r%252BA%3D%3D">SMD0603B001TF</a><br><small>Mouser · 0.18 USD</small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://www.mouser.com/ProductDetail/YAGEO/SMD0603B001TF?qs=jcD%2FCkGBYeN756lFqS8r%252BA%3D%3D">SMD0603B001TF</a><br><small>Mouser · 0.18 USD</small></td>
+  </tr>
+<tr>
+    <td>#43<br><small>H1,H2,H3,H4,H5,H6,H7,H8,H9,H10,H11,H12,H13,H14,H15,H16,H17,H18,H19,H20,H21</small></td>
+    <td>MountingHole MountingHole_3.5mm<br><small>no MPN</small></td>
+    <td>—<br><small></small></td>
+    <td><span class="cls MISS">MISS</span><br><small>BOM line #43 should be removed. Mounting hole specifications (3.5mm dia, qty 21) belong in gerber/PCB design, not component procurement. If fasteners are needed, procure separately as mechanical hardware.</small></td>
+    <td><span class="cls MISS">MISS</span><br><small>BOM line #43 specifies 21× MountingHole (3.5mm diameter) with no MPN. Mounting holes are fabricated as part of PCB manufacturing, not purchased separately from component distributors. This should be specified in PCB gerber files and ordered through the PCB manufacturer (e.g., JLCPCB, which LCSC owns). No action required on component distributors.</small></td>
+  </tr>
+<tr>
+    <td>#44<br><small>IC1</small></td>
+    <td>TLV61070ADBVR SOT-23-6<br><small>TLV61070ADBVR</small></td>
+    <td>C6881375<br><small>TLV61070ADBVR</small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://lcsc.com/product-detail/DC-DC-Converters_Texas-Instruments-TLV61070ADBVR_C6881375.html">TLV61070ADBVR</a><br><small>LCSC · 0.255 USD</small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://www.lcsc.com/product-detail/C6881375.html">TLV61070ADBVR</a><br><small>LCSC · 0.255 USD</small></td>
+  </tr>
+<tr>
+    <td>#46<br><small>IC10</small></td>
+    <td>ISO1500DBQR SOP64P600X175-16N<br><small>ISO1500DBQR</small></td>
+    <td>C2671333<br><small>ISO1500DBQR</small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://www.lcsc.com/product-detail/Isolated-RS-485-422-Transceivers_Texas-Instruments-ISO1500DBQR_C2671333.html">ISO1500DBQR</a><br><small>LCSC · 1.4182 USD</small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://www.lcsc.com/product-detail/C2671333.html">ISO1500DBQR</a><br><small>LCSC · 1.4182 USD</small></td>
+  </tr>
+<tr>
+    <td>#50<br><small>J16</small></td>
+    <td>Conn_01x02 PinHeader_1x2_P2.54mm<br><small>no MPN</small></td>
+    <td>—<br><small></small></td>
+    <td><span class="cls AGENT+">AGENT+</span> <a href="https://www.lcsc.com/product-detail/Male-Header_Shenzhen-Cancome-Headers-Pins-1-2P-2-54mm-Straight-line_C124375.html">B-2100S02P-A110</a><br><small>LCSC · 0.0302 USD</small></td>
+    <td><span class="cls AGENT+">AGENT+</span> <a href="https://www.lcsc.com/product-detail/C5305.html">C5305</a><br><small>LCSC · 0.0098 USD</small></td>
+  </tr>
+<tr>
+    <td>#52<br><small>J18</small></td>
+    <td>Conn_01x07_Pin PinHeader_1x07_P2.54mm_Vertical<br><small>no MPN</small></td>
+    <td>—<br><small></small></td>
+    <td><span class="cls MISS">MISS</span><br><small>Commodity 1x07 pin header (2.54mm pitch, vertical, through-hole) — standard stocking item at all major distributors. Must manually search DigiKey, Mouser, LCSC, and element14 India for current stock/pricing. Typical manufacturers: MOLEX 879141207, AMPHENOL 609 series, SAMTEC TSW series. Cost typically $0.05–$0.15 USD per unit in volume.</small></td>
+    <td><span class="cls MISS">MISS</span><br><small>The BOM references a KiCad schematic symbol (Conn_01x07_Pin) rather than a manufacturer part number. This is a generic 1x07 vertical pin header with 2.54mm pitch (standard through-hole). Purchasing requires identifying a specific MPN (e.g., Amphenol FCI 67997-407-101LF, TE Connectivity 6-530824-0, Samtec TSW-107-07-T-SH, or equivalent). Recommend buyer search distributors by pitch (2.54mm), configuration (1x7 vertical), and package (PinHeader_1x07_P2.54mm_Vertical) rather than schematic symbol.</small></td>
+  </tr>
+<tr>
+    <td>#54<br><small>J20</small></td>
+    <td>Screw_Terminal_01x03 TerminalBlock_PLG-RA_3P_P3.5mm<br><small>no MPN</small></td>
+    <td>—<br><small></small></td>
+    <td><span class="cls AGENT+">AGENT+</span> <a href="https://www.lcsc.com/product-detail/Screw-terminal_MAX-MX127S-3-5-GN01-03P-Cu-Y-A_C5349544.html">MX127S-3.5-03P-GN01-Cu-Y-A</a><br><small>LCSC · 0.354 USD</small></td>
+    <td><span class="cls AGENT+">AGENT+</span> <a href="https://www.lcsc.com/product-detail/C395691.html">DB2EK-3.81-3P-GN-S</a><br><small>LCSC · 0.2805 USD</small></td>
+  </tr>
+<tr>
+    <td>#55<br><small>J21</small></td>
+    <td>CONN_03X2SHROUD_TH CONN_2X3-SHROUDED_HEADER<br><small>BHR-06-VUA</small></td>
+    <td><a href="https://www.digikey.in/en/products/detail/adam-tech/BHR-06-VUA/10414837?s=N4IgTCBcDaIEIAkBKBaADANhQNQKoEEQBdAXyA">link</a><br><small>BHR-06-VUA</small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://www.digikey.com/en/products/detail/adam-tech/BHR-06-VUA/10414837">BHR-06-VUA</a><br><small>DigiKey · 0.35 USD</small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://www.digikey.com/en/products/category/rectangular-connectors/2027?s=N4IgTCBcDaIEIAkBKBaADANhQNQKoEEQBdAXyA">BHR-06-VUA</a><br><small>DigiKey · 0.35 USD</small></td>
+  </tr>
+<tr>
+    <td>#58<br><small>JP1,JP2</small></td>
+    <td>Jumper_3_Open SolderJumper-3_P1.3mm_Open_RoundedPad1.0x1.5mm<br><small>no MPN</small></td>
+    <td>—<br><small></small></td>
+    <td><span class="cls MISS">MISS</span><br><small>BOM line references a solder jumper pad pattern from the KiCAD Jumper library. These are open 3-pad jumpers (1.3mm pitch, 1.0×1.5mm rounded pads) configured on the PCB itself. No part ordering required; communicate pad-bridging requirements to PCB manufacturer/assembler.</small></td>
+    <td><span class="cls AGENT+">AGENT+</span> <a href="https://www.lcsc.com/product-detail/C266202.html">C266202</a><br><small>LCSC · 1.5259 USD</small></td>
+  </tr>
+<tr>
+    <td>#60<br><small>L1</small></td>
+    <td>SRN8040TA-100M IND_SRN8040TA<br><small>SRN8040TA-100M</small></td>
+    <td>C18236342<br><small>SRN8040TA-100M</small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://www.digikey.com/en/products/detail/bourns-inc/SRN8040TA-100M/6155129">SRN8040TA-100M</a><br><small>DigiKey · 0.61 USD</small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://www.digikey.com/en/products/detail/bourns-inc/SRN8040TA-100M/6155129?s=N4IgTCBcDaIMoCUByAOADAFjQFQIIFoBGNNAWRAF0BfIA">SRN8040TA-100M</a><br><small>DigiKey · 0.61 USD</small></td>
+  </tr>
+<tr>
+    <td>#62<br><small>L3</small></td>
+    <td>47uH IND_L11.5xW10mm<br><small>104CDMCCDS-470MC</small></td>
+    <td>C2847607<br><small>104CDMCCDS-470MC</small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://www.digikey.com/en/products/detail/sumida-america-inc/104CDMCCDS-470MC/5812445">104CDMCCDS-470MC</a><br><small>DigiKey · 0.64 USD</small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://www.digikey.com/en/products/detail/sumida-america-inc/104CDMCCDS-470MC/5812445?s=N4IgTCBcDaIIwAYAsBhAIgWRegygWiQHYEsQBdAXyA">104CDMCCDS-470MC</a><br><small>DigiKey · 0.64 USD</small></td>
+  </tr>
+<tr>
+    <td>#64<br><small>Q1</small></td>
+    <td>SQD19P06-60 / DMP4047SK3-13 TO-252AA_MOSFET<br><small>SQD19P06-60L_T4GE3</small></td>
+    <td>C444964<br><small>SQD19P06-60L_T4GE3</small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://www.digikey.com/en/products/detail/vishay-siliconix/SQD19P06-60L-T4GE3/7566771">SQD19P06-60L_T4GE3</a><br><small>DigiKey · 2.34 USD</small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://www.digikey.com/en/products/detail/vishay-siliconix/SQD19P06-60L-T4GE3/7566771">SQD19P06-60L_T4GE3</a><br><small>DigiKey · 2.34 USD</small></td>
+  </tr>
+<tr>
+    <td>#65<br><small>Q2,Q68</small></td>
+    <td>DMP4065S-7 SOT-23-3<br><small>DMP4065S-7</small></td>
+    <td>C182476<br><small>DMP4065S-7</small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://www.digikey.com/en/products/detail/diodes-incorporated/DMP4065S-7/5223215">DMP4065S-7</a><br><small>DigiKey · 0.54 USD</small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://www.lcsc.com/product-detail/C182476.html">DMP4065S-7</a><br><small>LCSC · 0.1479 USD</small></td>
+  </tr>
+<tr>
+    <td>#67<br><small>Q9,Q10,Q11,Q12,Q13,Q14,Q21,Q22,Q23,Q24,Q25,Q26,Q33,Q34,Q35,Q36,Q37,Q38,Q45,Q46,Q47,Q48,Q49,Q50,Q57,Q58,Q59,Q60,Q61,Q62,Q65,Q66</small></td>
+    <td>SSM3K15F SOT-23-3<br><small>SSM3K15F,LF</small></td>
+    <td><a href="https://www.digikey.in/en/products/detail/toshiba-semiconductor-and-storage/SSM3K15F-LF/8611156">link</a><br><small>SSM3K15F,LF</small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://www.digikey.com/en/products/detail/toshiba-semiconductor-and-storage/SSM3K15F-LF/8611156">SSM3K15F,LF</a><br><small>DigiKey · 0.0851 USD</small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://www.lcsc.com/product-detail/C5761405.html">SSM3K15F,LF</a><br><small>LCSC · 0.1352 USD</small></td>
+  </tr>
+<tr>
+    <td>#72<br><small>R4</small></td>
+    <td>200K R0603<br><small>no MPN</small></td>
+    <td>C105574<br><small></small></td>
+    <td><span class="cls DIFFERENT">DIFFERENT</span> <a href="https://www.mouser.in/ProductDetail/YAGEO/RC0603FR-10200KL?qs=x6vGwhDZZUbWpD4Ucl8tsQ%3D%3D">RC0603FR-10200KL</a><br><small>Mouser · 0.1 USD</small></td>
+    <td><span class="cls DIFFERENT">DIFFERENT</span> <a href="https://www.lcsc.com/search?q=200K%200603">AC0603FR-07200KL</a><br><small>LCSC · 0.0027 USD</small></td>
+  </tr>
+<tr>
+    <td>#77<br><small>R10</small></td>
+    <td>30.5K R0603<br><small>no MPN</small></td>
+    <td>—<br><small></small></td>
+    <td><span class="cls AGENT+">AGENT+</span> <a href="https://www.digikey.com/en/products/detail/koa-speer-electronics-inc/RN73R1JTTD3052B25/10014949">RN73R1JTTD3052B25</a><br><small>DigiKey · 0.1 USD</small></td>
+    <td><span class="cls AGENT+">AGENT+</span> <a href="https://www.lcsc.com/product-detail/C4310206.html">RN73R1JTTD3052F25</a><br><small>LCSC · 0.052 USD</small></td>
+  </tr>
+<tr>
+    <td>#79<br><small>R12,R58,R59,R63,R67,R71,R72,R73,R74,R75,R76,R107,R108,R109,R110,R111,R112,R113,R114,R115,R116,R117,R118,R149,R150,R151,R152,R153,R154,R155,R156,R157,R158,R159,R160,R191,R192,R193,R194,R195,R196,R197,R198,R199,R200,R201,R202,R233,R234,R235,R236,R237,R238,R239,R240,R241,R242,R243,R244,R275,R276,R277,R278,R279,R280,R281,R282,R293,R294,R297,R300,R301,R302,R304,R305,R308,R309</small></td>
+    <td>10K R0603<br><small>RMCF0603FT10K0</small></td>
+    <td><a href="https://www.digikey.in/en/products/detail/stackpole-electronics-inc/RMCF0603FT10K0/1761235">link</a><br><small>RMCF0603FT10K0</small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://www.digikey.com/en/products/detail/stackpole-electronics-inc/RMCF0603FT10K0/1761235">RMCF0603FT10K0</a><br><small>DigiKey · 0.012 USD</small></td>
+    <td><span class="cls FAMILY">FAMILY</span> <a href="https://www.digikey.com/en/products/detail/stackpole-electronics-inc/RMCF0603FT10K0/1761235">RMCF0603FT10K0TR-ND</a><br><small>DigiKey · 0.00333 USD</small></td>
+  </tr>
+<tr>
+    <td>#80<br><small>R13</small></td>
+    <td>14.7K R0603<br><small>no MPN</small></td>
+    <td>—<br><small></small></td>
+    <td><span class="cls AGENT+">AGENT+</span> <a href="https://www.digikey.com/en/products/detail/stackpole-electronics-inc/RMCF0603FT14K7/1761298">RMCF0603FT14K7</a><br><small>DigiKey · 0.1 USD</small></td>
+    <td><span class="cls AGENT+">AGENT+</span> <a href="https://www.lcsc.com/search?q=14.7K%200603">RT0603BRC0714K7L</a><br><small>LCSC · 0.1253 USD</small></td>
+  </tr>
+<tr>
+    <td>#82<br><small>R15</small></td>
+    <td>RL R0603<br><small>no MPN</small></td>
+    <td>—<br><small></small></td>
+    <td><span class="cls AGENT+">AGENT+</span> <a href="https://in.element14.com/-/-/-/dp/3923396">RL0603FR-070R33L</a><br><small>element14 · 3.51 INR</small></td>
+    <td><span class="cls AGENT+">AGENT+</span> <a href="https://www.lcsc.com/product-detail/C20964.html">RL0603E018M100K</a><br><small>LCSC · 0.041 USD</small></td>
+  </tr>
+<tr>
+    <td>#84<br><small>R18</small></td>
+    <td>5.6K R0805<br><small>RMCF0805FT5K60</small></td>
+    <td><a href="https://www.digikey.in/en/products/detail/stackpole-electronics-inc/RMCF0805FT5K60/1760395">link</a><br><small>RMCF0805FT5K60</small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://www.digikey.com/en/products/detail/stackpole-electronics-inc/RMCF0805FT5K60/1760395">RMCF0805FT5K60</a><br><small>DigiKey · 0.1 USD</small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://www.digikey.com/en/products/detail/stackpole-electronics-inc/RMCF0805FT5K60/1760395">RMCF0805FT5K60</a><br><small>DigiKey · 0.10 USD</small></td>
+  </tr>
+<tr>
+    <td>#85<br><small>R19,R20,R38,R55,R68,R70,R295</small></td>
+    <td>0R R0603<br><small>no MPN</small></td>
+    <td>—<br><small></small></td>
+    <td><span class="cls AGENT+">AGENT+</span> <a href="https://www.digikey.com/en/products/detail/bourns-inc/CR0603AJ-000EAS/10240122">CR0603AJ/-000EAS</a><br><small>DigiKey · 0.1 USD</small></td>
+    <td><span class="cls AGENT+">AGENT+</span> <a href="https://www.digikey.com/en/products/filter/chip-resistor-surface-mount/52?s=N4IgTCBcDaIAwCUAEcBscDMIC6BfIA">CR0603AJ/-000EAS</a><br><small>DigiKey · 0.00644 USD</small></td>
+  </tr>
+<tr>
+    <td>#86<br><small>R21,R22,R23,R24,R25,R26,R27,R28,R29,R30,R31,R32,R33,R34,R35,R36,R39,R40,R41,R42,R43,R44,R45,R46,R47,R48,R49,R50,R51,R52,R53,R54,R56,R57,R60,R61,R83,R84,R85,R86,R87,R88,R89,R90,R91,R92,R93,R94,R125,R126,R127,R128,R129,R130,R131,R132,R133,R134,R135,R136,R167,R168,R169,R170,R171,R172,R173,R174,R175,R176,R177,R178,R209,R210,R211,R212,R213,R214,R215,R216,R217,R218,R219,R220,R251,R252,R253,R254,R255,R256,R257,R258,R259,R260,R261,R262,R285,R286,R287,R288</small></td>
+    <td>39R thin film R0603<br><small>MCT06030C3909FP500</small></td>
+    <td><a href="https://www.digikey.in/en/products/detail/vishay/MCT06030C3909FP500/2800887">link</a><br><small>MCT06030C3909FP500</small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://www.mouser.in/ProductDetail/Vishay-Beyschlag/MCT06030C3909FP500?qs=sIxod1zg5hFh8kBdIYNyMw%3D%3D">MCT06030C3909FP500</a><br><small>Mouser · 0.029 USD</small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://www.digikey.com/en/products/detail/vishay/MCT06030C3909FP500/2800887?s=N4IgTCBcDaILIGEAqAGAbCgzChmCcKeAYgAoCsKKIAugL5A">MCT06030C3909FP500</a><br><small>DigiKey · 0.0288 USD</small></td>
+  </tr>
+<tr>
+    <td>#93<br><small>R96,R98,R100,R102,R104,R106,R138,R140,R142,R144,R146,R148,R180,R182,R184,R186,R188,R190,R222,R224,R226,R228,R230,R232,R264,R266,R268,R270,R272,R274,R290,R292</small></td>
+    <td>9.1K R0603<br><small>RC0603FR-079K1L</small></td>
+    <td>C863985<br><small>RC0603FR-079K1L</small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://www.mouser.in/ProductDetail/YAGEO/RC0603FR-079K1L?qs=ksOUTF%2FWcd%252BrE3ZdN%2Ftxtg%3D%3D">RC0603FR-079K1L</a><br><small>Mouser · 0.014 USD</small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://www.mouser.com/ProductDetail/YAGEO/RC0603FR-079K1L?qs=ksOUTF%2FWcd%252BrE3ZdN%2Ftxtg%3D%3D">RC0603FR-079K1L</a><br><small>Mouser · 0.003 USD</small></td>
+  </tr>
+<tr>
+    <td>#96<br><small>R303,R310,R311,R312,R313,R314,R315,R316,R317,R318,R319,R320,R321,R322,R323,R324,R325,R326,R327,R328,R329,R330,R331,R332,R333,R334,R335,R336,R337,R338,R339,R340,R341</small></td>
+    <td>1.5K R0603<br><small>no MPN</small></td>
+    <td>C114668<br><small></small></td>
+    <td><span class="cls DIFFERENT">DIFFERENT</span> <a href="https://www.mouser.in/ProductDetail/Bourns/CR0603-JW-152ELF?qs=wOX%252BDVkMoZSu%252BfxzrcTI6Q%3D%3D">CR0603-JW-152ELF</a><br><small>Mouser · 0.014 USD</small></td>
+    <td><span class="cls DIFFERENT">DIFFERENT</span> <a href="https://in.element14.com/search?st=1.5K%200603">RC0603FR-071K5L</a><br><small>element14 · 0.6777 USD</small></td>
+  </tr>
+<tr>
+    <td>#97<br><small>R306,R307</small></td>
+    <td>5.1K R0603<br><small>no MPN</small></td>
+    <td>C113390<br><small></small></td>
+    <td><span class="cls DIFFERENT">DIFFERENT</span> <a href="https://in.element14.com/-/-/-/dp/2447404">MCWR06X5101FTL</a><br><small>element14 · 0.0077 USD</small></td>
+    <td><span class="cls DIFFERENT">DIFFERENT</span> <a href="https://www.lcsc.com/search?q=5.1K%200603">AF0603JR-075K1L</a><br><small>LCSC · 0.0102 USD</small></td>
+  </tr>
+<tr>
+    <td>#101<br><small>SW1</small></td>
+    <td>OS102011MS2QS1 OS102011MS2QS1<br><small>OS102011MS2QS1</small></td>
+    <td>C22435634<br><small>OS102011MS2QS1</small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://www.mouser.in/ProductDetail/CK/OS102011MS2QS1?qs=WtljUlYws5TrGs9OfHrZYw%3D%3D">OS102011MS2QS1</a><br><small>Mouser · 0.74 USD</small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://www.lcsc.com/product-detail/C2799475.html">OS102011MS2QS1</a><br><small>LCSC · 0.6497 USD</small></td>
+  </tr>
+<tr>
+    <td>#102<br><small>SW2,SW3,SW4</small></td>
+    <td>CS1210F260 SW4_CS1210F260_3.4mm<br><small>CS1210F260</small></td>
+    <td><a href="https://www.digikey.in/en/products/detail/cit-relay-and-switch/CS1210F260/12503262">link</a><br><small>CS1210F260</small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://www.digikey.com/en/products/detail/cit-relay-and-switch/CS1210F260/12503262">CS1210F260</a><br><small>DigiKey · 0.56 USD</small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://www.digikey.com/en/products/detail/cit-relay-and-switch/CS1210F260/12503262?s=N4IgTCBcDaIMIGUCMYkAYBiYBsaQF0BfIA">CS1210F260</a><br><small>DigiKey · $0.56000 USD</small></td>
+  </tr>
+<tr>
+    <td>#103<br><small>SW5</small></td>
+    <td>SW_DIP_x05 SW_DIP_SPSTx05_Slide_9.78x14.88mm_W7.62mm_P2.54mm<br><small>no MPN</small></td>
+    <td>C25503180<br><small></small></td>
+    <td><span class="cls MISS">MISS</span><br><small>Required part: APEM NDS-05-V (5-position THT SPST, 2.54mm pitch, confirmed existing via web search at RS Components, Mouser, Amazon) but not present in provided API results. Recommend: (1) verify if DIP switch footprint tolerance allows raised-actuator (piano-type) vs. strict slide mechanism, and (2) query LCSC and European distributors for in-stock 5-position units. Element14 stocks APEM DIP switches but 5-position variant not in search scope. Risk: partial value-match (8-pos NDS08V at element14, ₹243.26 @ qty 1) forces over-spec substitution.</small></td>
+    <td><span class="cls MISS">MISS</span><br><small>BOM references only footprint 'SW_DIP_x05' with no MPN. All distributors returned zero results for this generic search term. LCSC, DigiKey, element14, and Unikey showed no matching products; Mouser blocked access. Recommend: (1) obtain exact MPN (e.g., E-SWITCH KAS1105ET, APEM NDS05, Omron A6S-5104-H, or equivalent 5-pos THT DIP switch), (2) re-search by MPN, or (3) verify footprint compatibility with available 4-pos or 6-pos DIP switch alternatives if 5-pos is unavailable.</small></td>
+  </tr>
+<tr>
+    <td>#104<br><small>U1,U2</small></td>
+    <td>TPS54331D SOIC-8N_127P599X175<br><small>TPS54331D</small></td>
+    <td>C9865<br><small>TPS54331D</small></td>
+    <td><span class="cls FAMILY">FAMILY</span> <a href="https://www.mouser.in/ProductDetail/Texas-Instruments/TPS54331DR?qs=QyYHynRG50rsSYcB%2Ftz4Yw%3D%3D">TPS54331DR</a><br><small>Mouser · 1.62 USD</small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://www.lcsc.com/product-detail/C2872693.html">TPS54331D</a><br><small>LCSC · 0.6811 USD</small></td>
+  </tr>
+<tr>
+    <td>#110<br><small>U40,U41,U42,U43,U44,U45,U64,U65,U66,U67,U68,U69,U88,U89,U90,U91,U92,U93,U112,U113,U114,U115,U116,U117,U136,U137,U138,U139,U140,U141,U160,U161</small></td>
+    <td>74LVC1G125 SOT-553<br><small>no MPN</small></td>
+    <td>SN74LVC1G125DRLR<br><small></small></td>
+    <td><span class="cls DIFFERENT">DIFFERENT</span> <a href="https://www.digikey.com/en/products/detail/texas-instruments/SN74LVC1G125DRLR/770503">SN74LVC1G125DRLR</a><br><small>DigiKey · 0.1936 USD</small></td>
+    <td><span class="cls DIFFERENT">DIFFERENT</span> <a href="https://www.lcsc.com/search?q=74LVC1G125">74LVC1G125W5-7</a><br><small>LCSC · 0.0655 USD</small></td>
+  </tr>
+<tr>
+    <td>#111<br><small>U46,U47,U48,U49,U50,U51,U70,U71,U72,U73,U74,U75,U94,U95,U96,U97,U98,U99,U118,U119,U120,U121,U122,U123,U142,U143,U144,U145,U146,U147,U162,U163</small></td>
+    <td>74LVC1G14GW TSSOP-5<br><small>74LVC1G14GW,125</small></td>
+    <td>C19829653<br><small>74LVC1G14GW,125</small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://www.digikey.com/en/products/detail/nexperia-usa-inc/74LVC1G14GW-125/946657">74LVC1G14GW,125</a><br><small>DigiKey · 0.0492 USD</small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://www.lcsc.com/product-detail/C265125.html">74LVC1G14GW,125</a><br><small>LCSC · 0.0451 USD</small></td>
+  </tr>
+<tr>
+    <td>#114<br><small>U168</small></td>
+    <td>STM32F407VET6 LQFP-100_14x14mm_P0.5mm<br><small>no MPN</small></td>
+    <td>C28730<br><small></small></td>
+    <td><span class="cls DIFFERENT">DIFFERENT</span> <a href="https://www.digikey.com/en/products/detail/stmicroelectronics/STM32F407VET6/2793093">STM32F407VET6</a><br><small>DigiKey · 11.75 USD</small></td>
+    <td><span class="cls DIFFERENT">DIFFERENT</span> <a href="https://www.lcsc.com/search?q=STM32F407VET6">STM32F407VET6</a><br><small>LCSC · 4.9748 USD</small></td>
+  </tr>
+<tr>
+    <td>#117<br><small>U171</small></td>
+    <td>TXS0108EQPWRQ1 TSSOP-20<br><small>TXS0108EQPWRQ1</small></td>
+    <td>C1021790<br><small>TXS0108EQPWRQ1</small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://www.digikey.com/en/products/detail/texas-instruments/TXS0108EQPWRQ1/5324256">TXS0108EQPWRQ1</a><br><small>DigiKey · 2.23 USD</small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://www.lcsc.com/product-detail/C1021790.html">TXS0108EQPWRQ1</a><br><small>LCSC · 1.407 USD</small></td>
+  </tr>
+<tr>
+    <td>#118<br><small>Y1</small></td>
+    <td>LFSPXO055872 SMD3225-4P<br><small>no MPN</small></td>
+    <td>—<br><small></small></td>
+    <td><span class="cls AGENT+">AGENT+</span> <a href="https://in.element14.com/-/-/-/dp/2832021">LFSPXO055872</a><br><small>element14 · 158.42 INR</small></td>
+    <td><span class="cls AGENT+">AGENT+</span> <a href="https://www.digikey.com/en/products/detail/iqd-frequency-products/LFSPXO055872/10240377">LFSPXO055872</a><br><small>DigiKey · 0.93989 USD</small></td>
+  </tr>
+<tr>
+    <td>#120<br><small></small></td>
+    <td>33R R0603<br><small>MCT06030C3309FP500</small></td>
+    <td>—<br><small>MCT06030C3309FP500</small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://www.mouser.in/ProductDetail/Vishay-Beyschlag/MCT06030C3309FP500?qs=7ZE6F4QMOBZZkfHfzpeLSg%3D%3D">MCT06030C3309FP500</a><br><small>Mouser · 0.029 USD</small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://www.digikey.com/en/products/detail/vishay/MCT06030C3309FP500/2607849">MCT06030C3309FP500</a><br><small>DigiKey · 0.0315 USD</small></td>
+  </tr>
+<tr>
+    <td>#121<br><small></small></td>
+    <td>HP-20M3*20 —<br><small>no MPN</small></td>
+    <td>C123695<br><small></small></td>
+    <td><span class="cls MISS">MISS</span><br><small>BOM line #121 specifies qty 4 of 'HP-20M3*20' with no MPN, manufacturer, footprint, or description provided. API searches returned empty results. Web research suggests this may be a connector variant (HP20 series) or mechanical component, but exact specifications cannot be determined. Recommend: (1) Verify the correct part designation from original design documentation, (2) Identify the actual manufacturer and proper MPN, (3) Clarify whether this is a mechanical hinge, electrical connector, or other component type. Without these details, sourcing is not possible.</small></td>
+    <td><span class="cls EXACT">EXACT</span> <a href="https://www.lcsc.com/product-detail/C123695.html">C123695</a><br><small>LCSC · 0.0333 USD</small></td>
+  </tr>
+</table>
+
+<h2>Notes &amp; caveats</h2>
+<ul>
+<li>element14's API rate-limited ~40% of Arm A pre-fetch calls (HTTP 403, free tier) — those lines leaned on DigiKey/Mouser/web.</li>
+<li>element14 prices are INR (India store); LCSC/DigiKey/Mouser USD. "Lowest cost" judged at INR≈USD×84.</li>
+<li>Engineer links are digikey.in; agents used digikey.com — same parts, different storefront.</li>
+<li>DIFFERENT is not automatically wrong: several lines have many valid equivalents; the engineer picked one, the agent another. Spot-check via links.</li>
+</ul>
+</body></html>

@@ -38,6 +38,25 @@ Screenshot: docs/testing-screenshots/f-001.png (optional)
 
 <!-- Claude moves resolved entries here with commit hashes, so the Findings section stays short -->
 
+### F-013 · IDEA · DONE — the big 50-line TMCS experiment (report in docs/experiments/)
+Full three-way test on TMCS_96x32_Matrix_V1.2_test_raw.xlsx (50 seeded lines: 25 with MPN,
+25 without) vs the engineer-filled sheet. Report: docs/experiments/TMCS-sourcing-comparison.pdf
+(+ .html). Keys verified live first (Digikey OAuth ✓, Mouser ✓, element14 ✓ but free tier
+rate-limits ~40% of rapid calls; real payload shapes recorded — Digikey pricing sits in
+ProductVariations, element14 stock = `inv`, element14 India store prices in INR).
+- ARM A "hybrid" (production mirror: REST pre-fetch by code + Haiku Batch judge + web only
+  for LCSC/gaps): ₹123 total = ₹2.47/line, ~29 min batch, 50/50 parsed, 52 web searches.
+  Score: 25 EXACT, 1 FAMILY, 10 AGENT+, 9 DIFFERENT, 5 MISS.
+- ARM B "browser agent" (REAL Brave over CDP — browserCopilot pattern from
+  claude-session-control — reading live LCSC/DigiKey/Mouser/element14/Unikey pages, Haiku
+  judge): ₹38 total = ₹0.77/line, 33 min, ZERO bot blocks on any site incl. Mouser,
+  50/50 parsed. Score: 25 EXACT, 1 FAMILY, 11 AGENT+, 10 DIFFERENT, 3 MISS.
+- Verdict: both arms match the engineer on half the lines exactly and fill 10-11 lines the
+  engineer left empty; the real-Brave browser agent is the cost/coverage winner locally
+  (residential IP + real fingerprint beats every bot wall), while the REST hybrid is the
+  deployable/24-7 path. Production direction: REST APIs + real-browser rung (or proxy) for
+  LCSC, exactly as the pipeline is shaped today.
+
 ### F-012 · IDEA · BUILT (user decision: everything runs on the box)
 Surface: worker browse path — residential proxy support so LCSC/Unikey scraping can run
 FROM the Hetzner box (Akamai blocks its datacenter IP directly — F-008 constraint).
