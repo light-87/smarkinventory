@@ -57,6 +57,8 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { id: "daily_reports", area: "daily_reports", label: "Daily Reports", href: "/daily", group: "team" },
   { id: "attendance", area: "attendance", label: "Attendance", href: "/attendance", group: "team" },
   { id: "expenses", area: "expenses", label: "Expenses", href: "/expenses", group: "team" },
+  // (0011) visible to every role — DOB/DOJ/bank/PAN self-edit + own document uploads.
+  { id: "profile", area: "profile", label: "My Profile", href: "/settings/profile", group: "team" },
   { id: "ai_memory", area: "ai_memory", label: "AI Memory", href: "/ai-memory", group: "footer" },
   { id: "settings", area: "settings", label: "Settings", href: "/settings", group: "footer" },
 ] as const;

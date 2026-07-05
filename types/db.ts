@@ -395,8 +395,54 @@ export const AppUserRowSchema = z.object({
   created_by: zUuid.nullable(),
   /** (0009) Optional DOB — birthday surfacing; nullable, no back-fill required. */
   birth_date: zDateOnly.nullable(),
+  /** (0011) Onboarding-collected DOJ; nullable. Non-sensitive — kept on the profile row. */
+  date_of_joining: zDateOnly.nullable(),
+  /** (0011) Non-null once first-login onboarding (DOB + DOJ + bank details) is complete. */
+  onboarded_at: zTimestamptz.nullable(),
 });
 export type AppUserRow = z.infer<typeof AppUserRowSchema>;
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * (0011) Employee onboarding + documents
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * (0011) `smark_employee_private` — SENSITIVE PII (PAN + bank details),
+ * ONE row per user (`user_id` is the PK, = `smark_app_users.id`). Deliberately
+ * NOT on `smark_app_users` (whose SELECT policy is `using(true)`, readable by
+ * every authed user): this table's RLS gates EVERY verb to self-or-owner-or-
+ * accountant, so a direct client query by another employee returns zero rows.
+ * Never log these values (see lib/employees/*, lib/onboarding/* headers).
+ */
+export const EmployeePrivateRowSchema = z.object({
+  user_id: zUuid,
+  pan_number: z.string().nullable(),
+  bank_account_name: z.string().nullable(),
+  bank_account_number: z.string().nullable(),
+  bank_ifsc: z.string().nullable(),
+  bank_name: z.string().nullable(),
+  created_at: zTimestamptz,
+  updated_at: zTimestamptz.nullable(),
+});
+export type EmployeePrivateRow = z.infer<typeof EmployeePrivateRowSchema>;
+
+/** (0011) `smark_employee_documents.doc_type`. */
+export const EmployeeDocTypeSchema = z.enum(["nda", "aadhaar", "pan_card", "nda_client", "other"]);
+export type EmployeeDocType = z.infer<typeof EmployeeDocTypeSchema>;
+
+/** `smark_employee_documents` — employee-uploaded docs; `file_url` is a StoragePort key, not a public URL. */
+export const EmployeeDocumentRowSchema = z.object({
+  ...baseRow,
+  user_id: zUuid,
+  doc_type: EmployeeDocTypeSchema,
+  client_label: z.string().nullable(),
+  display_name: z.string(),
+  file_url: z.string(),
+  mime_type: z.string().nullable(),
+  size_bytes: z.number().int().nullable(),
+  uploaded_by: zUuid.nullable(),
+});
+export type EmployeeDocumentRow = z.infer<typeof EmployeeDocumentRowSchema>;
 
 /* ────────────────────────────────────────────────────────────────────────────
  * §1 Catalog & reference
@@ -1280,6 +1326,8 @@ export const TABLES = {
   part_field_templates: "smark_part_field_templates",
   notifications: "smark_notifications",
   worker_heartbeats: "smark_worker_heartbeats",
+  employee_private: "smark_employee_private",
+  employee_documents: "smark_employee_documents",
 } as const;
 
 export const VIEWS = {
@@ -1355,6 +1403,8 @@ export type Database = {
       smark_part_field_templates: TableOf<PartFieldTemplateRow>;
       smark_notifications: TableOf<NotificationRow>;
       smark_worker_heartbeats: TableOf<WorkerHeartbeatRow>;
+      smark_employee_private: TableOf<EmployeePrivateRow>;
+      smark_employee_documents: TableOf<EmployeeDocumentRow>;
     };
     Views: {
       v_daily_activity: ViewOf<DailyActivityRow>;

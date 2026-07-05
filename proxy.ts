@@ -21,6 +21,16 @@ import { updateSession } from "@/lib/supabase/middleware";
  * need a proxy change later. `/api/**` gets its cookies refreshed but
  * skips the redirect (route handlers answer with their own JSON/status, not
  * a 302 to an HTML login page).
+ *
+ * 3. (0011) Forwards the current pathname as a plain request header
+ *    (`x-pathname`) — the only way a Server Component/layout can read the
+ *    current URL without a Client Component `usePathname()` prop-drill.
+ *    `app/(app)/layout.tsx`'s onboarding gate reads this to avoid
+ *    redirecting `/onboarding` to itself. Mutating `request.headers`
+ *    in place (rather than cloning into a fresh `Headers`) works here
+ *    because it happens BEFORE `updateSession()` builds its
+ *    `NextResponse.next({ request })` — that call reads `request.headers`
+ *    at invocation time, so the mutation is picked up for free.
  */
 const PUBLIC_PREFIXES = ["/login", "/p"];
 
@@ -29,6 +39,8 @@ function isPublicPath(pathname: string): boolean {
 }
 
 export async function proxy(request: NextRequest) {
+  request.headers.set("x-pathname", request.nextUrl.pathname);
+
   const { response, supabase } = await updateSession(request);
   const { pathname } = request.nextUrl;
 

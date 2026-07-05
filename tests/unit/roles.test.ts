@@ -51,6 +51,8 @@ describe("ROLE_MATRIX — verbatim FEATURES.md §2 / SCHEMA.md RLS matrix", () =
     ai_memory: { owner: "full", employee: "hidden", accountant: "hidden" },
     settings: { owner: "full", employee: "hidden", accountant: "hidden" },
     users: { owner: "full", employee: "hidden", accountant: "hidden" },
+    // (0011) "My Profile" — every role only ever sees/edits their OWN row here.
+    profile: { owner: "self", employee: "self", accountant: "self" },
   };
 
   test("every area is covered by AREAS (no silent gaps)", () => {
@@ -61,9 +63,13 @@ describe("ROLE_MATRIX — verbatim FEATURES.md §2 / SCHEMA.md RLS matrix", () =
     expect(ROLE_MATRIX[area]).toEqual(expected[area]);
   });
 
-  test("owner is 'full' everywhere — no area hides anything from the owner", () => {
+  test("owner is 'full' everywhere except the self-service 'profile' area (own row only, by design)", () => {
     for (const area of AREAS) {
-      expect(ROLE_MATRIX[area].owner).toBe("full");
+      if (area === "profile") {
+        expect(ROLE_MATRIX[area].owner).toBe("self");
+      } else {
+        expect(ROLE_MATRIX[area].owner).toBe("full");
+      }
     }
   });
 

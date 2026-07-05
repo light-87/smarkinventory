@@ -152,6 +152,15 @@ export function AiMemoryIcon(props: IconProps) {
   );
 }
 
+export function ProfileIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <circle cx="12" cy="8" r="3.6" />
+      <path d="M4.5 20c0-3.9 3.4-6.5 7.5-6.5s7.5 2.6 7.5 6.5" />
+    </IconBase>
+  );
+}
+
 export function SettingsIcon(props: IconProps) {
   return (
     <IconBase {...props}>
@@ -232,6 +241,7 @@ export const NAV_ICONS: Record<string, (props: IconProps) => ReactNode> = {
   daily_reports: DailyReportsIcon,
   attendance: AttendanceIcon,
   expenses: ExpensesIcon,
+  profile: ProfileIcon,
   ai_memory: AiMemoryIcon,
   settings: SettingsIcon,
 };

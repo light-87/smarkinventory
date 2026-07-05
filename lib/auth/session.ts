@@ -21,6 +21,13 @@ export interface SessionUser {
   username: string;
   displayName: string | null;
   role: Role;
+  /**
+   * (0011) Non-null once the employee has completed first-login onboarding
+   * (DOB + date_of_joining + bank details). Owners/accountants ignore this
+   * entirely (see app/(app)/layout.tsx's onboarding gate) — it only ever
+   * drives a redirect for role === "employee".
+   */
+  onboardedAt: string | null;
 }
 
 /** Current signed-in + active user, or `null` (no session, or deactivated). */
@@ -35,7 +42,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
 
   const { data: profile, error: profileError } = await supabase
     .from(TABLES.app_users)
-    .select("id, username, display_name, role, active")
+    .select("id, username, display_name, role, active, onboarded_at")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -46,5 +53,6 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     username: profile.username,
     displayName: profile.display_name,
     role: profile.role as Role,
+    onboardedAt: profile.onboarded_at,
   };
 }

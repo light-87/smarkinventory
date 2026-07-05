@@ -39,6 +39,7 @@ export default async function SettingsPage() {
       <SettingsLinksCard
         rows={[
           { href: "/settings/users", title: "Users & roles", description: "Add employees/accountants, reset passwords, deactivate" },
+          { href: "/settings/employees", title: "Employees", description: "Profiles + documents (DOB, DOJ, PAN, bank, uploads)" },
           { href: "/settings/expense-accounts", title: "Expense accounts", description: "Cash / bank / UPI accounts for Expenses" },
         ]}
       />
