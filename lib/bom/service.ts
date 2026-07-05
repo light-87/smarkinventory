@@ -233,7 +233,13 @@ export async function createUploadedBom(supabase: DB, storage: StoragePort, inpu
     return { ok: false, error: "No BOM lines found in that file — check it matches the standard template." };
   }
 
-  const key = `boms/${input.projectId}/${Date.now()}-${input.fileName}`;
+  // Sanitize the filename into the R2 key (matches lib/expenses/actions.ts,
+  // lib/orders/receipts.ts, app/api/projects/documents/route.ts). A raw name
+  // with spaces/special chars becomes percent-encoded in the object URL and
+  // then trips SigV4 signing — the upload fails. Original name isn't needed in
+  // the key (the BOM's display name is stored separately).
+  const safeFileName = (input.fileName || "bom.xlsx").replace(/[^a-zA-Z0-9._-]/g, "_");
+  const key = `boms/${input.projectId}/${Date.now()}-${safeFileName}`;
   const stored = await storage.put({
     key,
     body: input.fileBuffer,
