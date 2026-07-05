@@ -55,6 +55,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { id: "projects", area: "projects", label: "Projects", href: "/projects", group: "projects" },
   { id: "cart", area: "cart", label: "Cart", href: "/cart", group: "projects" },
   { id: "daily_reports", area: "daily_reports", label: "Daily Reports", href: "/daily", group: "team" },
+  { id: "attendance", area: "attendance", label: "Attendance", href: "/attendance", group: "team" },
   { id: "expenses", area: "expenses", label: "Expenses", href: "/expenses", group: "team" },
   { id: "ai_memory", area: "ai_memory", label: "AI Memory", href: "/ai-memory", group: "footer" },
   { id: "settings", area: "settings", label: "Settings", href: "/settings", group: "footer" },

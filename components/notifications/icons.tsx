@@ -109,6 +109,41 @@ function PortalCommentIcon(props: IconProps) {
   );
 }
 
+/** `comp_pending` / `leave_pending` — an approval waiting in the Attendance inbox (calendar + clock motif). */
+function CompPendingIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <rect x="3" y="4.5" width="18" height="15.5" rx="2" />
+      <line x1="3" y1="9.5" x2="21" y2="9.5" />
+      <circle cx="15.5" cy="15" r="3.4" />
+      <path d="M15.5 13.5v1.6l1.1.9" />
+    </IconBase>
+  );
+}
+
+/** `leave_pending` — same calendar shell, a plain check awaiting decision. */
+function LeavePendingIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <rect x="3" y="4.5" width="18" height="15.5" rx="2" />
+      <line x1="3" y1="9.5" x2="21" y2="9.5" />
+      <line x1="8" y1="2.5" x2="8" y2="6.5" />
+      <line x1="16" y1="2.5" x2="16" y2="6.5" />
+    </IconBase>
+  );
+}
+
+/** `comp_decided` / `leave_decided` — a decided calendar entry (check mark). */
+function AttendanceDecidedIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <rect x="3" y="4.5" width="18" height="15.5" rx="2" />
+      <line x1="3" y1="9.5" x2="21" y2="9.5" />
+      <path d="M8 15 10.3 17.3 15.5 12.1" />
+    </IconBase>
+  );
+}
+
 /** `kind` → icon (SCHEMA.md §7 `smark_notifications.kind`), the single lookup the bell uses per row. */
 export const KIND_ICONS: Record<NotificationKind, (props: IconProps) => ReactNode> = {
   arrival: ArrivalIcon,
@@ -118,4 +153,8 @@ export const KIND_ICONS: Record<NotificationKind, (props: IconProps) => ReactNod
   run_done: RunDoneIcon,
   expense_draft: ExpenseDraftIcon,
   portal_comment: PortalCommentIcon,
+  comp_pending: CompPendingIcon,
+  leave_pending: LeavePendingIcon,
+  comp_decided: AttendanceDecidedIcon,
+  leave_decided: AttendanceDecidedIcon,
 };

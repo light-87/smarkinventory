@@ -45,6 +45,7 @@ describe("ROLE_MATRIX — verbatim FEATURES.md §2 / SCHEMA.md RLS matrix", () =
     projects: { owner: "full", employee: "full", accountant: "read" },
     cart: { owner: "full", employee: "full", accountant: "read" },
     daily_reports: { owner: "full", employee: "self", accountant: "read" },
+    attendance: { owner: "full", employee: "self", accountant: "read" },
     expenses: { owner: "full", employee: "hidden", accountant: "full" },
     expense_accounts: { owner: "full", employee: "hidden", accountant: "read" },
     ai_memory: { owner: "full", employee: "hidden", accountant: "hidden" },
@@ -87,6 +88,7 @@ describe("ROLE_MATRIX — verbatim FEATURES.md §2 / SCHEMA.md RLS matrix", () =
       "projects",
       "cart",
       "daily_reports",
+      "attendance",
       "expense_accounts",
     ];
     for (const area of readOnlyAreas) {

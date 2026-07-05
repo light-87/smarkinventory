@@ -174,6 +174,70 @@ export async function notifyExpenseDraft(
   });
 }
 
+/** An employee submitted a comp-work claim (attendance). Audience: every active owner. */
+export async function notifyCompPending(
+  client: Client,
+  params: { employeeName: string; workDate: string },
+): Promise<NotificationRow[]> {
+  const owners = await activeOwnerIds(client);
+  return notify(client, {
+    userIds: owners,
+    kind: "comp_pending",
+    title: `${params.employeeName} claimed comp work`,
+    body: `Worked ${params.workDate} — approve in Attendance`,
+    link: "/attendance",
+  });
+}
+
+/** An employee submitted a leave request (attendance). Audience: every active owner. */
+export async function notifyLeavePending(
+  client: Client,
+  params: { employeeName: string; startDate: string; endDate: string },
+): Promise<NotificationRow[]> {
+  const owners = await activeOwnerIds(client);
+  const range = params.startDate === params.endDate ? params.startDate : `${params.startDate} – ${params.endDate}`;
+  return notify(client, {
+    userIds: owners,
+    kind: "leave_pending",
+    title: `${params.employeeName} requested leave`,
+    body: `${range} — approve in Attendance`,
+    link: "/attendance",
+  });
+}
+
+/** Owner decided a comp-work claim (attendance). Notifies the employee. */
+export async function notifyCompDecided(
+  client: Client,
+  params: { userId: string; workDate: string; approved: boolean },
+): Promise<NotificationRow> {
+  const [row] = await notify(client, {
+    userIds: [params.userId],
+    kind: "comp_decided",
+    title: `Comp work ${params.approved ? "approved" : "rejected"}`,
+    body: params.workDate,
+    link: "/attendance",
+  });
+  if (!row) throw new Error("notifyCompDecided: insert returned no row");
+  return row;
+}
+
+/** Owner decided a leave request (attendance). Notifies the employee. */
+export async function notifyLeaveDecided(
+  client: Client,
+  params: { userId: string; startDate: string; endDate: string; approved: boolean },
+): Promise<NotificationRow> {
+  const range = params.startDate === params.endDate ? params.startDate : `${params.startDate} – ${params.endDate}`;
+  const [row] = await notify(client, {
+    userIds: [params.userId],
+    kind: "leave_decided",
+    title: `Leave ${params.approved ? "approved" : "rejected"}`,
+    body: range,
+    link: "/attendance",
+  });
+  if (!row) throw new Error("notifyLeaveDecided: insert returned no row");
+  return row;
+}
+
 /** A client-portal visitor left a comment (portal). Audience: every active owner. */
 export async function notifyPortalComment(
   client: Client,

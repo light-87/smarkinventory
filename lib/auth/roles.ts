@@ -38,6 +38,7 @@ export const AREAS = [
   "projects",
   "cart",
   "daily_reports",
+  "attendance",
   "expenses",
   "expense_accounts",
   "ai_memory",
@@ -70,6 +71,10 @@ export const ROLE_MATRIX: Record<Area, Record<Role, Access>> = {
   cart: { owner: "full", employee: "full", accountant: "read" },
   // Row 3 — Daily Reports: owner all people, employee self only, accountant read all
   daily_reports: { owner: "full", employee: "self", accountant: "read" },
+  // Attendance module: owner full (holidays/approvals/anyone's calendar),
+  // employee self (mark self, own leave/comp requests, own calendar),
+  // accountant read (day/month calendar visibility, no write).
+  attendance: { owner: "full", employee: "self", accountant: "read" },
   // Row 4 — Expenses: accountant read + WRITE (Q-01 client amendment)
   expenses: { owner: "full", employee: "hidden", accountant: "full" },
   expense_accounts: { owner: "full", employee: "hidden", accountant: "read" },

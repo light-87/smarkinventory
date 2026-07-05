@@ -247,7 +247,7 @@ export type ExpenseAccountType = z.infer<typeof ExpenseAccountTypeSchema>;
 export const FieldTypeSchema = z.enum(["text", "number"]);
 export type FieldType = z.infer<typeof FieldTypeSchema>;
 
-/** §7 `smark_notifications.kind` [R2-36]. */
+/** §7 `smark_notifications.kind` [R2-36] — extended (0009) with the attendance module's four kinds. */
 export const NotificationKindSchema = z.enum([
   "arrival",
   "task_assigned",
@@ -256,8 +256,24 @@ export const NotificationKindSchema = z.enum([
   "run_done",
   "expense_draft",
   "portal_comment",
+  "comp_pending",
+  "leave_pending",
+  "comp_decided",
+  "leave_decided",
 ]);
 export type NotificationKind = z.infer<typeof NotificationKindSchema>;
+
+/** (0009) `smark_holidays.kind`. */
+export const HolidayKindSchema = z.enum(["specific", "weekly_off"]);
+export type HolidayKind = z.infer<typeof HolidayKindSchema>;
+
+/** (0009) `smark_leave_requests.reason`. */
+export const LeaveReasonSchema = z.enum(["personal", "sick", "compensatory"]);
+export type LeaveReason = z.infer<typeof LeaveReasonSchema>;
+
+/** (0009) `smark_leave_requests.status` / `smark_comp_work.status` — shared approval lifecycle. */
+export const ApprovalStatusSchema = z.enum(["pending", "approved", "rejected"]);
+export type ApprovalStatus = z.infer<typeof ApprovalStatusSchema>;
 
 /* ────────────────────────────────────────────────────────────────────────────
  * Typed jsonb payloads
@@ -339,6 +355,8 @@ export const AppUserRowSchema = z.object({
   active: z.boolean(),
   /** The owner who added them; null for the bootstrap owner. */
   created_by: zUuid.nullable(),
+  /** (0009) Optional DOB — birthday surfacing; nullable, no back-fill required. */
+  birth_date: zDateOnly.nullable(),
 });
 export type AppUserRow = z.infer<typeof AppUserRowSchema>;
 
@@ -828,6 +846,52 @@ export const AttendanceRowSchema = z.object({
 });
 export type AttendanceRow = z.infer<typeof AttendanceRowSchema>;
 
+/**
+ * (0009) `smark_holidays` — company-wide; either a `specific` date
+ * (`holiday_date` set, `weekday` null) or a `weekly_off` weekday (`weekday`
+ * 0-6, `holiday_date` null). Read by `lib/attendance/status.ts` to resolve
+ * Holiday vs Absent for days with no attendance row.
+ */
+export const HolidayRowSchema = z.object({
+  ...baseRow,
+  kind: HolidayKindSchema,
+  holiday_date: zDateOnly.nullable(),
+  weekday: z.number().int().min(0).max(6).nullable(),
+  name: z.string(),
+  created_by: zUuid.nullable(),
+});
+export type HolidayRow = z.infer<typeof HolidayRowSchema>;
+
+/** (0009) `smark_leave_requests` — employee-submitted, owner-decided. */
+export const LeaveRequestRowSchema = z.object({
+  ...baseRow,
+  user_id: zUuid,
+  start_date: zDateOnly,
+  end_date: zDateOnly,
+  reason: LeaveReasonSchema,
+  note: z.string().nullable(),
+  status: ApprovalStatusSchema,
+  decided_by: zUuid.nullable(),
+  decided_at: zTimestamptz.nullable(),
+});
+export type LeaveRequestRow = z.infer<typeof LeaveRequestRowSchema>;
+
+/**
+ * (0009) `smark_comp_work` — employee's "I worked this holiday" claim,
+ * owner-decided. Approved rows are the credit side of the derived comp
+ * balance (`lib/attendance/queries.ts` `getCompBalance`).
+ */
+export const CompWorkRowSchema = z.object({
+  ...baseRow,
+  user_id: zUuid,
+  work_date: zDateOnly,
+  note: z.string().nullable(),
+  status: ApprovalStatusSchema,
+  decided_by: zUuid.nullable(),
+  decided_at: zTimestamptz.nullable(),
+});
+export type CompWorkRow = z.infer<typeof CompWorkRowSchema>;
+
 /** `smark_project_members` [R2-04] — `UNIQUE(project_id, user_id)`. */
 export const ProjectMemberRowSchema = z.object({
   ...baseRow,
@@ -1072,6 +1136,9 @@ export const TABLES = {
   movements: "smark_movements",
   qr_labels: "smark_qr_labels",
   attendance: "smark_attendance",
+  holidays: "smark_holidays",
+  leave_requests: "smark_leave_requests",
+  comp_work: "smark_comp_work",
   project_members: "smark_project_members",
   time_entries: "smark_time_entries",
   project_activities: "smark_project_activities",
@@ -1138,6 +1205,9 @@ export type Database = {
       smark_movements: TableOf<MovementRow>;
       smark_qr_labels: TableOf<QrLabelRow>;
       smark_attendance: TableOf<AttendanceRow>;
+      smark_holidays: TableOf<HolidayRow>;
+      smark_leave_requests: TableOf<LeaveRequestRow>;
+      smark_comp_work: TableOf<CompWorkRow>;
       smark_project_members: TableOf<ProjectMemberRow>;
       smark_time_entries: TableOf<TimeEntryRow>;
       smark_project_activities: TableOf<ProjectActivityRow>;
