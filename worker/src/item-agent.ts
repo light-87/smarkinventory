@@ -86,13 +86,12 @@ export interface RunItemAgentResult {
 export async function runItemAgent(options: RunItemAgentOptions): Promise<RunItemAgentResult> {
   const { line, plannedSearch, depthPerItem, clients, distributorIds, siteSemaphore, rulesDigest, env, claudePort } = options;
 
-  const attemptOrder = plannedSearch.distributorOrder.slice(0, Math.max(1, depthPerItem));
   const found: Array<{ listing: DistributorListing; distributorId: string }> = [];
 
-  for (const distributorName of attemptOrder) {
+  async function searchOne(distributorName: string): Promise<void> {
     const client = clients.get(distributorName);
     const distributorId = distributorIds.get(distributorName);
-    if (!client || !distributorId) continue; // unknown/disabled distributor — skip, don't fail the whole line
+    if (!client || !distributorId) return; // unknown/disabled distributor — skip, don't fail the whole line
 
     const release = await siteSemaphore.acquire(distributorName);
     try {
@@ -107,6 +106,25 @@ export async function runItemAgent(options: RunItemAgentOptions): Promise<RunIte
       for (const listing of listings) found.push({ listing, distributorId });
     } finally {
       release();
+    }
+  }
+
+  // Primary walk: the first depthPerItem distributors, ACCUMULATING results
+  // so the pick can compare prices across sources.
+  const attemptOrder = plannedSearch.distributorOrder.slice(0, Math.max(1, depthPerItem));
+  for (const distributorName of attemptOrder) {
+    await searchOne(distributorName);
+  }
+
+  // Not-found fallback (user decision 2026-07-05): when the depth-limited
+  // walk found NOTHING, keep walking the REST of the master's ladder —
+  // including browse-only sites — stopping at the first distributor that
+  // returns anything. The tier's depth caps how much we spend comparing
+  // prices, not how hard we look before declaring a part unfindable.
+  if (found.length === 0) {
+    for (const distributorName of plannedSearch.distributorOrder.slice(attemptOrder.length)) {
+      await searchOne(distributorName);
+      if (found.length > 0) break;
     }
   }
 

@@ -139,7 +139,9 @@ function SourcingLaneCard({ lane }: { lane: SourcingLane }) {
             </tbody>
           </table>
         </div>
-      ) : lane.jobStatus === "failed" ? (
+      ) : lane.jobStatus === "failed" || lane.jobStatus === "done" ? (
+        // "done" with zero rows = the agent searched the ENTIRE ladder
+        // (incl. the not-found fallback beyond depth) and found nothing.
         <div className="text-[13px] text-smoke">No listings found across any site in the sequence.</div>
       ) : (
         <div className="text-[13px] text-smoke">Waiting for results…</div>

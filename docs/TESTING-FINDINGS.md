@@ -38,6 +38,22 @@ Screenshot: docs/testing-screenshots/f-001.png (optional)
 
 <!-- Claude moves resolved entries here with commit hashes, so the Findings section stays short -->
 
+### F-009 · S2 · FIXED (user decision, see commit) — not-found fallback ladder
+Surface: worker item agent + run console + /ai_orc lanes
+Decision (user): if a line isn't found in the first API, try the next, then the browser
+sites, and only then say "cannot find". Built:
+- The tier's depthPerItem still caps how many distributors are searched for PRICE
+  COMPARISON, but when that walk finds NOTHING the agent now keeps walking the REST of the
+  master's ladder (REST APIs then browse sites), stopping at the first hit. Previously an
+  economy run gave up after 2 distributors.
+- A done-with-zero-results lane now says so explicitly: run console + review show "No
+  listings found across any site in the sequence" (console used to show "Waiting for
+  results…" forever); /ai_orc shows "Not found — searched every distributor in the ladder".
+- Tests: worker/tests/item-agent-fallback.test.ts (fallback walks + stops at first hit;
+  no fallback when depth found options; full-ladder exhaustion). Also de-flaked
+  claim.test.ts (asserts now scope to their own run — claimNextJobs is global and other DB
+  test files' fixtures kept tripping the counts).
+
 ### F-008 · S1 · FIXED (see commit) — first LIVE end-to-end AI run completed
 Surface: worker live path (real Opus/Sonnet + real LCSC scraping), run cc85d890
 Symptom: sandbox run stuck on "planning" 8+ min. Root causes found & fixed, in order:

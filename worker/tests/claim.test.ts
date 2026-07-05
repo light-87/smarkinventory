@@ -1,6 +1,12 @@
 /**
  * worker/tests/claim.test.ts — atomic claim (two+ concurrent claimers, no
  * double-claim) + stale-claim release, against local Supabase.
+ *
+ * `claimNextJobs` claims GLOBALLY (any run's queued jobs), and bun may
+ * interleave other DB test files' fixtures with this one — so every
+ * assertion filters to THIS fixture's run and claims with generous limits,
+ * instead of assuming this file's jobs are the only queued rows in the DB
+ * (they repeatedly weren't — recurring "expected 4, received 6" flake).
  */
 
 import { afterEach, beforeEach, expect, test } from "bun:test";
@@ -24,13 +30,15 @@ describeWithDb("claim.ts — atomic claim", () => {
     await cleanupRunFixture(client, fixture);
   });
 
-  test("N concurrent claimers each asking for 1 job never double-claim", async () => {
-    const claimers = Array.from({ length: 6 }, () => claimNextJobs(client, 1));
+  test("N concurrent claimers never double-claim, and every job of this run gets claimed", async () => {
+    // 6 claimers × 3 slots = 18 capacity — enough slack to absorb a few
+    // foreign queued jobs from concurrently-running test files.
+    const claimers = Array.from({ length: 6 }, () => claimNextJobs(client, 3));
     const results = await Promise.all(claimers);
-    const claimedIds = results.flat().map((job) => job.jobId);
+    const mine = results.flat().filter((job) => job.runId === fixture.runId);
 
-    expect(claimedIds.length).toBe(6); // every job claimed exactly once, across all 6 callers
-    expect(new Set(claimedIds).size).toBe(6); // no job id appears twice
+    expect(mine.length).toBe(6); // every one of THIS run's jobs claimed exactly once
+    expect(new Set(mine.map((job) => job.jobId)).size).toBe(6); // no job id appears twice
 
     const rows = await client.from("smark_order_jobs").select("id,status").eq("run_id", fixture.runId);
     expect(rows.error).toBeNull();
@@ -39,17 +47,15 @@ describeWithDb("claim.ts — atomic claim", () => {
   });
 
   test("claiming more than available returns only what's queued", async () => {
-    const first = await claimNextJobs(client, 4);
-    expect(first.length).toBe(4);
-    const second = await claimNextJobs(client, 10); // only 2 left
-    expect(second.length).toBe(2);
-    const overlap = first.filter((f) => second.some((s) => s.jobId === f.jobId));
-    expect(overlap.length).toBe(0);
+    const first = (await claimNextJobs(client, 30)).filter((j) => j.runId === fixture.runId);
+    expect(first.length).toBe(6); // the generous limit drained this run entirely
+    const second = (await claimNextJobs(client, 30)).filter((j) => j.runId === fixture.runId);
+    expect(second.length).toBe(0); // nothing of ours left to claim
   });
 
   test("a job's plannedSearch round-trips through the plan column", async () => {
-    const claimed = await claimNextJobs(client, 1);
-    expect(claimed.length).toBe(1);
+    const claimed = (await claimNextJobs(client, 30)).filter((j) => j.runId === fixture.runId);
+    expect(claimed.length).toBe(6);
     expect(claimed[0]?.plannedSearch?.distributorOrder).toEqual(["Digikey"]);
   });
 });

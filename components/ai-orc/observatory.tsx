@@ -242,6 +242,13 @@ function LaneCard({ lane }: { lane: RunLane }) {
         )
       )}
 
+      {!lane.skip && lane.jobStatus === "done" && lane.candidates.length === 0 && (
+        <p className="mt-2 text-caption text-smark-orange-soft">
+          Not found — searched every distributor in the ladder
+          {lane.plannedSearch ? ` (${lane.plannedSearch.distributorOrder.join(", ")})` : ""}; no listings anywhere.
+        </p>
+      )}
+
       {lane.candidates.length > 0 && (
         <div className="mt-3 overflow-x-auto">
           <table className="w-full min-w-[640px] text-left text-caption">
