@@ -9,6 +9,7 @@ import type { BrowserDriver } from "../browser-driver";
 import type { WorkerEnv } from "../env";
 import { createDigikeyClient } from "./digikey";
 import { createElement14Client } from "./element14";
+import { LcscJlcSearchClient } from "./lcsc";
 import { createMouserClient } from "./mouser";
 import { MockDistributorClient } from "./mock";
 import type { DistributorClient, DistributorListing, DistributorSearchQuery } from "./types";
@@ -83,7 +84,14 @@ export function createDistributorClient(
   }
 
   if (descriptor.apiType === "browse" && browserDriver) {
-    return new BrowserBackedDistributorClient(descriptor.name, browserDriver);
+    const scraper = new BrowserBackedDistributorClient(descriptor.name, browserDriver);
+    // LCSC upgrade (F-011): the free keyless jlcsearch API answers exact
+    // MPN/C-code lookups without a browser (and without Akamai IP-blocking);
+    // the scraper stays as the fallback for near-miss/sister parts the API
+    // can't find. Only wired when a browser driver exists — mock/e2e setups
+    // (browserDriver null) keep their deterministic MockDistributorClient.
+    if (descriptor.name === "LCSC") return new LcscJlcSearchClient(scraper);
+    return scraper;
   }
 
   // "browse" with no driver configured, or api_type "none" — mock.

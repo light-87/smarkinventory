@@ -38,6 +38,22 @@ Screenshot: docs/testing-screenshots/f-001.png (optional)
 
 <!-- Claude moves resolved entries here with commit hashes, so the Findings section stays short -->
 
+### F-011 · IDEA · BUILT (user found the API, see commit) — LCSC via free jlcsearch API
+Surface: worker LCSC path — jlcsearch community API (jlcsearch.tscircuit.com, keyless)
+User found the aklofas/kicad-happy skill docs describing it. Verified live: exact MPN /
+C-code lookups return structured package/stock/price with NO browser and NO Akamai
+IP-blocking (works from the datacenter box) — but ZERO fuzzy matching (near-miss MPNs
+return empty where LCSC's own site finds sister parts). Built as a HYBRID:
+`LcscJlcSearchClient` (worker/src/distributors/lcsc.ts) tries jlcsearch first (0.5s
+courtesy pacing, 15s timeout, Phase-0 gated like every live call), and falls back to the
+verified browser scraper on zero hits or API errors. Wired in the factory only when a
+browser driver exists, so mock/e2e stay deterministic. Live smoke: GCM21BR72A104KA37L →
+C85866, 0805, $0.015, instant; the two KEMET AUTO MPNs correctly fall through to the
+scraper. Caveats noted: jlcsearch stock can differ from lcsc.com's shown stock (201,594 vs
+27,150 for C85866 — different snapshot/warehouse aggregation); single price point, not the
+full break ladder (order link lets a human verify). 4 unit tests (mapping, fallback on
+zero/error, gate).
+
 ### F-010 · IDEA · BUILT (user decision, see commit) — full-ladder search, quality first
 Decision (user): "call all — API calls don't cost much, and we're giving the results to the
 agent anyway. Don't think about cost right now; finding the best item matters, cost can be
