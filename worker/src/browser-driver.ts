@@ -42,6 +42,17 @@ export interface BrowserSearchListing {
   stockQty: number | null;
   url: string;
   raw: unknown;
+  /**
+   * Structured fields a site-specific scraper managed to extract (the LCSC
+   * results table exposes all of these — verified against the live site
+   * 2026-07-05, F-008). Absent/null on generic best-effort scrapes; the
+   * distributor adapter falls back to its old conservative defaults.
+   */
+  mpn?: string | null;
+  lcscPn?: string | null;
+  packageName?: string | null;
+  manufacturer?: string | null;
+  qtyBreaks?: { qty: number; unitPrice: number }[];
 }
 
 export interface BrowserDriver {
@@ -91,34 +102,63 @@ export class BrowserbaseDriver extends NotImplementedDriver {
  * Hetzner Chromium box), connects to it via `connectOverCDP` instead of
  * launching a local browser — same Phase-0 gate applies either way.
  */
+/**
+ * A realistic desktop-Chrome identity for the scraping context. LCSC sits
+ * behind Akamai, which serves "Access Denied" to the default Playwright
+ * HeadlessChrome user agent (verified live 2026-07-05, F-008) — with this UA
+ * the full results table renders. Note Akamai ALSO blocks well-known
+ * datacenter IP ranges outright (the Hetzner browserless box gets denied
+ * regardless of UA), so LCSC browsing must run from a residential/office IP
+ * until a proxy is in place.
+ */
+const SCRAPE_USER_AGENT =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+
 export class PlaywrightDriver implements BrowserDriver {
   readonly name = "PlaywrightDriver";
 
   /**
-   * ONE browser connection per worker process, established lazily and REUSED
-   * across searches — connect/launch-per-search was both slow and, against a
-   * small remote Chromium box, a resource churn multiplier. Reset to null on
-   * any search failure so the next search reconnects cleanly (a dropped CDP
-   * websocket otherwise poisons every call after it).
+   * ONE browser connection + ONE browser context per worker process,
+   * established lazily and REUSED across searches — connect/launch-per-search
+   * was both slow and, against a small remote Chromium box, a resource churn
+   * multiplier. The context carries the realistic UA above (a bare
+   * `browser.newPage()` would use the blocked HeadlessChrome identity).
+   * Reset to null on any search failure so the next search reconnects cleanly
+   * (a dropped CDP websocket otherwise poisons every call after it).
    */
-  private browserPromise: Promise<{ newPage(): Promise<unknown>; close(): Promise<void> }> | null = null;
+  private contextPromise: Promise<ScrapableContext> | null = null;
 
   constructor(private readonly wsEndpoint: string | null = null) {}
 
-  private async ensureBrowser(): Promise<{ newPage(): Promise<unknown>; close(): Promise<void> }> {
-    if (!this.browserPromise) {
-      this.browserPromise = (async () => {
+  private launches = 0;
+
+  private async ensureContext(): Promise<ScrapableContext> {
+    if (!this.contextPromise) {
+      this.contextPromise = (async () => {
         // Dynamic import behind the ambient shim — see class doc above.
         const { chromium } = await import("playwright");
-        return this.wsEndpoint
+        const browser = this.wsEndpoint
           ? await chromium.connectOverCDP(this.wsEndpoint)
           : await chromium.launch({ headless: true });
+        this.launches += 1;
+        const n = this.launches;
+        console.log(`[browser] ${this.wsEndpoint ? "connected" : "launched"} browser #${n}`);
+        (browser as { on?: (event: string, fn: () => void) => void }).on?.("disconnected", () => {
+          console.warn(`[browser] browser #${n} DISCONNECTED`);
+          this.contextPromise = null; // a dead browser must never serve the next search
+        });
+        return (await browser.newContext({
+          userAgent: SCRAPE_USER_AGENT,
+          viewport: { width: 1366, height: 900 },
+          locale: "en-US",
+          extraHTTPHeaders: { "Accept-Language": "en-US,en;q=0.9" },
+        })) as ScrapableContext;
       })();
     }
     try {
-      return await this.browserPromise;
+      return await this.contextPromise;
     } catch (error) {
-      this.browserPromise = null; // failed connect must not be cached
+      this.contextPromise = null; // failed connect must not be cached
       throw error;
     }
   }
@@ -126,28 +166,57 @@ export class PlaywrightDriver implements BrowserDriver {
   async searchPart(query: BrowserSearchQuery): Promise<BrowserSearchListing[]> {
     assertLiveBrowsingAllowed(this.name);
 
-    const browser = await this.ensureBrowser();
-    // Minimal structural page type — real types come with the installed package.
-    const page = (await browser.newPage()) as ScrapablePage & {
-      goto(url: string, opts: { waitUntil: string }): Promise<unknown>;
-      waitForTimeout(ms: number): Promise<void>;
-      close(): Promise<void>;
-    };
+    const keyword =
+      query.searchTerm?.trim() ||
+      query.mpn ||
+      query.lcscPn ||
+      [query.value, query.packageName].filter(Boolean).join(" ");
+    const searchUrl = buildSearchUrl(query.siteName, keyword);
+    if (!searchUrl) {
+      // A browse-typed distributor this driver has no URL pattern for
+      // (e.g. Digikey mis-seeded as "browse" instead of "rest") — treat as
+      // "no listings found" so the line's OTHER distributors still get their
+      // shot, rather than failing the whole item agent. Checked BEFORE any
+      // browser work so an unknown site never launches Chromium.
+      console.warn(`[browser] no search URL pattern for browse site "${query.siteName}" — returning 0 listings`);
+      return [];
+    }
+
+    const context = await this.ensureContext();
+    const page = (await context.newPage()) as ScrapablePage;
+    console.log(`[browser] → ${query.siteName} "${keyword}"`);
     try {
-      const keyword =
-        query.searchTerm?.trim() ||
-        query.mpn ||
-        query.lcscPn ||
-        [query.value, query.packageName].filter(Boolean).join(" ");
-      const searchUrl = buildSearchUrl(query.siteName, keyword);
-      await page.goto(searchUrl, { waitUntil: "domcontentloaded" });
-      // Human-pacing per FEATURES §15 ("human pacing" on browser-only sites) —
-      // a fixed small delay, not a scraping-defeating randomized one.
+      if (query.siteName === "LCSC") {
+        await page.goto(searchUrl, { waitUntil: "domcontentloaded", timeout: 45_000 });
+        // LCSC is a client-rendered SPA — wait for actual product rows; a
+        // zero-result search never renders them, so a timeout here just
+        // means "no listings", not an error.
+        await page.waitForSelector("tr[id^=productId]", { timeout: 15_000 }).catch(() => undefined);
+        const listings = await scrapeLcscListings(page);
+        console.log(`[browser] ← LCSC "${keyword}": ${listings.length} listing(s)`);
+        return listings;
+      }
+      // Generic best-effort path for other browse sites. A site that never
+      // finishes loading (unikeyic.com hangs indefinitely — verified live
+      // 2026-07-05) is "no listings", not a lane failure: 15s is generous
+      // for a search page's domcontentloaded.
+      try {
+        await page.goto(searchUrl, { waitUntil: "domcontentloaded", timeout: 15_000 });
+      } catch (error) {
+        if (error instanceof Error && error.message.includes("Timeout")) {
+          console.warn(`[browser] ← ${query.siteName} "${keyword}": navigation timeout — treating as 0 listings`);
+          return [];
+        }
+        throw error;
+      }
+      // Human-pacing per FEATURES §15, then a loose structural scrape.
       await page.waitForTimeout(1500);
-      return await scrapeListings(page, query.siteName);
+      const listings = await scrapeListings(page, query.siteName);
+      console.log(`[browser] ← ${query.siteName} "${keyword}": ${listings.length} listing(s)`);
+      return listings;
     } catch (error) {
       // Assume the connection may be poisoned — drop it; next search reconnects.
-      this.browserPromise = null;
+      this.contextPromise = null;
       throw error;
     } finally {
       // Close only the PAGE — the shared browser connection stays up. For a
@@ -195,14 +264,14 @@ export function withGlobalBrowserLimit(driver: BrowserDriver, maxConcurrent: num
   };
 }
 
-function buildSearchUrl(siteName: string, keyword: string): string {
+function buildSearchUrl(siteName: string, keyword: string): string | null {
   const encoded = encodeURIComponent(keyword);
   if (siteName === "LCSC") return `https://www.lcsc.com/search?q=${encoded}`;
   if (siteName === "Unikey") return `https://www.unikeyic.com/search?q=${encoded}`;
-  throw new Error(`buildSearchUrl: no known search URL pattern for browse-only site "${siteName}"`);
+  return null; // unknown browse site — searchPart treats this as "no listings", not an error
 }
 
-// Minimal structural type for the one Playwright method used above — kept
+// Minimal structural types for the few Playwright methods used above — kept
 // local (not imported from the `playwright` package's types) so this file
 // type-checks whether or not `playwright` is installed.
 //
@@ -213,6 +282,89 @@ function buildSearchUrl(siteName: string, keyword: string): string {
 // literal defined below, not dynamic data.
 interface ScrapablePage {
   $$eval<T>(selector: string, fn: (elements: Element[]) => T): Promise<T>;
+  goto(url: string, opts: { waitUntil: string; timeout?: number }): Promise<unknown>;
+  waitForSelector(selector: string, opts: { timeout?: number }): Promise<unknown>;
+  waitForTimeout(ms: number): Promise<void>;
+  close(): Promise<void>;
+}
+
+interface ScrapableContext {
+  newPage(): Promise<unknown>;
+}
+
+/**
+ * LCSC results-table scraper — selectors verified against the live site
+ * (2026-07-05, F-008): each product is a `tr[id^=productId]`; the row's
+ * product-detail link filename is the LCSC part number (C85866.html); the
+ * MPN cell contains "MPN LCSCPN" together; availability reads "27,150 In
+ * Stock"; the pricing cell holds qty-break pairs "500+ $0.0273"; the cell
+ * right after the description holds the package ("0805"). Cell positions
+ * shift with column config, so parsing anchors on CONTENT patterns
+ * (the C-number, "In Stock", "$" pairs), not fixed indices.
+ */
+async function scrapeLcscListings(page: ScrapablePage): Promise<BrowserSearchListing[]> {
+  const rows = await page.$$eval("tr[id^=productId]", (elements) =>
+    elements.map((tr) => {
+      const cells = Array.from(tr.children)
+        .filter((el) => el.tagName === "TD")
+        .map((td) => ((td as HTMLElement).innerText ?? "").replace(/\s+/g, " ").trim());
+      const detail = tr.querySelector("a[href*='/product-detail/']") as HTMLAnchorElement | null;
+      return { cells, href: detail?.href?.split("?")[0] ?? "" };
+    }),
+  );
+
+  const listings: BrowserSearchListing[] = [];
+  for (const row of rows) {
+    const lcscPn = /\/(C\d+)\.html$/.exec(row.href)?.[1] ?? null;
+
+    // The MPN cell is the one that also carries the LCSC PN token.
+    const mpnCellIdx = lcscPn ? row.cells.findIndex((c) => c.includes(lcscPn)) : -1;
+    const mpn =
+      mpnCellIdx >= 0 && lcscPn
+        ? row.cells[mpnCellIdx]!.replace(lcscPn, "").trim() || null
+        : null;
+    const manufacturer = mpnCellIdx >= 0 ? (row.cells[mpnCellIdx + 1]?.trim() || null) : null;
+
+    const stockCell = row.cells.find((c) => /In Stock/i.test(c)) ?? "";
+    const stockQty = parseStockText(stockCell);
+
+    // Qty breaks: every "500+ $0.0273" pair in the row (the pricing cell).
+    const qtyBreaks: { qty: number; unitPrice: number }[] = [];
+    const priceCell = row.cells.find((c) => /\d\+\s*\$\d/.test(c)) ?? "";
+    for (const m of priceCell.matchAll(/([\d,]+)\+\s*\$([\d.]+)/g)) {
+      const qty = Number.parseInt(m[1]!.replace(/,/g, ""), 10);
+      const unitPrice = Number.parseFloat(m[2]!);
+      if (Number.isFinite(qty) && Number.isFinite(unitPrice)) qtyBreaks.push({ qty, unitPrice });
+    }
+
+    // Description = longest cell that carries no price/stock text (LCSC's is
+    // a full sentence, e.g. "10uF ±10% X7R 75V 1210 Ceramic Capacitors
+    // RoHS" — the pricing cell is often longer, so "$"-bearing cells are
+    // excluded, not just outscored); package = the cell right after it.
+    let descIdx = -1;
+    for (let i = 0; i < row.cells.length; i += 1) {
+      const cell = row.cells[i]!;
+      if (i === mpnCellIdx || cell.includes("$") || /In Stock/i.test(cell)) continue;
+      if (descIdx === -1 || cell.length > row.cells[descIdx]!.length) descIdx = i;
+    }
+    const description = descIdx >= 0 ? row.cells[descIdx]! : "";
+    const packageName = descIdx >= 0 ? (row.cells[descIdx + 1]?.trim() || null) : null;
+
+    listings.push({
+      title: description || mpn || lcscPn || "LCSC listing",
+      price: qtyBreaks[0]?.unitPrice ?? null,
+      currency: "USD",
+      stockQty,
+      url: row.href,
+      raw: { siteName: "LCSC", cells: row.cells, href: row.href },
+      mpn,
+      lcscPn,
+      packageName,
+      manufacturer,
+      qtyBreaks,
+    });
+  }
+  return listings;
 }
 
 async function scrapeListings(page: ScrapablePage, siteName: string): Promise<BrowserSearchListing[]> {

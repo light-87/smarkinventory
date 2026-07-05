@@ -115,7 +115,7 @@ async function getCostTracker(state: RuntimeState, runId: string, ceilingRupees:
 
 async function processPlanningRuns(state: RuntimeState): Promise<void> {
   const planningRuns = await fetchPlanningRuns(state.client, 3);
-  for (const { runId, config } of planningRuns) {
+  for (const { runId, config, appMeta } of planningRuns) {
     try {
       const { plan, cost } = await planRun(state.env, config, state.claudePort);
 
@@ -126,7 +126,7 @@ async function processPlanningRuns(state: RuntimeState): Promise<void> {
         await markJobSkipped(state.client, runId, skip.bomLineId);
       }
 
-      await saveMasterPlan(state.client, runId, config, plan);
+      await saveMasterPlan(state.client, runId, config, plan, appMeta);
       state.runConfigCache.set(runId, config);
       const tracker = await getCostTracker(state, runId, config.rupeeCeiling);
       tracker.record(cost.estimatedRupees);
@@ -301,6 +301,14 @@ async function pollOnce(state: RuntimeState): Promise<void> {
 
 /** Guarded by `WORKER_SHARED_SECRET` — a health check + minimal status surface for Railway/Fly/Render, not a product API. */
 function startStatusServer(state: RuntimeState): void {
+  // The worker also runs under Node (playwright's client is broken under
+  // Bun-on-Windows — WS and pipe transports both hang, F-008), where Bun.serve
+  // doesn't exist. The status surface is a deploy nicety, not the pipeline;
+  // skip it rather than port it.
+  if (typeof Bun === "undefined") {
+    console.log("[worker] non-Bun runtime — status server disabled (/health, /status unavailable)");
+    return;
+  }
   const port = Number(process.env.PORT ?? 8080);
   Bun.serve({
     port,
@@ -348,8 +356,13 @@ async function main(): Promise<void> {
 }
 
 // Only run the poll loop when executed directly (`bun run index.ts` /
-// `bun run start`) — importing this module from a test never starts it.
-if (import.meta.main) {
+// `bun run start`, or `node --import tsx index.ts` — F-008) — importing this
+// module from a test never starts it. `import.meta.main` is Bun-only
+// (undefined under Node), so fall back to comparing argv[1] to this module.
+const invokedDirectly =
+  import.meta.main ??
+  (process.argv[1] ? import.meta.url === (await import("node:url")).pathToFileURL(process.argv[1]).href : false);
+if (invokedDirectly) {
   main().catch((error) => {
     console.error("[worker] fatal:", error);
     process.exit(1);

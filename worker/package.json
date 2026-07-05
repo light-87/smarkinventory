@@ -12,11 +12,13 @@
     "spike": "bun run spike/harness.ts"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.110.0"
+    "@supabase/supabase-js": "^2.110.0",
+    "playwright": "^1.61.1"
   },
   "devDependencies": {
     "@types/bun": "^1.3.14",
     "@types/node": "^26.1.0",
+    "tsx": "^4.23.0",
     "typescript": "^6.0.3"
   }
 }

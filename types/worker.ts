@@ -221,6 +221,12 @@ export interface WorkerRunConfig {
 export interface WorkerRunPlanColumn {
   config: WorkerRunConfig;
   masterPlan: ClaudeMasterPlan | null;
+  /**
+   * App-side metadata the worker PRESERVES when overwriting the envelope
+   * with the master plan (it never reads it): buildQtyAtRun, and lineLimit
+   * for /ai_orc sandbox runs (F-007).
+   */
+  appMeta?: Record<string, unknown> | null;
 }
 
 /* ────────────────────────────────────────────────────────────────────────────

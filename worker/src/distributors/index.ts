@@ -35,15 +35,20 @@ class BrowserBackedDistributorClient implements DistributorClient {
       (listing): DistributorListing => ({
         distributorName: this.name,
         title: listing.title,
-        // Browser scraping doesn't reliably separate out a structured MPN/
-        // package from page text — matcher-lite treats a null package as
-        // "not a verified match" (mandatory rung), which is the SAFE default
-        // here until a site-specific scraper extracts it explicitly.
-        mpn: null,
-        packageName: query.packageName, // best-effort: assume the searched package, not a scraped one
+        // Site-specific scrapers (LCSC — F-008) extract a real MPN/package
+        // per row; the generic scrape leaves them unset, falling back to the
+        // old conservative defaults (null MPN = "not a verified match" on
+        // that rung; assume the searched package, not a scraped one).
+        mpn: listing.mpn ?? null,
+        packageName: listing.packageName ?? query.packageName,
         price: listing.price,
         currency: listing.currency,
-        qtyBreaks: listing.price !== null ? [{ qty: 1, unitPrice: listing.price }] : [],
+        qtyBreaks:
+          listing.qtyBreaks && listing.qtyBreaks.length > 0
+            ? listing.qtyBreaks
+            : listing.price !== null
+              ? [{ qty: 1, unitPrice: listing.price }]
+              : [],
         stockQty: listing.stockQty,
         partStatus: null,
         orderLink: listing.url,

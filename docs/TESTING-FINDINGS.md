@@ -38,6 +38,38 @@ Screenshot: docs/testing-screenshots/f-001.png (optional)
 
 <!-- Claude moves resolved entries here with commit hashes, so the Findings section stays short -->
 
+### F-008 · S1 · FIXED (see commit) — first LIVE end-to-end AI run completed
+Surface: worker live path (real Opus/Sonnet + real LCSC scraping), run cc85d890
+Symptom: sandbox run stuck on "planning" 8+ min. Root causes found & fixed, in order:
+1. NO worker was connected to cloud (zero heartbeats) — the started "agent" wasn't
+   pointing at cloud Supabase. I ran the worker myself with the cloud env.
+2. playwright is BROKEN under Bun-on-Windows (CDP websocket AND local pipe transport both
+   hang; plain Node connects in 1.5s) → worker now also runs under Node
+   (`worker/start-live-windows.ps1`; `import.meta.main` guard + Bun.serve made Node-safe).
+3. `.env.cloud.local` had a STALE browserless token (401) and `wss://` where the box serves
+   plain `ws://` — both fixed in the env file.
+4. LCSC blocks BOTH the default HeadlessChrome UA (fixed: realistic Chrome UA on a shared
+   browser context) AND the Hetzner datacenter IP entirely (Akamai — NOT fixable by UA; LCSC
+   browsing must run from a residential IP until a proxy exists. Remote browserless also
+   kills CDP sessions at its session timeout — the "browser has been closed" cascade).
+5. LCSC scraper selectors were unverified guesses → rewrote against the LIVE site:
+   `tr[id^=productId]` rows; extracts real MPN, LCSC PN (C-number from the detail URL),
+   manufacturer, package, stock, full qty-break ladder. Structured fields flow into
+   matcher-lite (real mpn_match instead of blanket "none").
+6. unikeyic.com hangs forever → generic-site navigation timeout 15s, treated as 0 listings
+   (was: 45s hang then lane failure).
+7. Digikey/Mouser/Element14 seeded api_type='browse' in cloud (no scraper URL → contributed
+   nothing) → driver now returns 0 listings for unknown browse sites instead of throwing;
+   permanent data fix = scripts/cloud-sql/04-fix-distributor-api-types.sql (USER RUNS).
+8. Worker overwrote plan.appMeta when storing the master plan → now preserved (lineLimit
+   chip on /ai_orc survives planning).
+RESULT (5-line test, tier thorough): planning ₹2.34, total ₹3.26, ~4 min. Opus authored
+perfect per-line searchTerms. 4/5 lines got real LCSC listings (exact MPN hit with 27,150
+stock + price tiers for GCM21BR72A104KA37L); 5th (MAASH31LSB7105KTCA01) genuinely not
+stocked at LCSC. All 4 candidates show pkg=false ONLY because the uploaded BOM is the
+stripped file with no Footprint column — package is the mandatory rung. Re-upload the
+ORIGINAL GCU_V1.1_BOM.xlsx for a real accuracy read.
+
 ### F-007 · IDEA · BUILT (user-requested directly, see commit)
 Surface: /ai_orc — sandbox test bench
 Request: "upload a BOM and set up ordering from /ai_orc, and test with 5 items only first —

@@ -13,6 +13,8 @@ import type { AgentRunRow, ServiceRoleClient } from "./db";
 export interface PlanningRun {
   runId: string;
   config: WorkerRunConfig;
+  /** Carried through untouched into saveMasterPlan — see WorkerRunPlanColumn.appMeta. */
+  appMeta: Record<string, unknown> | null;
 }
 
 function isWorkerRunConfig(value: unknown): value is WorkerRunConfig {
@@ -53,7 +55,7 @@ export async function fetchPlanningRuns(client: ServiceRoleClient, limit: number
       );
       continue;
     }
-    result.push({ runId: row.id, config: envelope.config });
+    result.push({ runId: row.id, config: envelope.config, appMeta: envelope.appMeta ?? null });
   }
   return result;
 }
@@ -64,8 +66,9 @@ export async function saveMasterPlan(
   runId: string,
   config: WorkerRunConfig,
   masterPlan: ClaudeMasterPlan,
+  appMeta: Record<string, unknown> | null = null,
 ): Promise<void> {
-  const envelope: WorkerRunPlanColumn = { config, masterPlan };
+  const envelope: WorkerRunPlanColumn = { config, masterPlan, appMeta };
   const update = await client
     .from("smark_agent_runs")
     .update({ plan: envelope, status: "running" })

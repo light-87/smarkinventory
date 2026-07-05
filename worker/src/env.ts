@@ -54,7 +54,10 @@ export interface WorkerEnv {
 }
 
 function optional(name: string): string | null {
-  const v = process.env[name];
+  // Trimmed: a whitespace-only value counts as UNSET. This also gives
+  // PowerShell users a way to force-unset a var that an --env-file would
+  // otherwise re-fill (PS deletes a var assigned '' — set it to ' ' instead).
+  const v = process.env[name]?.trim();
   return v && v.length > 0 ? v : null;
 }
 
