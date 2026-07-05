@@ -68,6 +68,22 @@ export async function createClient() {
 }
 
 /**
+ * Bearer-token client — RLS-enforced as the user whose access token is
+ * presented in an `Authorization: Bearer …` header instead of cookies. Used
+ * by the desktop companion app's sync endpoints (app/api/desktop/**): the
+ * desktop signs in with the same Supabase email/password auth and sends its
+ * access token per request. Same trust level as `createClient()` — the
+ * caller's own RLS — just a different transport for the session.
+ */
+export function createBearerClient(accessToken: string) {
+  const { url, anonKey } = getSupabasePublicEnv();
+  return createSupabaseClient<Database>(url, anonKey, {
+    global: { headers: { Authorization: `Bearer ${accessToken}` } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}
+
+/**
  * Service-role client — bypasses RLS entirely. See the module-level warning
  * above before reaching for this; `createClient()` is almost always right.
  */

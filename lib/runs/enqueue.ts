@@ -363,3 +363,105 @@ export async function reRunItem(supabase: DB, service: DB, input: { runId: strin
 export async function reRunWholeOrder(supabase: DB, service: DB, input: { bomId: string; tier: ConcurrencyPreset; actorId: string }): Promise<EnqueueRunResult> {
   return enqueueRun(supabase, service, input);
 }
+
+export type DesktopRunContextResult =
+  | { ok: true; runId: string; projectId: string; config: WorkerRunConfig }
+  | { ok: false; error: string };
+
+/**
+ * Desktop companion app (plan: SmarkStock Desktop, F-013 pivot) — builds the
+ * SAME aliased run context a worker run gets, but the EXECUTION happens on
+ * the user's PC (their own Claude Code session driving a real browser), so:
+ *   - the run row is created with status "running" (not "planning") and
+ *     `plan.appMeta.executor = "desktop"`, and
+ *   - NO `smark_order_jobs` rows are inserted —
+ * both of which keep the always-on worker from ever claiming it
+ * (processPlanningRuns only takes status "planning"; processQueuedJobs only
+ * takes queued job rows). Results come back through
+ * app/api/desktop/results, which flips the run to "review" — from there the
+ * existing review/feedback/cart surfaces work unchanged.
+ */
+export async function createDesktopRun(
+  supabase: DB,
+  service: DB,
+  input: { bomId: string; actorId: string; lineLimit?: number },
+): Promise<DesktopRunContextResult> {
+  const loaded = await loadBomContext(supabase, input.bomId);
+  if ("error" in loaded) return { ok: false, error: loaded.error };
+  const { bom, project, inStockLines, effectiveSequence } = loaded;
+
+  if (loaded.toOrderLines.length === 0) {
+    return { ok: false, error: "Nothing to order — every line on this BOM is already in stock." };
+  }
+  const lineLimit =
+    typeof input.lineLimit === "number" && Number.isFinite(input.lineLimit) && input.lineLimit >= 1
+      ? Math.floor(input.lineLimit)
+      : null;
+  const toOrderLines = lineLimit
+    ? [...loaded.toOrderLines].sort((a, b) => (a.line_no ?? 0) - (b.line_no ?? 0)).slice(0, lineLimit)
+    : loaded.toOrderLines;
+
+  const { plannerContext, rulesDigestVersion, rulesDigestAliased } = await buildAliasedRunContext(service, {
+    bom,
+    project,
+    toOrderLines,
+    effectiveSequence,
+  });
+
+  const aliasedTextByLineId = new Map(
+    plannerContext.lines.map(
+      (l, i) =>
+        [
+          toOrderLines[i]!.id,
+          { priorityNote: l.priorityNote ?? null, description: l.description ?? null, extra: l.extra ?? null },
+        ] as const,
+    ),
+  );
+  const workerLines = buildWorkerBomLines(toOrderLines, bom.build_qty, aliasedTextByLineId);
+
+  const runId = crypto.randomUUID();
+  const config: WorkerRunConfig = {
+    runId,
+    bomId: bom.id,
+    aliasedProjectLabel: plannerContext.clientCode ? `${plannerContext.projectCode} (${plannerContext.clientCode})` : plannerContext.projectCode,
+    distributorSequence: effectiveSequence.map((d) => ({ id: d.id, name: d.name, apiType: d.apiType, rank: d.rank, enabled: d.enabled })),
+    overallPriorities: plannerContext.priorities ?? "",
+    rulesDigest: rulesDigestAliased,
+    rulesDigestVersion,
+    orderingLadder: ["mpn", "lcsc", "value", "package", "status", "qty", "cost"],
+    concurrencyPreset: "balanced", // informational — desktop runs one supervised session, not a fanout
+    lines: workerLines,
+    inStockLines: inStockLines.map((l) => ({
+      lineNo: l.line_no,
+      refDesignators: l.references,
+      mpn: l.mpn,
+      value: l.value,
+      qty: l.dnp ? 0 : (l.qty ?? 0) * bom.build_qty,
+    })),
+    rupeeCeiling: 0, // execution cost is on the user's own Claude plan/key — nothing metered server-side
+  };
+
+  const { error: runInsertError } = await supabase.from(TABLES.agent_runs).insert({
+    id: runId,
+    bom_id: bom.id,
+    status: "running",
+    concurrency_preset: "balanced",
+    fanout_width: 1,
+    depth_per_item: effectiveSequence.filter((d) => d.enabled).length,
+    per_site_cap: 1,
+    est_cost: 0,
+    actual_cost: null,
+    plan: { config, masterPlan: null, appMeta: { buildQtyAtRun: bom.build_qty, lineLimit, executor: "desktop" } },
+    rules_doc_version: rulesDigestVersion || null,
+    started_by: input.actorId,
+  });
+  if (runInsertError) return { ok: false, error: `Could not create the desktop run: ${runInsertError.message}` };
+
+  const { error: bomUpdateError } = await supabase
+    .from(TABLES.boms)
+    .update({ saved_run_id: runId, distributor_sequence: toStoredSequence(effectiveSequence) })
+    .eq("id", bom.id);
+  if (bomUpdateError) return { ok: false, error: `Run created but the BOM record couldn't be updated: ${bomUpdateError.message}` };
+
+  return { ok: true, runId, projectId: project.id, config };
+}
