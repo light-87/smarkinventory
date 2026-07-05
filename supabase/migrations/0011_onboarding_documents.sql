@@ -69,7 +69,37 @@ create policy smark_app_users_update on public.smark_app_users
   );
 
 comment on policy smark_app_users_update on public.smark_app_users is
-  'Owner: full-row update (unchanged from 0001). Any authenticated user: may update their OWN row only (needed for onboarding + Settings → Profile self-edit of DOB/DOJ). Role/active/created_by mutation by non-owners is additionally blocked at the app layer (Server Actions never accept those fields from a non-owner caller) since RLS here cannot distinguish which COLUMNS changed.';
+  'Owner: full-row update (unchanged from 0001). Any authenticated user: may update their OWN row (needed for onboarding + Settings → Profile self-edit of DOB/DOJ). Which COLUMNS a non-owner may change is enforced by the trg_smark_app_users_guard_privileged_update trigger below — RLS cannot express column-level rules, and the app layer alone is insufficient (PostgREST is reachable directly with the user JWT).';
+
+-- Column-level guard for the self-update path above. RLS lets a user update
+-- their OWN row but cannot restrict WHICH columns — so without this a non-owner
+-- could escalate by `update smark_app_users set role='owner' where id=auth.uid()`
+-- straight through PostgREST, bypassing every Server Action. This BEFORE UPDATE
+-- trigger blocks a non-owner from changing any privileged/identity column;
+-- owners are unaffected (they legitimately manage these).
+create or replace function public.smark_app_users_guard_privileged_update()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if (select public.smark_role()) is distinct from 'owner' and (
+    new.id         is distinct from old.id
+    or new.username   is distinct from old.username
+    or new.role       is distinct from old.role
+    or new.active     is distinct from old.active
+    or new.created_by is distinct from old.created_by
+  ) then
+    raise exception 'Not permitted to modify privileged columns of smark_app_users';
+  end if;
+  return new;
+end;
+$$;
+
+create trigger trg_smark_app_users_guard_privileged_update
+  before update on public.smark_app_users
+  for each row execute function public.smark_app_users_guard_privileged_update();
 
 
 -- ----------------------------------------------------------------------------
