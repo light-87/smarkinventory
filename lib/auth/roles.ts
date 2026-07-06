@@ -47,6 +47,8 @@ export const AREAS = [
   "users",
   /** (0011) "My Profile" — DOB/DOJ/bank/PAN self-edit + own document uploads. Every role manages only their OWN row/docs here (self, never all). */
   "profile",
+  /** Owner-only PM analytics — filterable stat/table/chart widgets over lib/pm data (queries.ts, dashboard.ts). Hidden for employee/accountant, same as settings/users/ai_memory. */
+  "project_dashboard",
 ] as const;
 export type Area = (typeof AREAS)[number];
 
@@ -84,6 +86,8 @@ export const ROLE_MATRIX: Record<Area, Record<Role, Access>> = {
   users: { owner: "full", employee: "hidden", accountant: "hidden" },
   // (0011) Every role sees/edits only their OWN profile + documents here.
   profile: { owner: "self", employee: "self", accountant: "self" },
+  // Owner-only PM analytics dashboard — hidden entirely for employee/accountant.
+  project_dashboard: { owner: "full", employee: "hidden", accountant: "hidden" },
 };
 
 /**

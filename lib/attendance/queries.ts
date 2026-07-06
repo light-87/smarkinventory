@@ -118,6 +118,72 @@ export async function getLeaveRequests(
   }));
 }
 
+/**
+ * Approved leave requests (any user) whose `[start_date, end_date]` overlaps
+ * `[from, to]` — feeds the owner dashboard's "Leaves this week" widget.
+ * Brand-new, additive query: `getLeaveRequests` above has no range/overlap
+ * filter (it returns a whole actor's history), so this is a separate function
+ * rather than a change to it.
+ */
+export async function getApprovedLeaveRequestsOverlapping(supabase: DB, from: string, to: string): Promise<LeaveRequestView[]> {
+  const { data, error } = await supabase
+    .from(TABLES.leave_requests)
+    .select("id, user_id, start_date, end_date, reason, note, status, decided_by, decided_at, created_at")
+    .eq("status", "approved")
+    .lte("start_date", to)
+    .gte("end_date", from)
+    .order("start_date", { ascending: true });
+  assertNoError(error, "smark_leave_requests (overlapping range)");
+
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    userId: r.user_id,
+    startDate: r.start_date,
+    endDate: r.end_date,
+    reason: r.reason as LeaveReason,
+    note: r.note,
+    status: r.status as ApprovalStatus,
+    decidedBy: r.decided_by,
+    decidedAt: r.decided_at,
+    createdAt: r.created_at,
+  }));
+}
+
+export interface BirthdayView {
+  id: string;
+  username: string;
+  displayName: string | null;
+  birthDate: string;
+}
+
+/** `true` when `birthDate`'s month+day (year ignored) matches `dateOnly`'s month+day. */
+function isBirthdayOn(birthDate: string, dateOnly: string): boolean {
+  return birthDate.slice(5) === dateOnly.slice(5); // "MM-DD" slice of a YYYY-MM-DD string
+}
+
+/**
+ * Active users whose birthday (month+day, year ignored) falls on any day in
+ * `[from, to]` — feeds the owner dashboard's "Birthdays this week" widget.
+ * `smark_app_users.birth_date` (0009) is a plain `date`; matched in JS against
+ * every day of the window (`datesInRange`, existing pure helper) since
+ * month/day-only comparison isn't a simple indexed SQL filter and the active
+ * user count is small.
+ */
+export async function getUpcomingBirthdays(supabase: DB, from: string, to: string): Promise<BirthdayView[]> {
+  const { data, error } = await supabase
+    .from(TABLES.app_users)
+    .select("id, username, display_name, birth_date")
+    .eq("active", true)
+    .not("birth_date", "is", null);
+  assertNoError(error, "smark_app_users (birthdays)");
+
+  const windowDays = datesInRange(from, to);
+  return (data ?? [])
+    .filter((u): u is typeof u & { birth_date: string } => u.birth_date !== null)
+    .filter((u) => windowDays.some((day) => isBirthdayOn(u.birth_date, day)))
+    .map((u) => ({ id: u.id, username: u.username, displayName: u.display_name, birthDate: u.birth_date }));
+}
+
 /* ────────────────────────────────────────────────────────────────────────────
  * Comp-work claims
  * ──────────────────────────────────────────────────────────────────────────── */

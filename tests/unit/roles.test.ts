@@ -53,6 +53,8 @@ describe("ROLE_MATRIX — verbatim FEATURES.md §2 / SCHEMA.md RLS matrix", () =
     users: { owner: "full", employee: "hidden", accountant: "hidden" },
     // (0011) "My Profile" — every role only ever sees/edits their OWN row here.
     profile: { owner: "self", employee: "self", accountant: "self" },
+    // Owner-only PM analytics dashboard — hidden entirely for employee/accountant.
+    project_dashboard: { owner: "full", employee: "hidden", accountant: "hidden" },
   };
 
   test("every area is covered by AREAS (no silent gaps)", () => {
@@ -77,6 +79,12 @@ describe("ROLE_MATRIX — verbatim FEATURES.md §2 / SCHEMA.md RLS matrix", () =
     expect(ROLE_MATRIX.settings.employee).toBe("hidden");
     expect(ROLE_MATRIX.users.employee).toBe("hidden");
     expect(ROLE_MATRIX.ai_memory.employee).toBe("hidden");
+  });
+
+  test("employee and accountant are fully hidden from the Project Dashboard", () => {
+    expect(ROLE_MATRIX.project_dashboard.employee).toBe("hidden");
+    expect(ROLE_MATRIX.project_dashboard.accountant).toBe("hidden");
+    expect(ROLE_MATRIX.project_dashboard.owner).toBe("full");
   });
 
   test("accountant is read-only everywhere it can see (never write ops/projects/cart)", () => {

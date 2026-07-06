@@ -550,6 +550,58 @@ export async function getConfirmedBugCount(supabase: DB, taskId: string): Promis
   return count ?? 0;
 }
 
+/* ────────────────────────────────────────────────────────────────────────────
+ * Owner dashboard widgets — brand-new read-only aggregates, additive only
+ * (nothing above this section is touched).
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+export interface StaleTaskView {
+  id: string;
+  projectId: string;
+  projectName: string;
+  title: string;
+  status: TaskStatus;
+  createdAt: string;
+  assignees: TaskAssigneeView[];
+}
+
+/**
+ * Open/awaiting-input tasks ordered oldest-`created_at`-first — the "Oldest
+ * Open Tasks" proxy for the owner dashboard's task-expiry widget.
+ * `smark_tasks` (0010) has no due-date/deadline column, so there is no real
+ * "expiring soon" signal to compute; this is explicitly a proxy, not a stand-in
+ * for a real due date.
+ */
+export async function getOldestOpenTasks(supabase: DB, limit = 5): Promise<StaleTaskView[]> {
+  const { data, error } = await supabase
+    .from(TABLES.tasks)
+    .select("id, project_id, title, status, created_at, smark_projects(name)")
+    .in("status", ["open", "awaiting_client_input"])
+    .order("created_at", { ascending: true })
+    .limit(limit);
+  assertNoError(error, "smark_tasks (oldest open)");
+
+  const rows = (data ?? []) as unknown as Array<{
+    id: string;
+    project_id: string;
+    title: string;
+    status: string;
+    created_at: string;
+    smark_projects: { name: string } | null;
+  }>;
+  const assigneesByTask = await attachAssignees(supabase, rows.map((r) => r.id));
+
+  return rows.map((r) => ({
+    id: r.id,
+    projectId: r.project_id,
+    projectName: r.smark_projects?.name ?? "—",
+    title: r.title,
+    status: r.status as TaskStatus,
+    createdAt: r.created_at,
+    assignees: assigneesByTask.get(r.id) ?? [],
+  }));
+}
+
 /**
  * One engineer's aggregated KPI (lib/pm/kpi.ts aggregateEmployeeKpi) across
  * every DONE task they're assigned to. Per lib/pm/kpi.ts's contract:

@@ -56,6 +56,8 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { id: "cart", area: "cart", label: "Cart", href: "/cart", group: "projects" },
   { id: "daily_reports", area: "daily_reports", label: "Daily Reports", href: "/daily", group: "team" },
   { id: "attendance", area: "attendance", label: "Attendance", href: "/attendance", group: "team" },
+  // Owner-only PM analytics — canSee() hides this for employee/accountant automatically (area is "hidden" for both in roles.ts).
+  { id: "project_dashboard", area: "project_dashboard", label: "Project Dashboard", href: "/project-dashboard", group: "projects" },
   // (0011) visible to every role — DOB/DOJ/bank/PAN self-edit + own document uploads.
   { id: "profile", area: "profile", label: "My Profile", href: "/settings/profile", group: "team" },
   { id: "ai_memory", area: "ai_memory", label: "AI Memory", href: "/ai-memory", group: "footer" },
