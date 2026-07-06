@@ -4,10 +4,8 @@ import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { ChangeRequestForm } from "@/components/portal/change-request-form";
 import { CommentForm } from "@/components/portal/comment-form";
 import { DocumentsList } from "@/components/portal/documents-list";
-import { PhaseTimeline } from "@/components/portal/phase-timeline";
 import { PmDashboard } from "@/components/portal/pm-dashboard";
 import { PortalHeader } from "@/components/portal/portal-header";
-import { ProgressPanel } from "@/components/portal/progress-panel";
 import { UpdatesFeed } from "@/components/portal/updates-feed";
 import { lastPhaseEndDate } from "@/lib/portal/phase-math";
 import { getPortalPm, getPortalProject, getPortalShared } from "@/lib/portal/queries";
@@ -56,17 +54,6 @@ export default async function PortalPage({ params }: PortalPageProps) {
   return (
     <main className="mx-auto flex min-h-dvh max-w-lg flex-col gap-6 px-4 pt-6 pb-12 sm:px-6">
       <PortalHeader project={project} estDelivery={estDelivery} />
-
-      <Card padding="none">
-        <CardHeader title="Timeline" />
-        <CardBody>
-          <PhaseTimeline phases={project.phases} />
-        </CardBody>
-      </Card>
-
-      <Card padding="lg">
-        <ProgressPanel phases={project.phases} />
-      </Card>
 
       {pm && (
         <Card padding="none">
