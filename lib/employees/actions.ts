@@ -18,10 +18,11 @@
  */
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getStorageAdapter } from "@/lib/storage";
+import { usernameToEmail } from "@/lib/auth/roles";
 import { TABLES } from "@/types/db";
-import { ProfileFormSchema, type ProfileFormInput, type ActionResult } from "./types";
+import { CreateEmployeeInputSchema, ProfileFormSchema, type CreateEmployeeInput, type ProfileFormInput, type ActionResult } from "./types";
 
 function blankToNull(value: string | null | undefined): string | null {
   if (value == null) return null;
@@ -106,4 +107,65 @@ export async function getEmployeeDocumentDownloadUrlAction(documentId: string): 
     const message = err instanceof Error ? err.message : "Could not create a download link.";
     return { ok: false, error: message };
   }
+}
+
+/**
+ * Owner-only: creates a new employee/accountant account — Settings → Users
+ * & roles' "Add employee" form. Two steps, same shape as
+ * scripts/seed-dev-users.ts (the dev-only equivalent this replaces for
+ * production use):
+ *  1. `auth.admin.createUser` (service-role only — no session client can do
+ *     this) with the synthetic `{username}@smark.internal` email.
+ *  2. Insert the `smark_app_users` profile row (role, active=true,
+ *     created_by=caller). If this second step fails, the auth user still
+ *     exists — surfaced in the error so the owner isn't left guessing why a
+ *     "duplicate username" retry then also fails on auth.admin.createUser.
+ * Double owner-check: the RLS-bound client's role lookup below is the actual
+ * gate (a non-owner's `smark_role()` check fails before the service client is
+ * ever touched); the service client itself bypasses RLS entirely, which is
+ * exactly why this function must never run without that check first.
+ */
+export async function createEmployeeAction(input: CreateEmployeeInput): Promise<ActionResult<{ userId: string }>> {
+  const parsed = CreateEmployeeInputSchema.parse(input);
+
+  const sessionClient = await createClient();
+  const { data: role, error: roleError } = await sessionClient.rpc("smark_role");
+  if (roleError || role !== "owner") {
+    return { ok: false, error: "Only the owner can add employees." };
+  }
+  const {
+    data: { user: caller },
+  } = await sessionClient.auth.getUser();
+
+  const service = createServiceClient();
+  const email = usernameToEmail(parsed.username);
+
+  const { data: created, error: createError } = await service.auth.admin.createUser({
+    email,
+    password: parsed.password,
+    email_confirm: true,
+  });
+  if (createError || !created?.user) {
+    const message = createError?.message ?? "Could not create the account.";
+    return { ok: false, error: message.includes("already been registered") ? `"${parsed.username}" is already taken.` : message };
+  }
+
+  const { error: profileError } = await service.from(TABLES.app_users).insert({
+    id: created.user.id,
+    username: parsed.username,
+    display_name: parsed.displayName,
+    role: parsed.role,
+    active: true,
+    created_by: caller?.id ?? null,
+  });
+  if (profileError) {
+    return {
+      ok: false,
+      error: `Account created, but the profile row failed (${profileError.message}) — the username may already be in use by a different account.`,
+    };
+  }
+
+  revalidatePath("/settings/users");
+  revalidatePath("/settings/employees");
+  return { ok: true, userId: created.user.id };
 }

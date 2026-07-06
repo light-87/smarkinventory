@@ -71,3 +71,24 @@ export interface EmployeeDirectoryEntry {
 export type ActionResult<T extends Record<string, unknown> = Record<string, unknown>> =
   | ({ ok: true } & T)
   | { ok: false; error: string };
+
+/**
+ * Owner-only "Settings → Users & roles" add-employee form. `role` is
+ * intentionally restricted to employee|accountant — owner accounts aren't
+ * created through this surface. Username becomes `{username}@smark.internal`
+ * (lib/auth/roles.ts usernameToEmail) — the same synthetic-email scheme
+ * scripts/seed-dev-users.ts uses for local dev accounts.
+ */
+export const CreateEmployeeInputSchema = z.object({
+  username: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .min(3, "At least 3 characters.")
+    .max(32, "At most 32 characters.")
+    .regex(/^[a-z0-9._-]+$/, "Lowercase letters, numbers, dot, underscore, or hyphen only."),
+  password: z.string().min(8, "At least 8 characters."),
+  displayName: z.string().trim().min(1, "Enter a name.").max(200),
+  role: z.enum(["employee", "accountant"]),
+});
+export type CreateEmployeeInput = z.infer<typeof CreateEmployeeInputSchema>;

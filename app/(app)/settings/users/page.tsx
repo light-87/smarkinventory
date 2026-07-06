@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getActiveEmployeeOptions } from "@/lib/employees/queries";
 import { getAllModuleGrants } from "@/lib/rbac/queries";
 import { ModuleGrantsGrid } from "@/components/rbac/module-grants-grid";
+import { AddEmployeeForm } from "@/components/rbac/add-employee-form";
 
 export const metadata: Metadata = { title: "Users & roles" };
 
@@ -32,6 +33,7 @@ export default async function UsersPage() {
           full access.
         </p>
       </div>
+      <AddEmployeeForm />
       <ModuleGrantsGrid
         employees={employees.map((e) => ({ id: e.id, username: e.username, displayName: e.display_name }))}
         initialGrants={grants}
