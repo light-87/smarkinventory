@@ -10,6 +10,7 @@ import { useToast } from "@/components/ui/toast";
 import { formatDate } from "@/lib/format";
 import type { TaskStatus } from "@/types/db";
 import type { EngineerOption, TaskHoldView, TaskView } from "@/lib/pm/queries";
+import type { TaskReminderView } from "@/lib/reminders/queries";
 import {
   assignTaskAction,
   endHoldAction,
@@ -21,6 +22,12 @@ import {
   startHoldAction,
   submitTaskAction,
 } from "@/lib/pm/actions";
+import {
+  cancelReminderAction,
+  composeAndSendReminderAction,
+  setProjectClientEmailAction,
+  updateReminderFrequencyAction,
+} from "@/lib/reminders/actions";
 
 const STATUS_LABEL: Record<TaskStatus, string> = {
   open: "Open",
@@ -46,6 +53,10 @@ export interface TaskCardProps {
   engineers: readonly EngineerOption[];
   /** Shown when rendered outside a project page (e.g. "My tasks"). */
   projectName?: string;
+  /** Reminder feature (0012) — owner-only, all optional so non-PM-overview callers (e.g. "My tasks") don't need to wire it. */
+  projectId?: string;
+  clientEmail?: string | null;
+  activeReminder?: TaskReminderView | null;
 }
 
 /**
@@ -54,11 +65,23 @@ export interface TaskCardProps {
  * assigned engineer's own controls (log time, submit, hold), gated purely by
  * props (server actions re-check permission regardless).
  */
-export function TaskCard({ task, isOwner, canWrite, currentUserId, openHold, bugCount, engineers, projectName }: TaskCardProps) {
+export function TaskCard({
+  task,
+  isOwner,
+  canWrite,
+  currentUserId,
+  openHold,
+  bugCount,
+  engineers,
+  projectName,
+  projectId,
+  clientEmail,
+  activeReminder,
+}: TaskCardProps) {
   const router = useRouter();
   const { push } = useToast();
   const [isPending, startTransition] = useTransition();
-  const [panel, setPanel] = useState<null | "log" | "bug" | "assign" | "ownerLog">(null);
+  const [panel, setPanel] = useState<null | "log" | "bug" | "assign" | "ownerLog" | "reminder">(null);
 
   const [hours, setHours] = useState("1");
   const [workDate, setWorkDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -68,6 +91,14 @@ export function TaskCard({ task, isOwner, canWrite, currentUserId, openHold, bug
   const [assignUserId, setAssignUserId] = useState("");
   const [assignHours, setAssignHours] = useState("1");
   const [onBehalfUserId, setOnBehalfUserId] = useState("");
+
+  const [clientEmailDraft, setClientEmailDraft] = useState(clientEmail ?? "");
+  const [reminderSubject, setReminderSubject] = useState(`Action needed: ${task.title}`);
+  const [reminderBody, setReminderBody] = useState(
+    `Hi,\n\nWe're waiting on your input for "${task.title}" before we can move forward. Could you take a look when you get a chance?`,
+  );
+  const [reminderFrequency, setReminderFrequency] = useState(3);
+  const [reminderFrequencyDraft, setReminderFrequencyDraft] = useState(activeReminder?.frequencyDays ?? 3);
 
   const isAssignedToMe = currentUserId != null && task.assignees.some((a) => a.userId === currentUserId);
   const engineerControlsVisible = canWrite && (isAssignedToMe || isOwner);
@@ -107,6 +138,15 @@ export function TaskCard({ task, isOwner, canWrite, currentUserId, openHold, bug
               className="ml-2 cursor-pointer font-medium text-smark-orange underline disabled:opacity-50"
             >
               Mark input received
+            </button>
+          )}
+          {isOwner && projectId && (
+            <button
+              type="button"
+              onClick={() => setPanel(panel === "reminder" ? null : "reminder")}
+              className="ml-2 cursor-pointer font-medium text-smark-orange underline disabled:opacity-50"
+            >
+              {activeReminder ? "Client reminder" : "Send client reminder"}
             </button>
           )}
         </div>
@@ -345,6 +385,141 @@ export function TaskCard({ task, isOwner, canWrite, currentUserId, openHold, bug
           >
             Assign
           </Button>
+        </div>
+      )}
+
+      {panel === "reminder" && projectId && (
+        <div className="flex flex-col gap-3 rounded-lg border border-charcoal p-3">
+          {!clientEmail ? (
+            <>
+              <p className="text-[13px] text-smoke">Add the client&apos;s email before sending a reminder.</p>
+              <Field label="Client email">
+                <Input type="email" value={clientEmailDraft} onChange={(e) => setClientEmailDraft(e.target.value)} />
+              </Field>
+              <Button
+                size="sm"
+                loading={isPending}
+                className="self-start"
+                onClick={() => {
+                  if (!clientEmailDraft.trim()) {
+                    push({ msg: "Enter a client email" });
+                    return;
+                  }
+                  startTransition(async () => {
+                    const result = await setProjectClientEmailAction({ projectId, clientEmail: clientEmailDraft.trim() });
+                    if (result.ok) {
+                      router.refresh();
+                    } else {
+                      push({ msg: result.error });
+                    }
+                  });
+                }}
+              >
+                Save client email
+              </Button>
+            </>
+          ) : activeReminder ? (
+            <>
+              <p className="text-[13px] text-snow">
+                Reminder active — every {activeReminder.frequencyDays} day{activeReminder.frequencyDays === 1 ? "" : "s"}.
+              </p>
+              <p className="text-caption text-smoke">
+                {activeReminder.lastSentAt ? `Last sent ${formatDate(activeReminder.lastSentAt)}` : "Not sent yet"} · Next send{" "}
+                {formatDate(activeReminder.nextSendAt)}
+              </p>
+              <div className="flex items-center gap-2">
+                <Field label="Change frequency (days)" className="w-32">
+                  <Input
+                    type="number"
+                    min="1"
+                    value={reminderFrequencyDraft}
+                    onChange={(e) => setReminderFrequencyDraft(Number(e.target.value))}
+                  />
+                </Field>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  loading={isPending}
+                  onClick={() =>
+                    run(() => updateReminderFrequencyAction({ reminderId: activeReminder.id, frequencyDays: reminderFrequencyDraft }))
+                  }
+                >
+                  Update
+                </Button>
+              </div>
+              <Button
+                size="sm"
+                variant="ghost"
+                loading={isPending}
+                className="self-start"
+                onClick={() => run(() => cancelReminderAction({ reminderId: activeReminder.id }))}
+              >
+                Cancel reminder
+              </Button>
+            </>
+          ) : (
+            <>
+              <Field label="Subject">
+                <Input value={reminderSubject} onChange={(e) => setReminderSubject(e.target.value)} />
+              </Field>
+              <Field label="Message">
+                <textarea
+                  value={reminderBody}
+                  onChange={(e) => setReminderBody(e.target.value)}
+                  rows={4}
+                  className="w-full rounded-lg border border-charcoal bg-surface-well px-3.5 py-2 text-sm text-snow outline-none focus:border-smark-orange"
+                />
+              </Field>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-caption text-smoke">Resend every</span>
+                {[1, 3, 7].map((days) => (
+                  <button
+                    key={days}
+                    type="button"
+                    onClick={() => setReminderFrequency(days)}
+                    className={`cursor-pointer rounded-full border px-3 py-1 text-xs ${reminderFrequency === days ? "border-smark-orange text-smark-orange" : "border-charcoal text-smoke"}`}
+                  >
+                    {days}d
+                  </button>
+                ))}
+                <Input
+                  type="number"
+                  min="1"
+                  value={reminderFrequency}
+                  onChange={(e) => setReminderFrequency(Number(e.target.value))}
+                  className="w-16"
+                />
+              </div>
+              <Button
+                size="sm"
+                loading={isPending}
+                className="self-start"
+                onClick={() => {
+                  if (!reminderSubject.trim() || !reminderBody.trim()) {
+                    push({ msg: "Subject and message are required" });
+                    return;
+                  }
+                  startTransition(async () => {
+                    const result = await composeAndSendReminderAction({
+                      taskId: task.id,
+                      subject: reminderSubject.trim(),
+                      body: reminderBody.trim(),
+                      frequencyDays: reminderFrequency,
+                    });
+                    if (result.ok) {
+                      if (result.warning) push({ msg: result.warning });
+                      setPanel(null);
+                      router.refresh();
+                    } else {
+                      push({ msg: result.error });
+                    }
+                  });
+                }}
+              >
+                Send reminder
+              </Button>
+            </>
+          )}
         </div>
       )}
     </Card>

@@ -2,6 +2,7 @@ import { Card, SectionLabel } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { TaskCard } from "./task-card";
 import type { EngineerOption, TaskHoldView, TaskView } from "@/lib/pm/queries";
+import type { TaskReminderView } from "@/lib/reminders/queries";
 
 export interface TaskListProps {
   tasks: readonly TaskView[];
@@ -12,10 +13,26 @@ export interface TaskListProps {
   holdByTask: ReadonlyMap<string, TaskHoldView | null>;
   bugCountByTask: ReadonlyMap<string, number>;
   engineers: readonly EngineerOption[];
+  /** Reminder feature (0012) — owner-only, undefined props are fine for non-owner renders. */
+  projectId?: string;
+  clientEmail?: string | null;
+  reminderByTask?: ReadonlyMap<string, TaskReminderView | null>;
 }
 
 /** Task list + completion progress bar (done/total). */
-export function TaskList({ tasks, progress, isOwner, canWrite, currentUserId, holdByTask, bugCountByTask, engineers }: TaskListProps) {
+export function TaskList({
+  tasks,
+  progress,
+  isOwner,
+  canWrite,
+  currentUserId,
+  holdByTask,
+  bugCountByTask,
+  engineers,
+  projectId,
+  clientEmail,
+  reminderByTask,
+}: TaskListProps) {
   const done = tasks.filter((t) => t.status === "done").length;
 
   return (
@@ -46,6 +63,9 @@ export function TaskList({ tasks, progress, isOwner, canWrite, currentUserId, ho
               openHold={holdByTask.get(task.id) ?? null}
               bugCount={bugCountByTask.get(task.id) ?? 0}
               engineers={engineers}
+              projectId={projectId}
+              clientEmail={clientEmail}
+              activeReminder={reminderByTask?.get(task.id) ?? null}
             />
           ))}
         </div>

@@ -13,6 +13,7 @@ import {
   getProjectTasks,
   listEngineers,
 } from "@/lib/pm/queries";
+import { getActiveReminderForTask, getProjectClientEmail } from "@/lib/reminders/queries";
 import { TaskList } from "@/components/projects/task-list";
 import { NewTaskForm } from "@/components/projects/new-task-form";
 import { ApprovalsInbox } from "@/components/projects/approvals-inbox";
@@ -60,6 +61,18 @@ export default async function ProjectOverviewPage({ params }: OverviewPageProps)
   ]);
   const holdByTask = new Map(holdEntries);
 
+  const [clientEmail, reminderEntries] = await Promise.all([
+    owner ? getProjectClientEmail(supabase, projectId) : Promise.resolve(null),
+    owner
+      ? Promise.all(
+          tasks
+            .filter((t) => holdByTask.get(t.id))
+            .map(async (t) => [t.id, await getActiveReminderForTask(supabase, t.id)] as const),
+        )
+      : Promise.resolve([]),
+  ]);
+  const reminderByTask = new Map(reminderEntries);
+
   let bugCountByTask = new Map<string, number>();
   let taskTitleById = new Map<string, string>();
   let bugs: Awaited<ReturnType<typeof getBugsForProject>> = [];
@@ -100,6 +113,9 @@ export default async function ProjectOverviewPage({ params }: OverviewPageProps)
         holdByTask={holdByTask}
         bugCountByTask={bugCountByTask}
         engineers={engineers}
+        projectId={projectId}
+        clientEmail={clientEmail}
+        reminderByTask={reminderByTask}
       />
 
       {owner && (

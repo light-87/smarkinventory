@@ -522,6 +522,8 @@ export const ProjectRowSchema = z.object({
   show_time_to_client: z.boolean(),
   /** (0010) non-null = created by scripts/import-clockify.ts (legacy project, no KPI). */
   imported_at: zTimestamptz.nullable(),
+  /** (0012) owner-entered client contact for reminder emails — the client has no account. */
+  client_email: z.string().nullable(),
 });
 export type ProjectRow = z.infer<typeof ProjectRowSchema>;
 
@@ -1087,6 +1089,24 @@ export const TaskHoldRowSchema = z.object({
 });
 export type TaskHoldRow = z.infer<typeof TaskHoldRowSchema>;
 
+/**
+ * (0012) `smark_task_reminders` — recurring "client input still needed" email
+ * for a task with an open `smark_task_holds` row. One active row per task
+ * (app-level upsert in lib/reminders/actions.ts, not a DB constraint).
+ */
+export const TaskReminderRowSchema = z.object({
+  ...baseRow,
+  task_id: zUuid,
+  subject: z.string(),
+  body: z.string(),
+  frequency_days: z.number().int().positive(),
+  last_sent_at: zTimestamptz.nullable(),
+  next_send_at: zTimestamptz,
+  active: z.boolean(),
+  created_by: zUuid.nullable(),
+});
+export type TaskReminderRow = z.infer<typeof TaskReminderRowSchema>;
+
 /** `smark_project_activities` [R2-06] — append-only feed (15-min author edit
  * window enforced in app). */
 export const ProjectActivityRowSchema = z.object({
@@ -1318,6 +1338,7 @@ export const TABLES = {
   bugs: "smark_bugs",
   change_requests: "smark_change_requests",
   task_holds: "smark_task_holds",
+  task_reminders: "smark_task_reminders",
   project_activities: "smark_project_activities",
   project_documents: "smark_project_documents",
   ai_aliases: "smark_ai_aliases",
@@ -1395,6 +1416,7 @@ export type Database = {
       smark_bugs: TableOf<BugRow>;
       smark_change_requests: TableOf<ChangeRequestRow>;
       smark_task_holds: TableOf<TaskHoldRow>;
+      smark_task_reminders: TableOf<TaskReminderRow>;
       smark_project_activities: TableOf<ProjectActivityRow>;
       smark_project_documents: TableOf<ProjectDocumentRow>;
       smark_ai_aliases: TableOf<AiAliasRow>;

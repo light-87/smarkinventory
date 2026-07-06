@@ -341,6 +341,11 @@ export async function endHoldAction(input: EndHoldInput): Promise<ActionResult> 
       assigneeUserIds: task.assignees.map((a) => a.userId),
     });
   }
+
+  // (0012) Input's in — the client no longer needs chasing. Deactivate the
+  // task's active reminder, if any, in the same action as the hold closing.
+  await supabase.from(TABLES.task_reminders).update({ active: false }).eq("task_id", parsed.taskId).eq("active", true);
+
   revalidateProject(projectId);
   return { ok: true };
 }
