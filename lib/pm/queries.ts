@@ -234,9 +234,14 @@ async function attachAssignees(supabase: DB, taskIds: string[]): Promise<Map<str
   const byTask = new Map<string, TaskAssigneeView[]>();
   if (taskIds.length === 0) return byTask;
 
+  // `smark_app_users!user_id(...)` disambiguates the embed: smark_task_assignees
+  // has TWO FKs into smark_app_users (user_id AND assigned_by), so the bare
+  // `smark_app_users(...)` form is rejected by PostgREST at query time
+  // ("more than one relationship was found") — this is the FK-by-column hint
+  // syntax, not a column alias.
   const { data, error } = await supabase
     .from(TABLES.task_assignees)
-    .select("task_id, user_id, estimated_hours, smark_app_users(username, display_name)")
+    .select("task_id, user_id, estimated_hours, smark_app_users!user_id(username, display_name)")
     .in("task_id", taskIds);
   assertNoError(error, "smark_task_assignees");
 
