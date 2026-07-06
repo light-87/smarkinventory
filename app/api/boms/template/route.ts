@@ -11,7 +11,8 @@
 
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { canSee } from "@/lib/auth/roles";
+import { effectiveCanSee } from "@/lib/rbac/access";
+import { getModuleGrantsIfEmployee } from "@/lib/rbac/queries";
 import { getEffectiveBomColumns } from "@/lib/bom/template";
 import { buildBomTemplateWorkbook } from "@/lib/bom/xlsx-template";
 
@@ -26,7 +27,8 @@ export async function GET() {
   }
 
   const { data: role } = await supabase.rpc("smark_role");
-  if (!role || !canSee(role, "projects")) {
+  const grantedModules = role ? await getModuleGrantsIfEmployee(supabase, user.id, role) : [];
+  if (!role || !effectiveCanSee(role, "projects", grantedModules)) {
     return NextResponse.json({ error: "You don't have access to Projects." }, { status: 403 });
   }
 

@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionUser } from "@/lib/auth/session";
-import { canSee, canWrite, dataScope, isOwner } from "@/lib/auth/roles";
+import { canWrite, dataScope, isOwner } from "@/lib/auth/roles";
+import { effectiveCanSee } from "@/lib/rbac/access";
 import { getActiveUsers, getAttendanceForDay, getAttendanceForUserDay, getMyProjectOptions } from "@/lib/daily/queries";
 import {
   getCompBalance,
@@ -62,7 +63,7 @@ export default async function AttendancePage({
       </div>
     );
   }
-  if (!canSee(user.role, "attendance")) {
+  if (!effectiveCanSee(user.role, "attendance", user.grantedModules)) {
     return (
       <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
         <EmptyState title="No access" description="Your account doesn't have access to Attendance." />

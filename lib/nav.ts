@@ -14,8 +14,33 @@
  */
 
 import { canSee, type Area, type Role } from "@/lib/auth/roles";
+import { effectiveCanSee } from "@/lib/rbac/access";
+import type { Module } from "@/lib/rbac/types";
 
-export type NavGroupId = "overview" | "operate" | "projects" | "team" | "footer";
+/**
+ * (0013 nav categorization) 4 hybrid groups + `overview` (Dashboard, always
+ * pinned above the groups, never collapsible) + `footer` (AI Memory ·
+ * Settings, below the divider). The 4 category labels (`Inventory` /
+ * `Ordering` / `Team` / `Projects`) are exact — Rail renders them as
+ * collapsible, collapsed-by-default section headers; the dashboard's 4-box
+ * launcher (app/(app)/dashboard/page.tsx) uses the same ids/labels.
+ */
+export type NavGroupId = "overview" | "inventory" | "ordering" | "team" | "projects" | "footer";
+
+/** Desktop rail's 4 collapsible section headers, in render order. `overview`/`footer` are not collapsible (rendered separately by Rail). */
+export const NAV_GROUP_LABELS: Record<Exclude<NavGroupId, "overview" | "footer">, string> = {
+  inventory: "Inventory",
+  ordering: "Ordering",
+  team: "Team",
+  projects: "Projects",
+};
+
+export const RAIL_GROUP_ORDER: readonly Exclude<NavGroupId, "overview" | "footer">[] = [
+  "inventory",
+  "ordering",
+  "team",
+  "projects",
+];
 
 export interface NavItem {
   /** Stable id — also the key into components/shell/icons.tsx's NAV_ICONS map. */
@@ -26,34 +51,19 @@ export interface NavItem {
   group: NavGroupId;
 }
 
-/** Desktop rail section headers, in render order. `footer` renders below the divider, unlabeled. */
-export const NAV_GROUP_LABELS: Record<Exclude<NavGroupId, "footer">, string> = {
-  overview: "Overview",
-  operate: "Operate",
-  projects: "Projects",
-  team: "Team",
-};
-
-export const RAIL_GROUP_ORDER: readonly Exclude<NavGroupId, "footer">[] = [
-  "overview",
-  "operate",
-  "projects",
-  "team",
-];
-
 /**
  * The full surface list — desktop rail order top to bottom, `footer` group
  * rendered separately below a divider (AI Memory · Settings).
  */
 export const NAV_ITEMS: readonly NavItem[] = [
   { id: "dashboard", area: "dashboard", label: "Dashboard", href: "/dashboard", group: "overview" },
-  { id: "inventory", area: "inventory", label: "Inventory", href: "/inventory", group: "overview" },
-  { id: "shelves", area: "shelves", label: "Shelves", href: "/shelves", group: "overview" },
-  { id: "scan", area: "scan", label: "Scan", href: "/scan", group: "operate" },
-  { id: "bulk_takeout", area: "bulk_takeout", label: "Bulk takeout", href: "/bulk-takeout", group: "operate" },
-  { id: "receive", area: "receive", label: "Receive", href: "/receive", group: "operate" },
+  { id: "inventory", area: "inventory", label: "Inventory", href: "/inventory", group: "inventory" },
+  { id: "shelves", area: "shelves", label: "Shelves", href: "/shelves", group: "inventory" },
+  { id: "scan", area: "scan", label: "Scan", href: "/scan", group: "inventory" },
+  { id: "bulk_takeout", area: "bulk_takeout", label: "Bulk takeout", href: "/bulk-takeout", group: "inventory" },
+  { id: "receive", area: "receive", label: "Receive", href: "/receive", group: "inventory" },
   { id: "projects", area: "projects", label: "Projects", href: "/projects", group: "projects" },
-  { id: "cart", area: "cart", label: "Cart", href: "/cart", group: "projects" },
+  { id: "cart", area: "cart", label: "Cart", href: "/cart", group: "ordering" },
   { id: "daily_reports", area: "daily_reports", label: "Daily Reports", href: "/daily", group: "team" },
   { id: "attendance", area: "attendance", label: "Attendance", href: "/attendance", group: "team" },
   // Owner-only PM analytics — canSee() hides this for employee/accountant automatically (area is "hidden" for both in roles.ts).
@@ -90,6 +100,31 @@ export function visibleMobilePrimaryItems(role: Role): NavItem[] {
 /** Everything else the role can see — the More-sheet contents (R2-22). */
 export function visibleMoreSheetItems(role: Role): NavItem[] {
   return NAV_ITEMS.filter((item) => !MOBILE_PRIMARY_IDS.includes(item.id) && canSee(role, item.area));
+}
+
+/**
+ * (0013) Gated twins of the three functions above — `canSee` PLUS, for
+ * `employee` only, module grants (lib/rbac/access.ts effectiveCanSee).
+ * Additive: `visibleNavItems`/`visibleMobilePrimaryItems`/
+ * `visibleMoreSheetItems` above are untouched (still pure role-based; any
+ * existing caller — including tests/unit/nav.test.ts if present — keeps
+ * working unchanged). The shell chrome (Rail/BottomBar/MoreSheet) calls
+ * these gated variants instead, passing the session user's `grantedModules`.
+ */
+export function effectiveVisibleNavItems(role: Role, grantedModules: readonly Module[]): NavItem[] {
+  return NAV_ITEMS.filter((item) => effectiveCanSee(role, item.area, grantedModules));
+}
+
+export function effectiveVisibleMobilePrimaryItems(role: Role, grantedModules: readonly Module[]): NavItem[] {
+  return NAV_ITEMS.filter(
+    (item) => MOBILE_PRIMARY_IDS.includes(item.id) && effectiveCanSee(role, item.area, grantedModules),
+  );
+}
+
+export function effectiveVisibleMoreSheetItems(role: Role, grantedModules: readonly Module[]): NavItem[] {
+  return NAV_ITEMS.filter(
+    (item) => !MOBILE_PRIMARY_IDS.includes(item.id) && effectiveCanSee(role, item.area, grantedModules),
+  );
 }
 
 /**

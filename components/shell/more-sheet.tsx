@@ -3,24 +3,27 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import type { Role } from "@/lib/auth/roles";
-import { visibleMoreSheetItems } from "@/lib/nav";
+import type { Module } from "@/lib/rbac/types";
+import { effectiveVisibleMoreSheetItems } from "@/lib/nav";
 import { NAV_ICONS } from "./icons";
 import { NavLinkPending } from "./nav-link-pending";
 
 /**
  * Mobile "More" bottom sheet (R2-22) — every role-visible surface NOT in the
  * bottom bar's 4 primary slots: icon + label grid, 44px+ targets. Deep links
- * unchanged; the matrix (lib/auth/roles) decides what SHOWS, this component
- * only lays it out.
+ * unchanged; the matrix (lib/auth/roles) PLUS, for employees, module grants
+ * (lib/rbac, 0013) decides what SHOWS, this component only lays it out.
  */
 export function MoreSheet({
   open,
   onClose,
   role,
+  grantedModules = [],
 }: {
   open: boolean;
   onClose: () => void;
   role: Role;
+  grantedModules?: readonly Module[];
 }) {
   useEffect(() => {
     if (!open) return;
@@ -41,7 +44,7 @@ export function MoreSheet({
 
   if (!open) return null;
 
-  const items = visibleMoreSheetItems(role);
+  const items = effectiveVisibleMoreSheetItems(role, grantedModules);
 
   return (
     <>

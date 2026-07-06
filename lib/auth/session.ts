@@ -15,6 +15,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { TABLES } from "@/types/db";
 import type { Role } from "@/lib/auth/roles";
+import { getModuleGrantsIfEmployee } from "@/lib/rbac/queries";
+import type { Module } from "@/lib/rbac/types";
 
 export interface SessionUser {
   id: string;
@@ -28,6 +30,12 @@ export interface SessionUser {
    * drives a redirect for role === "employee".
    */
   onboardedAt: string | null;
+  /**
+   * (0013) Module grants — only ever populated for role === "employee";
+   * owner/accountant get an empty array since lib/rbac/access.ts never
+   * consults grants for them anyway. Feeds effectiveCanSee()/nav filtering.
+   */
+  grantedModules: Module[];
 }
 
 /** Current signed-in + active user, or `null` (no session, or deactivated). */
@@ -48,11 +56,15 @@ export async function getSessionUser(): Promise<SessionUser | null> {
 
   if (profileError || !profile || !profile.active) return null;
 
+  const role = profile.role as Role;
+  const grantedModules = await getModuleGrantsIfEmployee(supabase, profile.id, role);
+
   return {
     id: profile.id,
     username: profile.username,
     displayName: profile.display_name,
-    role: profile.role as Role,
+    role,
     onboardedAt: profile.onboarded_at,
+    grantedModules,
   };
 }

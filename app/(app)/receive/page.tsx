@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
-import { canSee, canWrite } from "@/lib/auth/roles";
+import { canWrite } from "@/lib/auth/roles";
+import { effectiveCanSee } from "@/lib/rbac/access";
+import { getModuleGrantsIfEmployee } from "@/lib/rbac/queries";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ReceiveScreen, type ReceiveCard } from "@/components/receive/receive-screen";
 import {
@@ -32,8 +34,9 @@ export default async function ReceivePage({
     data: { user },
   } = await supabase.auth.getUser();
   const { data: role } = user ? await supabase.rpc("smark_role") : { data: null };
+  const grantedModules = role && user ? await getModuleGrantsIfEmployee(supabase, user.id, role) : [];
 
-  if (!role || !canSee(role, "receive")) {
+  if (!role || !effectiveCanSee(role, "receive", grantedModules)) {
     return (
       <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
         <EmptyState title="No access" description="Sign in with an owner or employee account to use Receive." />

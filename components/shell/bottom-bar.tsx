@@ -3,24 +3,29 @@
 import Link from "next/link";
 import { cn } from "@/lib/cn";
 import { type Role } from "@/lib/auth/roles";
-import { isNavItemActive, visibleMobilePrimaryItems } from "@/lib/nav";
+import type { Module } from "@/lib/rbac/types";
+import { effectiveVisibleMobilePrimaryItems, isNavItemActive } from "@/lib/nav";
 import { MoreIcon, NAV_ICONS } from "./icons";
 import { NavLinkPending } from "./nav-link-pending";
 
 /**
  * Mobile bottom bar (<768px, R2-22): Dashboard · Inventory · Scan · Projects
  * · More. The 5th slot always opens the More sheet (never a route).
+ * (0013) Visibility runs through `effectiveVisibleMobilePrimaryItems` — the
+ * module-grant-aware twin of `visibleMobilePrimaryItems`.
  */
 export function BottomBar({
   role,
   pathname,
+  grantedModules = [],
   onMore,
 }: {
   role: Role;
   pathname: string;
+  grantedModules?: readonly Module[];
   onMore: () => void;
 }) {
-  const items = visibleMobilePrimaryItems(role);
+  const items = effectiveVisibleMobilePrimaryItems(role, grantedModules);
 
   return (
     // 60px of tab content ABOVE the safe-area inset. Putting the inset as

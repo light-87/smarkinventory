@@ -444,6 +444,25 @@ export const EmployeeDocumentRowSchema = z.object({
 });
 export type EmployeeDocumentRow = z.infer<typeof EmployeeDocumentRowSchema>;
 
+/**
+ * (0013) Grantable module bundles — Settings → Users → module permissions
+ * (lib/rbac/*). `project_dashboard` is deliberately NOT part of
+ * `project_management` — it stays owner-only always, never grantable
+ * (lib/rbac/types.ts MODULE_AREAS is the app-side twin of this list).
+ */
+export const ModuleSchema = z.enum(["inventory", "project_management", "attendance"]);
+export type Module = z.infer<typeof ModuleSchema>;
+
+/** `smark_user_module_grants` — one row per (user, module) grant. */
+export const ModuleGrantRowSchema = z.object({
+  id: zUuid,
+  user_id: zUuid,
+  module: ModuleSchema,
+  granted_by: zUuid.nullable(),
+  created_at: zTimestamptz,
+});
+export type ModuleGrantRow = z.infer<typeof ModuleGrantRowSchema>;
+
 /* ────────────────────────────────────────────────────────────────────────────
  * §1 Catalog & reference
  * ──────────────────────────────────────────────────────────────────────────── */
@@ -1349,6 +1368,7 @@ export const TABLES = {
   worker_heartbeats: "smark_worker_heartbeats",
   employee_private: "smark_employee_private",
   employee_documents: "smark_employee_documents",
+  module_grants: "smark_user_module_grants",
 } as const;
 
 export const VIEWS = {
@@ -1427,6 +1447,7 @@ export type Database = {
       smark_worker_heartbeats: TableOf<WorkerHeartbeatRow>;
       smark_employee_private: TableOf<EmployeePrivateRow>;
       smark_employee_documents: TableOf<EmployeeDocumentRow>;
+      smark_user_module_grants: TableOf<ModuleGrantRow>;
     };
     Views: {
       v_daily_activity: ViewOf<DailyActivityRow>;

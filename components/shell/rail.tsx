@@ -1,12 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/cn";
-import { canSee, type Role } from "@/lib/auth/roles";
+import { type Role } from "@/lib/auth/roles";
+import type { Module } from "@/lib/rbac/types";
 import {
   NAV_GROUP_LABELS,
-  NAV_ITEMS,
   RAIL_GROUP_ORDER,
+  effectiveVisibleNavItems,
   isNavItemActive,
   type NavItem,
 } from "@/lib/nav";
@@ -14,12 +16,32 @@ import { NAV_ICONS } from "./icons";
 import { NavLinkPending } from "./nav-link-pending";
 
 /**
- * Desktop left rail (>=768px) — grouped Overview / Operate / Projects / Team,
- * footer AI Memory + Settings below a divider. Prototype visuals: 236px,
- * pill items, orange left tick + dark pill on the active row.
+ * Desktop left rail (>=768px) — Dashboard pinned at top (not collapsible),
+ * then the 4 category headers (Inventory/Ordering/Team/Projects, 0013 nav
+ * categorization) as collapsible sections — collapsed by default, click to
+ * expand — then AI Memory + Settings below a divider. A role whose visible
+ * items only populate 1-2 of the 4 categories simply never renders the
+ * others (no forced empty headers). Visibility now runs through
+ * `effectiveVisibleNavItems` (lib/nav.ts) — canSee() PLUS, for `employee`,
+ * module grants (lib/rbac) — instead of the raw role-only `canSee`.
  */
-export function Rail({ role, pathname }: { role: Role; pathname: string }) {
-  const footerItems = NAV_ITEMS.filter((item) => item.group === "footer");
+export function Rail({
+  role,
+  pathname,
+  grantedModules = [],
+}: {
+  role: Role;
+  pathname: string;
+  grantedModules?: readonly Module[];
+}) {
+  const [openGroups, setOpenGroups] = useState<Partial<Record<(typeof RAIL_GROUP_ORDER)[number], boolean>>>({});
+
+  const items = effectiveVisibleNavItems(role, grantedModules);
+  const overviewItems = items.filter((item) => item.group === "overview");
+  const footerItems = items.filter((item) => item.group === "footer");
+
+  const toggleGroup = (group: (typeof RAIL_GROUP_ORDER)[number]) =>
+    setOpenGroups((prev) => ({ ...prev, [group]: !prev[group] }));
 
   return (
     <aside className="sticky top-0 hidden h-dvh w-[236px] flex-none flex-col border-r border-charcoal bg-obsidian md:flex">
@@ -30,29 +52,50 @@ export function Rail({ role, pathname }: { role: Role; pathname: string }) {
       </div>
 
       <nav className="flex flex-1 flex-col overflow-y-auto overflow-x-hidden py-3 pr-3 pl-4">
+        {overviewItems.map((item) => (
+          <RailLink key={item.id} item={item} active={isNavItemActive(pathname, item.href)} />
+        ))}
+
         {RAIL_GROUP_ORDER.map((group) => {
-          const items = NAV_ITEMS.filter((item) => item.group === group && canSee(role, item.area));
-          if (items.length === 0) return null;
+          const groupItems = items.filter((item) => item.group === group);
+          if (groupItems.length === 0) return null;
+
+          // A group containing the active route stays expanded regardless of
+          // its collapsed state, so navigating deep-links in never hides the
+          // page you're actually on behind a collapsed header.
+          const hasActiveItem = groupItems.some((item) => isNavItemActive(pathname, item.href));
+          const expanded = hasActiveItem || (openGroups[group] ?? false);
+
           return (
             <div key={group} className="mb-1">
-              <div className="px-2 pt-3.5 pb-1 text-[10px] tracking-[0.08em] text-faint uppercase">
+              <button
+                type="button"
+                onClick={() => toggleGroup(group)}
+                aria-expanded={expanded}
+                className="flex w-full min-h-[28px] items-center justify-between gap-2 rounded-md px-2 pt-3.5 pb-1 text-[10px] tracking-[0.08em] text-faint uppercase transition-colors hover:text-smoke"
+              >
                 {NAV_GROUP_LABELS[group]}
-              </div>
-              {items.map((item) => (
-                <RailLink key={item.id} item={item} active={isNavItemActive(pathname, item.href)} />
-              ))}
+                <span
+                  aria-hidden
+                  className={cn("text-[10px] transition-transform", expanded ? "rotate-90" : "rotate-0")}
+                >
+                  &rsaquo;
+                </span>
+              </button>
+              {expanded &&
+                groupItems.map((item) => (
+                  <RailLink key={item.id} item={item} active={isNavItemActive(pathname, item.href)} />
+                ))}
             </div>
           );
         })}
       </nav>
 
-      {footerItems.some((item) => canSee(role, item.area)) && (
+      {footerItems.length > 0 && (
         <div className="border-t border-border-faint px-4 py-3">
-          {footerItems
-            .filter((item) => canSee(role, item.area))
-            .map((item) => (
-              <RailLink key={item.id} item={item} active={isNavItemActive(pathname, item.href)} />
-            ))}
+          {footerItems.map((item) => (
+            <RailLink key={item.id} item={item} active={isNavItemActive(pathname, item.href)} />
+          ))}
         </div>
       )}
     </aside>

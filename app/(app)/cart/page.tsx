@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
-import { canSee, canWrite } from "@/lib/auth/roles";
+import { canWrite } from "@/lib/auth/roles";
+import { effectiveCanSee } from "@/lib/rbac/access";
+import { getModuleGrantsIfEmployee } from "@/lib/rbac/queries";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CartScreen } from "@/components/cart/cart-screen";
 import { recomputeShortfallCartItems } from "@/lib/orders/demand";
@@ -19,8 +21,9 @@ export default async function CartPage() {
     data: { user },
   } = await supabase.auth.getUser();
   const { data: role } = user ? await supabase.rpc("smark_role") : { data: null };
+  const grantedModules = role && user ? await getModuleGrantsIfEmployee(supabase, user.id, role) : [];
 
-  if (!role || !canSee(role, "cart")) {
+  if (!role || !effectiveCanSee(role, "cart", grantedModules)) {
     return (
       <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
         <EmptyState title="No access" description="Sign in with an owner, employee, or accountant account to view the cart." />

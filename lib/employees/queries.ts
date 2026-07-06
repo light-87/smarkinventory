@@ -47,6 +47,20 @@ export async function getOwnPrivateFields(
   return { pan_number, bank_account_name, bank_account_number, bank_ifsc, bank_name };
 }
 
+/** Minimal active-employee list (id/username/display_name only) — feeds Settings → Users' module-grant toggle grid, which needs no PII. */
+export async function getActiveEmployeeOptions(
+  supabase: SupabaseClient<Database>,
+): Promise<Pick<OwnProfile, "id" | "username" | "display_name">[]> {
+  const { data, error } = await supabase
+    .from(TABLES.app_users)
+    .select("id, username, display_name")
+    .eq("role", "employee")
+    .eq("active", true)
+    .order("username", { ascending: true });
+  if (error) throw new Error(error.message);
+  return data ?? [];
+}
+
 export async function getOwnDocuments(supabase: SupabaseClient<Database>, userId: string) {
   const { data, error } = await supabase
     .from(TABLES.employee_documents)

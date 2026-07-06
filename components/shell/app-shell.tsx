@@ -42,7 +42,7 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
     <NavigationProgressProvider>
       <div className="flex h-dvh overflow-hidden bg-obsidian">
         <TopProgressBar />
-        <Rail role={user.role} pathname={pathname} />
+        <Rail role={user.role} pathname={pathname} grantedModules={user.grantedModules} />
         <div className="flex min-w-0 flex-1 flex-col">
           <Header user={user} pathname={pathname} />
           {/* id targeted by the scroll-lock effect every modal/drawer/sheet
@@ -54,8 +54,18 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
             {children}
           </main>
         </div>
-        <BottomBar role={user.role} pathname={pathname} onMore={() => setMoreOpen(true)} />
-        <MoreSheet open={moreOpen} onClose={() => setMoreOpen(false)} role={user.role} />
+        <BottomBar
+          role={user.role}
+          pathname={pathname}
+          grantedModules={user.grantedModules}
+          onMore={() => setMoreOpen(true)}
+        />
+        <MoreSheet
+          open={moreOpen}
+          onClose={() => setMoreOpen(false)}
+          role={user.role}
+          grantedModules={user.grantedModules}
+        />
         <ToastViewport className="!bottom-[calc(76px_+_env(safe-area-inset-bottom))] md:!bottom-7" />
         <RegisterServiceWorker />
       </div>

@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { BulkTakeoutScreen } from "@/components/takeout/bulk-takeout-screen";
 import { EmptyState } from "@/components/ui/empty-state";
-import { canSee, canWrite } from "@/lib/auth/roles";
+import { canWrite } from "@/lib/auth/roles";
+import { effectiveCanSee } from "@/lib/rbac/access";
+import { getModuleGrantsIfEmployee } from "@/lib/rbac/queries";
 import { createClient } from "@/lib/supabase/server";
 import { getPickableProjects } from "@/lib/takeout/queries";
 
@@ -19,8 +21,9 @@ export default async function BulkTakeoutPage() {
     data: { user },
   } = await supabase.auth.getUser();
   const { data: role } = user ? await supabase.rpc("smark_role") : { data: null };
+  const grantedModules = role && user ? await getModuleGrantsIfEmployee(supabase, user.id, role) : [];
 
-  if (!role || !canSee(role, "bulk_takeout")) {
+  if (!role || !effectiveCanSee(role, "bulk_takeout", grantedModules)) {
     return (
       <div className="mx-auto max-w-[960px] px-4 py-10 sm:px-6">
         <EmptyState title="No access" description="Sign in with an owner, employee, or accountant account to view Bulk takeout." />

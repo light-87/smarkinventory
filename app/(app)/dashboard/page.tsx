@@ -13,7 +13,9 @@ import { getApprovedLeaveRequestsOverlapping, getHolidays, getUpcomingBirthdays 
 import { datesInRange, findHolidayForDate } from "@/lib/attendance/status";
 import { istDateOnly } from "@/lib/timezone";
 import { getOldestOpenTasks } from "@/lib/pm/queries";
+import { effectiveVisibleNavItems, RAIL_GROUP_ORDER, NAV_GROUP_LABELS } from "@/lib/nav";
 import { StatGrid } from "@/components/dashboard/stat-grid";
+import { NavLauncher, type LauncherBox } from "@/components/dashboard/nav-launcher";
 import { RecentMovementsCard } from "@/components/dashboard/recent-movements-card";
 import { AgentActivityCard } from "@/components/dashboard/agent-activity-card";
 import { UsageByProjectCard } from "@/components/dashboard/usage-by-project-card";
@@ -93,11 +95,22 @@ export default async function DashboardPage() {
     (activeUsersSection.data ?? []).map((u) => [u.id, u.displayName ?? u.username]),
   );
 
+  // 4-box launcher (0013 nav categorization): one box per category the user
+  // has at least one visible item in, linking to the FIRST such item (not a
+  // hardcoded route) so it never points somewhere this user can't reach.
+  const visibleItems = user ? effectiveVisibleNavItems(user.role, user.grantedModules) : [];
+  const launcherBoxes: LauncherBox[] = RAIL_GROUP_ORDER.map((group) => {
+    const first = visibleItems.find((item) => item.group === group);
+    return first ? { iconId: first.id, label: NAV_GROUP_LABELS[group], href: first.href } : null;
+  }).filter((box): box is LauncherBox => box !== null);
+
   return (
     <div className="mx-auto max-w-[1280px] px-4 pt-6 pb-24 sm:px-6 sm:pt-7">
       <div className="mb-6 sm:mb-[26px]">
         <StatGrid stats={stats.data} error={stats.error} />
       </div>
+
+      <NavLauncher boxes={launcherBoxes} />
       <div className="grid grid-cols-1 gap-4 md:grid-cols-[1.6fr_1fr]">
         <RecentMovementsCard movements={movements.data} error={movements.error} />
         <div className="flex flex-col gap-4">
