@@ -409,7 +409,7 @@ export type DesktopRunContextResult =
 export async function createDesktopRun(
   supabase: DB,
   service: DB,
-  input: { bomId: string; actorId: string; lineLimit?: number },
+  input: { bomId: string; actorId: string; lineLimit?: number; clientRendersColumns?: boolean },
 ): Promise<DesktopRunContextResult> {
   const loaded = await loadBomContext(supabase, input.bomId);
   if ("error" in loaded) return { ok: false, error: loaded.error };
@@ -442,10 +442,13 @@ export async function createDesktopRun(
         ] as const,
     ),
   );
-  // Fold LCSC PN / part link / custom columns into each line's note so the
-  // already-installed desktop runner (which only prints `priorityNote`) shows
-  // the agent every column — no desktop re-install needed.
-  const workerLines = buildWorkerBomLines(toOrderLines, bom.build_qty, aliasedTextByLineId).map(foldColumnsIntoNoteForDesktop);
+  // Fold LCSC PN / part link / custom columns into each line's note so an
+  // OLDER desktop runner (which only prints `priorityNote`) still shows the
+  // agent every column — no re-install needed. v0.2.0+ clients render those
+  // columns first-class and send `clientRendersColumns`, so we skip the fold
+  // to avoid printing them twice.
+  const baseLines = buildWorkerBomLines(toOrderLines, bom.build_qty, aliasedTextByLineId);
+  const workerLines = input.clientRendersColumns ? baseLines : baseLines.map(foldColumnsIntoNoteForDesktop);
 
   const runId = crypto.randomUUID();
   const config: WorkerRunConfig = {

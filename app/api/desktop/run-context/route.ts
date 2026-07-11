@@ -21,6 +21,10 @@ import { createDesktopRun } from "@/lib/runs/enqueue";
 const InputSchema = z.object({
   bomId: z.uuid(),
   lineLimit: z.coerce.number().int().min(1).max(500).optional(),
+  // v0.2.0+ desktop clients render LCSC PN / part link / custom columns in
+  // their own CLAUDE.md, so the server skips the note fold-in for them. Absent
+  // (older installs) → the server folds those columns into the note instead.
+  clientRendersColumns: z.boolean().optional(),
 });
 
 export async function POST(request: Request): Promise<NextResponse> {
@@ -46,7 +50,12 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   const service = createServiceClient(); // digest read is owner-only RLS — same documented exception as enqueueRun
-  const result = await createDesktopRun(supabase, service, { bomId: input.bomId, actorId: user.id, lineLimit: input.lineLimit });
+  const result = await createDesktopRun(supabase, service, {
+    bomId: input.bomId,
+    actorId: user.id,
+    lineLimit: input.lineLimit,
+    clientRendersColumns: input.clientRendersColumns,
+  });
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 422 });
 
   return NextResponse.json({
