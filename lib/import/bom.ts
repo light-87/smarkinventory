@@ -67,7 +67,7 @@ type BomColumnRole =
  * Includes the "LCSC" short form alongside "LCSC Part #" since a distributor
  * added via Settings (FEATURES §16) may label the column differently.
  */
-const BOM_HEADER_ROLES: Record<string, BomColumnRole> = {
+export const BOM_HEADER_ROLES: Record<string, BomColumnRole> = {
   "#": "line_no",
   reference: "references",
   references: "references",
@@ -82,6 +82,15 @@ const BOM_HEADER_ROLES: Record<string, BomColumnRole> = {
   "part link": "part_link",
   "lcsc part #": "lcsc_pn",
   "lcsc part number": "lcsc_pn",
+  // "LCSC_Part" normalizes to "lcsc_part" (underscores aren't collapsed), plus
+  // the other spellings buyers use for the LCSC C-number column.
+  "lcsc_part": "lcsc_pn",
+  "lcsc part": "lcsc_pn",
+  "lcsc pn": "lcsc_pn",
+  "lcsc_pn": "lcsc_pn",
+  "lcsc part no": "lcsc_pn",
+  "lcsc part no.": "lcsc_pn",
+  "lcsc#": "lcsc_pn",
   lcsc: "lcsc_pn",
 };
 

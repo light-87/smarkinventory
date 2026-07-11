@@ -194,6 +194,31 @@ function buildWorkerBomLines(
   });
 }
 
+/**
+ * Desktop-only: the CLAUDE.md generator inside the ALREADY-INSTALLED desktop
+ * runner (desktop/runner/session.ts) renders each line's `priorityNote` but
+ * not `lcscPn`/`partLink`/`extra`, so those columns never reached the sourcing
+ * agent. Folding them into the note is a pure server-side fix — every desktop
+ * app already deployed on client machines picks it up on the next run with NO
+ * re-install (the fix travels in the run config, not the binary). Leads with
+ * LCSC PN because "LCSC PN given → source from LCSC only" is ordering rule #2.
+ * Not applied to the cloud worker path (enqueueRun) — its prompts render these
+ * fields first-class already.
+ */
+function foldColumnsIntoNoteForDesktop(line: WorkerBomLine): WorkerBomLine {
+  const parts: string[] = [];
+  if (line.lcscPn) parts.push(`LCSC PN: ${line.lcscPn}`);
+  if (line.partLink) parts.push(`part link: ${line.partLink}`);
+  if (line.extra) {
+    for (const [key, value] of Object.entries(line.extra)) {
+      if (value !== null && value !== "") parts.push(`${key}: ${value}`);
+    }
+  }
+  if (parts.length === 0) return line;
+  const existing = line.priorityNote ? ` · ${line.priorityNote}` : "";
+  return { ...line, priorityNote: parts.join(" · ") + existing };
+}
+
 export interface EnqueueRunInput {
   bomId: string;
   tier: ConcurrencyPreset;
@@ -417,7 +442,10 @@ export async function createDesktopRun(
         ] as const,
     ),
   );
-  const workerLines = buildWorkerBomLines(toOrderLines, bom.build_qty, aliasedTextByLineId);
+  // Fold LCSC PN / part link / custom columns into each line's note so the
+  // already-installed desktop runner (which only prints `priorityNote`) shows
+  // the agent every column — no desktop re-install needed.
+  const workerLines = buildWorkerBomLines(toOrderLines, bom.build_qty, aliasedTextByLineId).map(foldColumnsIntoNoteForDesktop);
 
   const runId = crypto.randomUUID();
   const config: WorkerRunConfig = {

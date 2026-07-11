@@ -24,7 +24,7 @@
 // hits the same failure — flagged for that package's owner in this
 // package's report (bom-pipeline can't edit lib/import/**, docs/OWNERSHIP.md).
 import * as XLSX from "xlsx";
-import { parseBomWorkbook, type BomLineRaw } from "@/lib/import/bom";
+import { BOM_HEADER_ROLES, parseBomWorkbook, type BomLineRaw } from "@/lib/import/bom";
 import type { BomLineExtra, BomTemplateColumn, FieldType } from "@/types/db";
 
 export interface UploadedBomLine extends BomLineRaw {
@@ -66,12 +66,16 @@ interface LocatedColumns {
   keep: Partial<Record<KeepRole, number>>;
   priorityCol: number | null;
   customCols: Map<string, number>;
+  /** Every column that is NOT a standard field, the priority note, or a registered custom column — keyed by its raw header. Captured verbatim into `extra` so no column is ever silently dropped (the sourcing agent reads whatever's there). */
+  autoCols: Map<string, number>;
 }
 
 function locateColumns(headerRow: readonly unknown[], customColumns: readonly BomTemplateColumn[]): LocatedColumns {
   const keep: LocatedColumns["keep"] = {};
   let priorityCol: number | null = null;
   const customCols = new Map<string, number>();
+  const customLabels = new Set(customColumns.flatMap((c) => [normalizeHeader(c.label), normalizeHeader(c.key)]));
+  const autoCols = new Map<string, number>();
 
   headerRow.forEach((cell, col) => {
     const normalized = normalizeHeader(cell);
@@ -88,9 +92,18 @@ function locateColumns(headerRow: readonly unknown[], customColumns: readonly Bo
         customCols.set(column.key, col);
       }
     }
+
+    // Anything left over — not a standard field, not the priority note, not a
+    // registered custom column — is captured verbatim so it reaches the agent.
+    const rawKey = String(cell ?? "").trim();
+    const isStandard = BOM_HEADER_ROLES[normalized] !== undefined;
+    const isPriority = PRIORITY_HEADER_CANDIDATES.has(normalized);
+    if (!isStandard && !isPriority && !customLabels.has(normalized) && !autoCols.has(rawKey)) {
+      autoCols.set(rawKey, col);
+    }
   });
 
-  return { keep, priorityCol, customCols };
+  return { keep, priorityCol, customCols, autoCols };
 }
 
 function cellToExtraValue(cell: unknown, type: FieldType): string | number | null {
@@ -119,7 +132,7 @@ export function parseUploadedBomBuffer(
   const sheet = workbook.Sheets[standard.sheet_name];
   const grid = sheet ? (XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: null }) as unknown[][]) : [];
   const headerRow = grid[0] ?? [];
-  const { keep, priorityCol, customCols } = locateColumns(headerRow, customColumns);
+  const { keep, priorityCol, customCols, autoCols } = locateColumns(headerRow, customColumns);
 
   const extras: { priorityNote: string | null; extra: BomLineExtra | null }[] = [];
   for (let r = 1; r < grid.length; r += 1) {
@@ -138,16 +151,23 @@ export function parseUploadedBomBuffer(
     const priorityNote = cellIsBlank(priorityRaw) ? null : String(priorityRaw).trim();
 
     let extra: BomLineExtra | null = null;
-    if (customCols.size > 0) {
-      const values: BomLineExtra = {};
-      for (const column of customColumns) {
-        const col = customCols.get(column.key);
-        if (col === undefined) continue;
-        const value = cellToExtraValue(cellAt(col), column.type);
-        if (value !== null) values[column.key] = value;
-      }
-      if (Object.keys(values).length > 0) extra = values;
+    const values: BomLineExtra = {};
+    // Registered custom columns keep their configured slug + type.
+    for (const column of customColumns) {
+      const col = customCols.get(column.key);
+      if (col === undefined) continue;
+      const value = cellToExtraValue(cellAt(col), column.type);
+      if (value !== null) values[column.key] = value;
     }
+    // Every other unrecognized column is captured verbatim (text) under its raw
+    // header, so no column is ever silently dropped — the sourcing agent reads
+    // whatever the sheet carried (LCSC_Part, supplier codes, RoHS flags, …).
+    for (const [rawKey, col] of autoCols) {
+      if (rawKey in values) continue;
+      const value = cellToExtraValue(cellAt(col), "text");
+      if (value !== null) values[rawKey] = value;
+    }
+    if (Object.keys(values).length > 0) extra = values;
 
     extras.push({ priorityNote, extra });
   }
