@@ -72,13 +72,13 @@ export function ReconcileView({ bom, lines, writable, reviewRunId }: ReconcileVi
       {bom.priority_notes && (
         <Card tone="panel">
           <div className="text-caption text-smoke uppercase">Priorities</div>
-          <div className="mt-1 text-[13px] text-snow">{bom.priority_notes}</div>
+          <div className="mt-1 text-[14px] text-snow">{bom.priority_notes}</div>
         </Card>
       )}
 
       <Card padding="lg" className="flex flex-wrap items-end gap-3">
         <div className="flex flex-col gap-1.5">
-          <label className="text-[13px] text-silver-mist">Build qty ×N</label>
+          <label className="text-[14px] text-silver-mist">Build qty ×N</label>
           <div className="flex items-center gap-2">
             <Input
               uiSize="sm"
@@ -97,7 +97,7 @@ export function ReconcileView({ bom, lines, writable, reviewRunId }: ReconcileVi
             )}
           </div>
         </div>
-        <p className="text-[13px] text-smoke">
+        <p className="text-[14px] text-smoke">
           {formatNumber(lines.length)} lines — every line&rsquo;s need = qty × build qty. The AI run reads this sheet
           as-is.
         </p>
@@ -190,7 +190,7 @@ export function ReconcileView({ bom, lines, writable, reviewRunId }: ReconcileVi
           {reviewRunId && (
             <Link
               href={`/projects/${bom.project_id}/runs/${reviewRunId}/review`}
-              className="inline-flex h-9 items-center rounded-full bg-smark-orange/15 px-3.5 text-[13px] font-medium text-smark-orange transition-colors hover:bg-smark-orange/25"
+              className="inline-flex h-9 items-center rounded-full bg-smark-orange/15 px-3.5 text-[14px] font-medium text-smark-orange transition-colors hover:bg-smark-orange/25"
             >
               In review →
             </Link>

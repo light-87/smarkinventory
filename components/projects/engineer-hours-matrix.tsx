@@ -38,7 +38,7 @@ export function EngineerHoursMatrix({ engineers, value, onChange, label = "Assig
         const name = eng.displayName ?? eng.username;
         return (
           <div key={eng.id} className="flex items-center gap-3">
-            <label className="flex min-h-11 flex-1 cursor-pointer items-center gap-2.5 text-[13px] text-snow select-none">
+            <label className="flex min-h-11 flex-1 cursor-pointer items-center gap-2.5 text-[14px] text-snow select-none">
               <input
                 type="checkbox"
                 checked={checked}

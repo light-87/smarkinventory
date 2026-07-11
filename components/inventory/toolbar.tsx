@@ -46,7 +46,7 @@ export function InventoryToolbar({
         aria-label="Search inventory"
       />
       <div className="flex flex-wrap items-center gap-2.5">
-        <span className="flex-none text-[13px] text-smoke">
+        <span className="flex-none text-[14px] text-smoke">
           Showing {resultCount} of {totalCount} parts
         </span>
         {activeChips.map((chip) => (

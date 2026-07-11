@@ -109,7 +109,7 @@ export default async function ProjectDashboardPage({
     <div className="mx-auto flex max-w-[1280px] flex-col gap-4 px-4 pt-6 pb-24 sm:px-6 sm:pt-7">
       <div className="mb-1">
         <h1 className="text-heading-sm font-normal text-snow">Project Dashboard</h1>
-        <p className="text-[13px] text-smoke">Owner-only PM analytics — filter by date range, client, project, and employee.</p>
+        <p className="text-[14px] text-smoke">Owner-only PM analytics — filter by date range, client, project, and employee.</p>
       </div>
 
       <FilterBar filters={filters} options={filterOptions} />

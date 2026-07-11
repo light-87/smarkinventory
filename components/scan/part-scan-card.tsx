@@ -51,7 +51,7 @@ export function PartScanCard({
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="truncate font-mono text-[22px] text-snow">{part.internal_pid}</div>
-          {part.mpn && <div className="mt-1 truncate font-mono text-[13px] text-silver-mist">{part.mpn}</div>}
+          {part.mpn && <div className="mt-1 truncate font-mono text-[14px] text-silver-mist">{part.mpn}</div>}
           <div className="mt-1.5 truncate text-body-sm text-smoke">
             {[part.value, selected ? locationLabel(selected) : "No location on file"].filter(Boolean).join(" · ")}
           </div>

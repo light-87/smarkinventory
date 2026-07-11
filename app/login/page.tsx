@@ -55,7 +55,7 @@ export default async function LoginPage() {
 
         <InstallPrompt />
 
-        <p className="mt-[22px] border-t border-border-faint pt-4 text-center text-[11px] text-faint">
+        <p className="mt-[22px] border-t border-border-faint pt-4 text-center text-[12px] text-faint">
           Runs on Smark&apos;s own Vercel · Supabase · Claude.
         </p>
       </div>

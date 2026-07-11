@@ -72,12 +72,12 @@ export function Rail({
                 type="button"
                 onClick={() => toggleGroup(group)}
                 aria-expanded={expanded}
-                className="flex w-full min-h-[28px] items-center justify-between gap-2 rounded-md px-2 pt-3.5 pb-1 text-[10px] tracking-[0.08em] text-faint uppercase transition-colors hover:text-smoke"
+                className="flex w-full min-h-[28px] items-center justify-between gap-2 rounded-md px-2 pt-3.5 pb-1 text-[11px] tracking-[0.08em] text-faint uppercase transition-colors hover:text-smoke"
               >
                 {NAV_GROUP_LABELS[group]}
                 <span
                   aria-hidden
-                  className={cn("text-[10px] transition-transform", expanded ? "rotate-90" : "rotate-0")}
+                  className={cn("text-[11px] transition-transform", expanded ? "rotate-90" : "rotate-0")}
                 >
                   &rsaquo;
                 </span>

@@ -46,13 +46,13 @@ export function ShowTimeToggle({ projectId, initialValue }: ShowTimeToggleProps)
         aria-checked={show}
         disabled={isPending}
         onClick={toggle}
-        className={`relative h-7 w-12 flex-none cursor-pointer rounded-full border transition-colors disabled:opacity-50 ${
-          show ? "border-smark-orange bg-smark-orange" : "border-charcoal bg-surface-well"
+        className={`relative inline-flex h-6 w-11 flex-none cursor-pointer items-center rounded-full outline-none transition-colors focus-visible:ring-2 focus-visible:ring-smark-orange/40 disabled:opacity-50 ${
+          show ? "bg-smark-orange" : "bg-slate"
         }`}
       >
         <span
-          className={`absolute top-[3px] size-[22px] rounded-full bg-obsidian transition-transform ${
-            show ? "translate-x-[23px]" : "translate-x-[3px]"
+          className={`inline-block size-5 rounded-full bg-white shadow-sm transition-transform ${
+            show ? "translate-x-[22px]" : "translate-x-0.5"
           }`}
         />
       </button>

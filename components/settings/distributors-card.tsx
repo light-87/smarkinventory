@@ -77,7 +77,7 @@ export function DistributorsCard({ distributors }: { distributors: DistributorIt
               key={item.row.id}
               className="flex flex-wrap items-center gap-3 rounded-lg border border-charcoal px-3.5 py-2.5"
             >
-              <span className="w-[110px] flex-none truncate font-mono text-[13px] text-snow">{item.row.name}</span>
+              <span className="w-[110px] flex-none truncate font-mono text-[14px] text-snow">{item.row.name}</span>
               <span className="hidden min-w-0 flex-1 truncate font-mono text-xs text-smoke sm:block">
                 {item.row.base_url ?? "no URL on file"}
               </span>
@@ -137,7 +137,7 @@ export function DistributorsCard({ distributors }: { distributors: DistributorIt
           <button
             type="button"
             onClick={() => setAdding(true)}
-            className="mt-4 w-fit cursor-pointer text-[13px] text-smoke transition-colors hover:text-snow"
+            className="mt-4 w-fit cursor-pointer text-[14px] text-smoke transition-colors hover:text-snow"
           >
             + Add distributor
           </button>

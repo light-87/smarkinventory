@@ -152,13 +152,13 @@ export function NewPartForm({ boxes, initialCustomFieldTemplates, presetBoxId, o
 
   return (
     <Card padding="lg">
-      <div className="mb-4 text-[13px] text-smoke">
+      <div className="mb-4 text-[14px] text-smoke">
         Brand-new part — enter the essentials, we suggest a box and print one ESD label.
       </div>
 
       {duplicate && (
         <div className="mb-5 rounded-xl border border-smark-orange bg-surface-accent p-4">
-          <div className="text-[13px] text-snow">
+          <div className="text-[14px] text-snow">
             Looks like <span className="font-mono text-smark-orange">{duplicate.internalPid}</span> —{" "}
             {duplicate.summary}. Top up instead?
           </div>
@@ -266,15 +266,15 @@ export function NewPartForm({ boxes, initialCustomFieldTemplates, presetBoxId, o
           <button
             type="button"
             onClick={() => setAddingField(true)}
-            className="w-fit cursor-pointer text-[13px] text-smoke transition-colors hover:text-snow"
+            className="w-fit cursor-pointer text-[14px] text-smoke transition-colors hover:text-snow"
           >
             + Add custom field
           </button>
         )}
 
         <div className="flex flex-wrap items-center gap-3.5 border-t border-border-divider pt-4">
-          <span className="text-[13px] text-smoke">AI-suggested storage</span>
-          <span className="rounded-full border border-charcoal px-3 py-1.5 font-mono text-[13px] text-snow">
+          <span className="text-[14px] text-smoke">AI-suggested storage</span>
+          <span className="rounded-full border border-charcoal px-3 py-1.5 font-mono text-[14px] text-snow">
             {suggestion.label}
           </span>
         </div>

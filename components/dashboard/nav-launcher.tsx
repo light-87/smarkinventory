@@ -28,7 +28,7 @@ export function NavLauncher({ boxes }: { boxes: LauncherBox[] }) {
           <Link
             key={box.label}
             href={box.href}
-            className="flex min-h-11 flex-col items-center justify-center gap-2 rounded-2xl border border-charcoal bg-surface-panel px-3 py-4 text-center text-[13px] text-snow transition-colors hover:bg-surface-hover"
+            className="flex min-h-11 flex-col items-center justify-center gap-2 rounded-2xl border border-charcoal bg-surface-panel px-3 py-4 text-center text-[14px] text-snow transition-colors hover:bg-surface-hover"
           >
             <span aria-hidden className="size-6 flex-none text-smark-orange [&_svg]:size-full">
               {Icon ? <Icon /> : null}

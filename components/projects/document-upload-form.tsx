@@ -65,7 +65,7 @@ export function DocumentUploadForm({ projectId }: { projectId: string }) {
       <input
         ref={fileRef}
         type="file"
-        className="text-[13px] text-smoke file:mr-3 file:cursor-pointer file:rounded-full file:border file:border-charcoal file:bg-transparent file:px-3.5 file:py-1.5 file:text-[13px] file:text-snow"
+        className="text-[14px] text-smoke file:mr-3 file:cursor-pointer file:rounded-full file:border file:border-charcoal file:bg-transparent file:px-3.5 file:py-1.5 file:text-[14px] file:text-snow"
       />
       <Button size="sm" onClick={submit} loading={isPending} className="self-start">
         Upload

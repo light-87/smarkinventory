@@ -17,7 +17,7 @@ export interface WeeklyHolidaysCardProps {
 export function WeeklyHolidaysCard({ holidays, error }: WeeklyHolidaysCardProps) {
   return (
     <Card>
-      <div className="mb-4 text-[15px] font-medium text-snow">This week&apos;s holidays</div>
+      <div className="mb-4 text-[16px] font-medium text-snow">This week&apos;s holidays</div>
       {error || !holidays ? (
         <div className="text-body-sm text-smoke">{error ?? "Holiday data unavailable."}</div>
       ) : holidays.length === 0 ? (
@@ -25,7 +25,7 @@ export function WeeklyHolidaysCard({ holidays, error }: WeeklyHolidaysCardProps)
       ) : (
         <ul className="flex flex-col gap-2.5">
           {holidays.map((h) => (
-            <li key={h.date} className="flex items-center justify-between gap-2 text-[13px]">
+            <li key={h.date} className="flex items-center justify-between gap-2 text-[14px]">
               <span className="text-snow">{h.name}</span>
               <Chip tone="default" size="sm" mono>
                 {formatDate(h.date)}

@@ -29,7 +29,7 @@ export default async function BoxDetailPage({ params }: BoxDetailPageProps) {
 
   return (
     <div className="mx-auto max-w-[1180px] px-4 pt-6 pb-24 sm:px-6 sm:pt-7">
-      <div className="mb-[18px] flex items-center gap-2 text-[13px] text-smoke">
+      <div className="mb-[18px] flex items-center gap-2 text-[14px] text-smoke">
         <Link href="/shelves" className="transition-colors hover:text-snow">
           ← All shelves
         </Link>

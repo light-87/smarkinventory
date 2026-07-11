@@ -25,7 +25,7 @@ export default async function NewBomPage({ params }: NewBomPageProps) {
 
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="text-[15px] text-snow">Upload or create a BOM</h2>
+      <h2 className="text-[16px] text-snow">Upload or create a BOM</h2>
       <NewBomForm projectId={projectId} initialColumns={columns} />
     </div>
   );

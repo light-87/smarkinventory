@@ -21,13 +21,13 @@ export function ProjectBomCard({ projects, onPick, loading }: ProjectBomCardProp
 
   return (
     <Card padding="lg" className="flex flex-1 flex-col">
-      <div className="text-[15px] text-snow">Pick a project BOM</div>
+      <div className="text-[16px] text-snow">Pick a project BOM</div>
       <div className="mt-1 text-caption text-smoke">
         Reuses an uploaded/created BOM&apos;s lines — its build quantity prefills the ×N banner below.
       </div>
 
       {projects.length === 0 ? (
-        <div className="mt-4 text-[13px] text-smoke">No non-archived project has a BOM yet.</div>
+        <div className="mt-4 text-[14px] text-smoke">No non-archived project has a BOM yet.</div>
       ) : (
         <div className="mt-4 flex flex-col gap-3">
           <Field label="Project">

@@ -26,7 +26,7 @@ export function SettingsLinksCard({ rows }: { rows: SettingsLinkRow[] }) {
             className="flex min-h-11 items-center justify-between gap-3 px-5 py-3.5 transition-colors hover:bg-surface-hover"
           >
             <span className="min-w-0">
-              <span className="block truncate text-[13px] text-snow">{row.title}</span>
+              <span className="block truncate text-[14px] text-snow">{row.title}</span>
               <span className="block truncate text-caption text-smoke">{row.description}</span>
             </span>
             <span aria-hidden className="flex-none text-smoke">
@@ -48,7 +48,7 @@ export function ConnectedAccountsCard() {
       <CardBody>
         <div className="flex flex-wrap gap-2.5">
           {accounts.map((name) => (
-            <span key={name} className="rounded-full border border-charcoal px-4 py-1.5 text-[13px] text-snow">
+            <span key={name} className="rounded-full border border-charcoal px-4 py-1.5 text-[14px] text-snow">
               {name}
             </span>
           ))}

@@ -35,7 +35,7 @@ export function OrderingActivityCard({ items, error, nameById }: OrderingActivit
         <div>
           {items.map((item) => (
             <div key={item.id} className="flex items-start gap-2.5 border-b border-border-faint px-5 py-3 text-body-sm last:border-b-0">
-              <span className="w-11 flex-none font-mono text-[12px] text-smoke">{formatTime(item.occurredAt)}</span>
+              <span className="w-11 flex-none font-mono text-[13px] text-smoke">{formatTime(item.occurredAt)}</span>
               <Chip tone="default" size="sm" className="mt-0.5 flex-none">
                 {KIND_LABEL[item.kind]}
               </Chip>

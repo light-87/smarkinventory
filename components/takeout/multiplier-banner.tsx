@@ -15,7 +15,7 @@ export interface MultiplierBannerProps {
 export function MultiplierBanner({ value, onChange, locked, sourceKind }: MultiplierBannerProps) {
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-charcoal bg-surface-panel px-4 py-3">
-      <span className="text-[13px] text-smoke">
+      <span className="text-[14px] text-smoke">
         {sourceKind === "project_bom" ? "Builds required" : "Multiply pick quantities"}
       </span>
       <div className="flex items-center gap-1.5">

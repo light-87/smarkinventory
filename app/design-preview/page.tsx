@@ -136,20 +136,20 @@ export default function DesignPreviewPage() {
       <Section title="Card" description="Elevation is a 1px charcoal border on a #141414 surface — never a shadow.">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <Card>
-            <div className="text-[13px] text-smoke">Plain card</div>
-            <div className="mt-1 text-[15px] text-snow">
+            <div className="text-[14px] text-smoke">Plain card</div>
+            <div className="mt-1 text-[16px] text-snow">
               Default padding, surface tone
             </div>
           </Card>
           <Card tone="panel" interactive>
-            <div className="text-[13px] text-smoke">Interactive · panel tone</div>
-            <div className="mt-1 text-[15px] text-snow">Hover to lift the border</div>
+            <div className="text-[14px] text-smoke">Interactive · panel tone</div>
+            <div className="mt-1 text-[16px] text-snow">Hover to lift the border</div>
           </Card>
           <Card padding="none">
             <CardHeader title="Movements" meta="today" />
             <CardBody>
               <SectionLabel className="mb-2">Recent</SectionLabel>
-              <div className="text-[13px] text-silver-mist">
+              <div className="text-[14px] text-silver-mist">
                 Took out 4 × SMK-000101 from Box B-12
               </div>
             </CardBody>
@@ -300,7 +300,7 @@ function Swatch({
           Aa
         </span>
       </div>
-      <div className="mt-1.5 truncate text-[11px] text-smoke">{name}</div>
+      <div className="mt-1.5 truncate text-[12px] text-smoke">{name}</div>
     </div>
   );
 }
@@ -313,7 +313,7 @@ function SegmentedDemo() {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <div className="mb-2 text-[11px] tracking-[0.06em] text-smoke uppercase">
+        <div className="mb-2 text-[12px] tracking-[0.06em] text-smoke uppercase">
           Agent-run speed (neutral)
         </div>
         <SegmentedControl
@@ -328,7 +328,7 @@ function SegmentedDemo() {
         />
       </div>
       <div>
-        <div className="mb-2 text-[11px] tracking-[0.06em] text-smoke uppercase">
+        <div className="mb-2 text-[12px] tracking-[0.06em] text-smoke uppercase">
           Default agent tier (accent)
         </div>
         <SegmentedControl
@@ -358,10 +358,10 @@ function DrawerDemo() {
         <DrawerHeader>
           <div className="min-w-0">
             <div className="font-mono text-2xl text-snow">SMK-000101</div>
-            <div className="mt-1 truncate font-mono text-[13px] text-silver-mist">
+            <div className="mt-1 truncate font-mono text-[14px] text-silver-mist">
               GRM188R71H104KA93D
             </div>
-            <div className="mt-0.5 text-[13px] text-smoke">Murata</div>
+            <div className="mt-0.5 text-[14px] text-smoke">Murata</div>
           </div>
           <div className="flex flex-none items-center gap-3">
             <Chip tone="accent">Low stock</Chip>
@@ -378,13 +378,13 @@ function DrawerDemo() {
               ["Dielectric", "X7R"],
             ].map(([k, v]) => (
               <div key={k} className="bg-surface px-3.5 py-[11px]">
-                <div className="mb-1 text-[11px] text-smoke">{k}</div>
+                <div className="mb-1 text-[12px] text-smoke">{k}</div>
                 <div className="text-sm text-snow">{v}</div>
               </div>
             ))}
           </div>
           <SectionLabel className="mb-3">Locations</SectionLabel>
-          <div className="rounded-lg border border-charcoal p-3.5 text-[13px] text-silver-mist">
+          <div className="rounded-lg border border-charcoal p-3.5 text-[14px] text-silver-mist">
             Shelf 4 · <span className="font-mono">B-12</span>
           </div>
         </DrawerBody>

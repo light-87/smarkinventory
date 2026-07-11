@@ -108,7 +108,7 @@ export function BomListTable({ projectId, boms, writable = false, reviewRunIdByB
                         e.stopPropagation();
                         router.push(`/projects/${projectId}/runs/${reviewRunIdByBom.get(bom.id)}/review`);
                       }}
-                      className="inline-flex h-7 items-center rounded-full bg-smark-orange/15 px-2.5 text-[12px] font-medium text-smark-orange transition-colors hover:bg-smark-orange/25"
+                      className="inline-flex h-7 items-center rounded-full bg-smark-orange/15 px-2.5 text-[13px] font-medium text-smark-orange transition-colors hover:bg-smark-orange/25"
                     >
                       In review →
                     </button>

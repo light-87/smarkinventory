@@ -48,7 +48,7 @@ export function YourRequests({ requests }: { requests: readonly PortalRequest[] 
                 {s.label}
               </Chip>
             </div>
-            <p className="text-[13px] break-words text-snow">{r.description}</p>
+            <p className="text-[14px] break-words text-snow">{r.description}</p>
             {r.task_title && <p className="text-caption break-words text-smoke">on “{r.task_title}”</p>}
           </li>
         );

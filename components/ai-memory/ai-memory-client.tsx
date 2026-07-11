@@ -87,11 +87,11 @@ export function AiMemoryClient({ data }: AiMemoryClientProps) {
     <div className="mx-auto max-w-[960px] px-6 py-7 pb-24">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-[24px] font-normal text-snow">AI Memory</h1>
-        <span className="rounded-full border border-charcoal px-3.5 py-[5px] font-mono text-[13px] text-silver-mist">
+        <span className="rounded-full border border-charcoal px-3.5 py-[5px] font-mono text-[14px] text-silver-mist">
           Rules v{digestVersion}
         </span>
       </div>
-      <p className="mb-6 max-w-[640px] text-[13px] text-smoke">
+      <p className="mb-6 max-w-[640px] text-[14px] text-smoke">
         These rules are advisory and fully reviewable. Nothing here trains or changes the AI model — it just reads your
         saved preferences.
         {latestDiff && (
@@ -104,7 +104,7 @@ export function AiMemoryClient({ data }: AiMemoryClientProps) {
 
       {suggested.length > 0 && (
         <div className="mb-8">
-          <div className="mb-3 text-[11px] tracking-[0.06em] text-smark-orange uppercase">
+          <div className="mb-3 text-[12px] tracking-[0.06em] text-smark-orange uppercase">
             Suggested rules · {suggested.length} awaiting review
           </div>
           <div className="flex flex-col gap-2.5">

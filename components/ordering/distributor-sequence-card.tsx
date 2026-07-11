@@ -51,7 +51,7 @@ export function DistributorSequenceCard({ bomId, initialSequence, writable }: Di
 
   return (
     <Card padding="lg">
-      <div className="mb-1 text-[15px] font-medium text-snow">Distributor sequence</div>
+      <div className="mb-1 text-[16px] font-medium text-snow">Distributor sequence</div>
       <div className="mb-4 text-caption text-smoke">Drag to reorder — agents try sites top to bottom · single per BOM</div>
       <div className="flex flex-col gap-2">
         {rows.map((row, index) => (

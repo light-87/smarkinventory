@@ -36,7 +36,7 @@ function TakeoutCheckbox({ checked, onClick }: { checked: boolean; onClick: () =
       )}
     >
       {checked && (
-        <span aria-hidden className="text-[11px] font-medium text-obsidian">
+        <span aria-hidden className="text-[12px] font-medium text-obsidian">
           ✓
         </span>
       )}
@@ -58,7 +58,7 @@ export function TakeoutTable({ lines, checked, onToggle, onFinish, finishing }: 
         <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-well">
           <div className="h-full rounded-full bg-smark-orange transition-[width]" style={{ width: `${pct}%` }} />
         </div>
-        <span className="flex-none font-mono text-[13px] text-snow">
+        <span className="flex-none font-mono text-[14px] text-snow">
           {done} of {total} picked
         </span>
       </div>

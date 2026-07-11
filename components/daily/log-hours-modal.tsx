@@ -145,7 +145,7 @@ export function PersonDayModal({
     <Drawer open={open} onClose={onClose} width={420} aria-label="Manage day">
       <DrawerHeader>
         <div>
-          <div className="text-[15px] text-snow">
+          <div className="text-[16px] text-snow">
             {mode === "owner-day" ? `${targetUserName}'s day` : "Log hours"}
           </div>
           <div className="text-caption text-smoke">{formatDate(workDate)}</div>
@@ -156,7 +156,7 @@ export function PersonDayModal({
       <DrawerBody className="flex flex-col gap-5">
         {mode === "owner-day" && (
           <Card tone="panel">
-            <div className="mb-3 text-[13px] font-medium text-snow">Attendance</div>
+            <div className="mb-3 text-[14px] font-medium text-snow">Attendance</div>
             <div className="flex flex-col gap-3">
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Check in">
@@ -190,7 +190,7 @@ export function PersonDayModal({
         )}
 
         <div>
-          <div className="mb-3 text-[13px] font-medium text-snow">Hours logged</div>
+          <div className="mb-3 text-[14px] font-medium text-snow">Hours logged</div>
           {existingEntries.length === 0 ? (
             <p className="text-caption text-smoke">Nothing logged for this day yet.</p>
           ) : (
@@ -199,7 +199,7 @@ export function PersonDayModal({
                 <Card key={entry.id} tone="panel" padding="md">
                   {editingId === entry.id ? (
                     <div className="flex flex-col gap-2">
-                      <div className="text-[13px] text-snow">{entry.projectName}</div>
+                      <div className="text-[14px] text-snow">{entry.projectName}</div>
                       <Input
                         type="number"
                         step="0.5"
@@ -227,11 +227,11 @@ export function PersonDayModal({
                   ) : (
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
-                        <div className="truncate text-[13px] text-snow">{entry.projectName}</div>
+                        <div className="truncate text-[14px] text-snow">{entry.projectName}</div>
                         {entry.note && <div className="truncate text-caption text-smoke">{entry.note}</div>}
                       </div>
                       <div className="flex flex-none items-center gap-2">
-                        <span className="font-mono text-[13px] text-silver-mist">{entry.hours}h</span>
+                        <span className="font-mono text-[14px] text-silver-mist">{entry.hours}h</span>
                         <Button
                           size="sm"
                           variant="ghost"
@@ -253,7 +253,7 @@ export function PersonDayModal({
         </div>
 
         <div>
-          <div className="mb-3 text-[13px] font-medium text-snow">Add hours</div>
+          <div className="mb-3 text-[14px] font-medium text-snow">Add hours</div>
           {projectOptions.length === 0 ? (
             <p className="text-caption text-smoke">
               No projects assigned yet — ask the owner to add {mode === "owner-day" ? "this person" : "you"} to a

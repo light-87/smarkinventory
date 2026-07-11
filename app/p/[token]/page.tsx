@@ -80,9 +80,9 @@ export default async function PortalPage({ params }: PortalPageProps) {
             </Card>
           )}
 
-          <Card padding="lg">
-            <h2 className="mb-1 text-[15px] font-medium text-snow">Request a change</h2>
-            <p className="mb-4 text-body-sm text-smoke">Need something added or adjusted? Let Smark know.</p>
+          <Card padding="lg" className="border-smark-orange/25 bg-surface-accent">
+            <h2 className="mb-1 text-[16px] font-medium text-smark-orange">Request a change</h2>
+            <p className="mb-4 text-body-sm text-silver-mist">Need something added or adjusted? Let Smark know.</p>
             <ChangeRequestForm token={token} projectId={project.project_id} />
           </Card>
         </div>
@@ -110,9 +110,9 @@ export default async function PortalPage({ params }: PortalPageProps) {
             </CardBody>
           </Card>
 
-          <Card padding="lg">
-            <h2 className="mb-1 text-[15px] font-medium text-snow">Have a question?</h2>
-            <p className="mb-4 text-body-sm text-smoke">Send a message and Smark will get back to you.</p>
+          <Card padding="lg" className="border-smark-orange/25 bg-surface-accent">
+            <h2 className="mb-1 text-[16px] font-medium text-smark-orange">Have a question?</h2>
+            <p className="mb-4 text-body-sm text-silver-mist">Send a message and Smark will get back to you.</p>
             <CommentForm token={token} />
           </Card>
         </div>

@@ -112,7 +112,7 @@ export function LoginForm() {
         </Field>
       </div>
 
-      {error && <p className="text-center text-[13px] text-smark-orange-soft">{error}</p>}
+      {error && <p className="text-center text-[14px] text-smark-orange-soft">{error}</p>}
 
       <Button type="submit" variant="primary" size="lg" fullWidth loading={pending} className="mt-1">
         {pending ? "Signing in…" : "Log in"}

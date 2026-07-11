@@ -115,7 +115,7 @@ export function MarkPresentCard({
                   value={compNote}
                   onChange={(e) => setCompNote(e.target.value)}
                   placeholder="What did you work on? (optional)"
-                  className="h-9 rounded-lg border border-charcoal bg-surface-well px-3 text-[13px] text-snow outline-none placeholder:text-smoke focus:border-smark-orange"
+                  className="h-9 rounded-lg border border-charcoal bg-surface-well px-3 text-[14px] text-snow outline-none placeholder:text-smoke focus:border-smark-orange"
                 />
                 <div className="flex gap-2">
                   <Button size="sm" onClick={handleSubmitCompWork} loading={pending}>

@@ -43,7 +43,7 @@ export default async function BomsPage({ params }: BomsPageProps) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-[13px] text-smoke">
+        <p className="text-[14px] text-smoke">
           {boms.length === 0 ? "No BOMs yet" : `${boms.length} ${boms.length === 1 ? "BOM" : "BOMs"}`} — each named, its
           own sourcing pipeline.
         </p>

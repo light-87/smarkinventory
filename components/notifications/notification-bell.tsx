@@ -54,7 +54,7 @@ export function NotificationBell({ userId, className }: NotificationBellProps) {
           <BellIcon />
         </span>
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-smark-orange px-1 font-mono text-[10px] font-medium text-white">
+          <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-smark-orange px-1 font-mono text-[11px] font-medium text-white">
             {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         )}
@@ -69,12 +69,12 @@ export function NotificationBell({ userId, className }: NotificationBellProps) {
             className="absolute right-0 top-11 z-[60] max-h-[70vh] w-[340px] max-w-[calc(100vw-32px)] overflow-y-auto rounded-2xl border border-charcoal bg-surface-raised p-2"
           >
             <div className="flex items-center justify-between px-2 py-1.5">
-              <span className="text-[11px] tracking-[0.06em] text-smoke uppercase">Notifications</span>
+              <span className="text-[12px] tracking-[0.06em] text-smoke uppercase">Notifications</span>
               {unreadCount > 0 && (
                 <button
                   type="button"
                   onClick={() => void markAllRead()}
-                  className="cursor-pointer text-[11px] text-smark-orange hover:text-smark-orange-hover"
+                  className="cursor-pointer text-[12px] text-smark-orange hover:text-smark-orange-hover"
                 >
                   Mark all read
                 </button>
@@ -82,9 +82,9 @@ export function NotificationBell({ userId, className }: NotificationBellProps) {
             </div>
 
             {loading && notifications.length === 0 ? (
-              <div className="px-2 py-6 text-center text-[13px] text-smoke">Loading…</div>
+              <div className="px-2 py-6 text-center text-[14px] text-smoke">Loading…</div>
             ) : notifications.length === 0 ? (
-              <div className="px-2 py-6 text-center text-[13px] text-smoke">Nothing yet</div>
+              <div className="px-2 py-6 text-center text-[14px] text-smoke">Nothing yet</div>
             ) : (
               notifications.map((n) => {
                 const Icon = KIND_ICONS[n.kind] ?? BellIcon;
@@ -103,9 +103,9 @@ export function NotificationBell({ userId, className }: NotificationBellProps) {
                       <Icon />
                     </span>
                     <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                      <span className="truncate text-[13px] text-snow">{n.title}</span>
-                      {n.body && <span className="line-clamp-2 text-[12px] text-smoke">{n.body}</span>}
-                      <span className="text-[11px] text-faint">{formatRelativeTime(n.created_at)}</span>
+                      <span className="truncate text-[14px] text-snow">{n.title}</span>
+                      {n.body && <span className="line-clamp-2 text-[13px] text-smoke">{n.body}</span>}
+                      <span className="text-[12px] text-faint">{formatRelativeTime(n.created_at)}</span>
                     </span>
                     {!n.read_at && <span aria-hidden className="mt-1.5 size-1.5 flex-none rounded-full bg-smark-orange" />}
                   </button>

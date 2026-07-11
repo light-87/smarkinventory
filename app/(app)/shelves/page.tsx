@@ -26,7 +26,7 @@ export default async function ShelvesPage() {
     <div className="mx-auto max-w-[1180px] px-4 pt-6 pb-24 sm:px-6 sm:pt-7">
       <div className="mb-4 flex flex-wrap items-baseline justify-between gap-3">
         <h1 className="text-heading-sm font-normal text-snow">Shelves</h1>
-        <p className="text-[13px] text-smoke">
+        <p className="text-[14px] text-smoke">
           The physical rack — open a box to see its ESD plastics · run a count.
         </p>
       </div>

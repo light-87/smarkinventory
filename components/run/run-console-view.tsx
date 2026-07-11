@@ -55,8 +55,8 @@ function matchGlyph(ok: boolean | "exact" | "approx" | "none") {
 function InStockRow({ lane }: { lane: InStockLane }) {
   return (
     <div className="flex items-center gap-3 rounded-full border border-charcoal bg-surface px-3.5 py-2">
-      <span className="w-20 flex-none font-mono text-[13px] text-snow">{lane.ref}</span>
-      <span className="flex-1 truncate text-[13px] text-smoke">{lane.value}</span>
+      <span className="w-20 flex-none font-mono text-[14px] text-snow">{lane.ref}</span>
+      <span className="flex-1 truncate text-[14px] text-smoke">{lane.value}</span>
       <span className="flex-none text-caption text-phosphor-green">✓ {lane.flag}</span>
     </div>
   );
@@ -70,7 +70,7 @@ function SourcingLaneCard({ lane }: { lane: SourcingLane }) {
     <Card padding="md" className={lane.rows.some((r) => r.isRecommended) ? "border-smark-orange/50" : undefined}>
       <div className="mb-3 flex items-start justify-between gap-2.5">
         <div className="min-w-0">
-          <div className="font-mono text-[13px] text-snow">{lane.ref}</div>
+          <div className="font-mono text-[14px] text-snow">{lane.ref}</div>
           <div className="mt-0.5 truncate text-caption text-smoke">{lane.value}</div>
         </div>
         <div className="flex flex-none items-center gap-1.5">
@@ -89,7 +89,7 @@ function SourcingLaneCard({ lane }: { lane: SourcingLane }) {
       {lane.aiSkipReason ? (
         <div className="flex items-center gap-2.5 rounded-lg border border-smark-orange bg-surface-accent-hover px-3.5 py-3">
           <span className="text-sm text-smark-orange">✓</span>
-          <span className="text-[13px] text-snow">{lane.aiSkipReason}</span>
+          <span className="text-[14px] text-snow">{lane.aiSkipReason}</span>
         </div>
       ) : lane.rows.length > 0 ? (
         <div className="overflow-x-auto">
@@ -99,7 +99,7 @@ function SourcingLaneCard({ lane }: { lane: SourcingLane }) {
                 {["Site", "Price", "Stock", "MPN", "Pkg", "Link"].map((h, i) => (
                   <th
                     key={h}
-                    className={`px-2 py-1 text-[10px] tracking-[0.04em] text-graphite uppercase ${i === 1 ? "text-right" : i >= 3 ? "text-center" : "text-left"}`}
+                    className={`px-2 py-1 text-[11px] tracking-[0.04em] text-graphite uppercase ${i === 1 ? "text-right" : i >= 3 ? "text-center" : "text-left"}`}
                   >
                     {h}
                   </th>
@@ -112,7 +112,7 @@ function SourcingLaneCard({ lane }: { lane: SourcingLane }) {
                 const pkg = matchGlyph(row.packageMatch);
                 return (
                   <tr key={row.resultId} className={row.isRecommended ? "bg-surface-accent-hover" : undefined}>
-                    <td className="border-t border-border-hairline px-2 py-1.5 font-mono text-[12px] whitespace-nowrap text-snow">
+                    <td className="border-t border-border-hairline px-2 py-1.5 font-mono text-[13px] whitespace-nowrap text-snow">
                       {row.distributorName}
                       {row.isRecommended && (
                         <Chip tone="accent" size="sm" className="ml-1.5">
@@ -120,17 +120,17 @@ function SourcingLaneCard({ lane }: { lane: SourcingLane }) {
                         </Chip>
                       )}
                     </td>
-                    <td className="border-t border-border-hairline px-2 py-1.5 text-right font-mono text-[12px] text-snow">{formatINR(row.price)}</td>
-                    <td className="border-t border-border-hairline px-2 py-1.5 text-[12px] text-smoke">{formatNumber(row.stockQty)}</td>
-                    <td className={`border-t border-border-hairline px-2 py-1.5 text-center text-[13px] ${mpn.className}`}>{mpn.glyph}</td>
-                    <td className={`border-t border-border-hairline px-2 py-1.5 text-center text-[13px] ${pkg.className}`}>{pkg.glyph}</td>
+                    <td className="border-t border-border-hairline px-2 py-1.5 text-right font-mono text-[13px] text-snow">{formatINR(row.price)}</td>
+                    <td className="border-t border-border-hairline px-2 py-1.5 text-[13px] text-smoke">{formatNumber(row.stockQty)}</td>
+                    <td className={`border-t border-border-hairline px-2 py-1.5 text-center text-[14px] ${mpn.className}`}>{mpn.glyph}</td>
+                    <td className={`border-t border-border-hairline px-2 py-1.5 text-center text-[14px] ${pkg.className}`}>{pkg.glyph}</td>
                     <td className="border-t border-border-hairline px-2 py-1.5 text-right">
                       {row.orderLink ? (
-                        <a href={row.orderLink} target="_blank" rel="noreferrer" className="text-[12px] text-smark-orange-hover hover:underline">
+                        <a href={row.orderLink} target="_blank" rel="noreferrer" className="text-[13px] text-smark-orange-hover hover:underline">
                           Open ↗
                         </a>
                       ) : (
-                        <span className="text-[12px] text-graphite">—</span>
+                        <span className="text-[13px] text-graphite">—</span>
                       )}
                     </td>
                   </tr>
@@ -142,13 +142,13 @@ function SourcingLaneCard({ lane }: { lane: SourcingLane }) {
       ) : lane.jobStatus === "failed" || lane.jobStatus === "done" ? (
         // "done" with zero rows = the agent searched the ENTIRE ladder
         // (incl. the not-found fallback beyond depth) and found nothing.
-        <div className="text-[13px] text-smoke">No listings found across any site in the sequence.</div>
+        <div className="text-[14px] text-smoke">No listings found across any site in the sequence.</div>
       ) : (
-        <div className="text-[13px] text-smoke">Waiting for results…</div>
+        <div className="text-[14px] text-smoke">Waiting for results…</div>
       )}
 
       {recommended && !lane.aiSkipReason && (
-        <div className="mt-3 border-t border-border-hairline pt-3 text-[13px] leading-[1.5] text-silver-mist">
+        <div className="mt-3 border-t border-border-hairline pt-3 text-[14px] leading-[1.5] text-silver-mist">
           <span className="text-smark-orange">AI ·</span> {recommended.why}
         </div>
       )}
@@ -192,12 +192,12 @@ export function RunConsoleView({ projectId, data }: RunConsoleViewProps) {
               <span className="flex size-[22px] flex-none items-center justify-center rounded-md border border-smark-orange bg-surface-accent-hover text-xs text-smark-orange">
                 ◆
               </span>
-              <span className="text-[15px] text-snow">Master agent</span>
+              <span className="text-[16px] text-snow">Master agent</span>
               <Chip tone={tone} size="sm">
                 {live.status}
               </Chip>
             </div>
-            <div className="font-mono text-[13px] leading-[1.5] text-silver-mist">
+            <div className="font-mono text-[14px] leading-[1.5] text-silver-mist">
               {live.narration ?? "Waiting for the plan…"}
             </div>
           </div>
@@ -236,7 +236,7 @@ export function RunConsoleView({ projectId, data }: RunConsoleViewProps) {
 
       {data.inStockLanes.length > 0 && (
         <Card padding="lg">
-          <div className="mb-3 text-[15px] font-medium text-snow">Already in stock — skipped</div>
+          <div className="mb-3 text-[16px] font-medium text-snow">Already in stock — skipped</div>
           <div className="flex flex-col gap-2">
             {data.inStockLanes.map((lane) => (
               <InStockRow key={lane.bomLineId} lane={lane} />

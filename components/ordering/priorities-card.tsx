@@ -31,7 +31,7 @@ export function PrioritiesCard({ bomId, initialPriorities, perLineNotes, writabl
 
   return (
     <Card padding="lg">
-      <div className="mb-1 text-[15px] font-medium text-snow">Priorities</div>
+      <div className="mb-1 text-[16px] font-medium text-snow">Priorities</div>
       <div className="mb-3.5 text-caption text-smoke">The AI reads these in your own words</div>
       <textarea
         value={value}
@@ -53,9 +53,9 @@ export function PrioritiesCard({ bomId, initialPriorities, perLineNotes, writabl
       )}
       {perLineNotes.length > 0 && (
         <div className="mt-3.5 flex flex-col gap-1.5">
-          <div className="mb-0.5 text-[11px] tracking-[0.06em] text-smoke uppercase">Per-line notes</div>
+          <div className="mb-0.5 text-[12px] tracking-[0.06em] text-smoke uppercase">Per-line notes</div>
           {perLineNotes.map((note, i) => (
-            <div key={i} className="flex items-baseline gap-2.5 text-[13px]">
+            <div key={i} className="flex items-baseline gap-2.5 text-[14px]">
               <span className="min-w-16 flex-none font-mono text-silver-mist">{note.ref}</span>
               <span className="text-smoke">&ldquo;{note.note}&rdquo;</span>
             </div>

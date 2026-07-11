@@ -56,7 +56,7 @@ export function NewProjectForm() {
       <Field label="Notes (optional)">
         <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Internal context" />
       </Field>
-      <label className="flex min-h-11 cursor-pointer items-center gap-2.5 text-[13px] text-silver-mist select-none">
+      <label className="flex min-h-11 cursor-pointer items-center gap-2.5 text-[14px] text-silver-mist select-none">
         <input
           type="checkbox"
           checked={showTimeToClient}

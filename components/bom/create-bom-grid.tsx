@@ -128,13 +128,13 @@ export function CreateBomGrid({ projectId, initialColumns }: CreateBomGridProps)
         <table className="w-full border-collapse" style={{ minWidth: editableColumns.length * 140 }}>
           <thead>
             <tr>
-              <th className="sticky top-0 z-[2] w-10 border-b border-charcoal bg-canvas px-2 py-2 text-[11px] text-smoke">
+              <th className="sticky top-0 z-[2] w-10 border-b border-charcoal bg-canvas px-2 py-2 text-[12px] text-smoke">
                 #
               </th>
               {editableColumns.map((column) => (
                 <th
                   key={column.key}
-                  className="sticky top-0 z-[2] border-b border-charcoal bg-canvas px-2 py-2 text-left text-[11px] font-medium tracking-[0.04em] whitespace-nowrap text-smoke uppercase"
+                  className="sticky top-0 z-[2] border-b border-charcoal bg-canvas px-2 py-2 text-left text-[12px] font-medium tracking-[0.04em] whitespace-nowrap text-smoke uppercase"
                 >
                   {column.label}
                   {column.required && <span className="text-smark-orange"> *</span>}
@@ -146,7 +146,7 @@ export function CreateBomGrid({ projectId, initialColumns }: CreateBomGridProps)
           <tbody>
             {rows.map((row, rowIndex) => (
               <tr key={rowIndex}>
-                <td className="border-b border-border-hairline px-2 py-1.5 text-center font-mono text-[12px] text-smoke">
+                <td className="border-b border-border-hairline px-2 py-1.5 text-center font-mono text-[13px] text-smoke">
                   {rowIndex + 1}
                 </td>
                 {editableColumns.map((column) => {
@@ -170,7 +170,7 @@ export function CreateBomGrid({ projectId, initialColumns }: CreateBomGridProps)
                         type={kind === "number" ? "number" : "text"}
                         value={value === null || value === undefined ? "" : String(value)}
                         onChange={(e) => setCell(rowIndex, column.key, e.target.value)}
-                        className="h-8 w-full min-w-[100px] rounded-md border border-transparent bg-transparent px-2 text-[13px] text-snow outline-none focus:border-smark-orange focus:bg-surface-well"
+                        className="h-8 w-full min-w-[100px] rounded-md border border-transparent bg-transparent px-2 text-[14px] text-snow outline-none focus:border-smark-orange focus:bg-surface-well"
                       />
                     </td>
                   );
@@ -208,7 +208,7 @@ export function CreateBomGrid({ projectId, initialColumns }: CreateBomGridProps)
             <select
               value={newFieldType}
               onChange={(e) => setNewFieldType(e.target.value as FieldType)}
-              className="h-[34px] rounded-lg border border-charcoal bg-surface-well px-2.5 text-[13px] text-snow outline-none focus:border-smark-orange"
+              className="h-[34px] rounded-lg border border-charcoal bg-surface-well px-2.5 text-[14px] text-snow outline-none focus:border-smark-orange"
             >
               <option value="text">Text</option>
               <option value="number">Number</option>
@@ -224,7 +224,7 @@ export function CreateBomGrid({ projectId, initialColumns }: CreateBomGridProps)
           <button
             type="button"
             onClick={() => setAddingField(true)}
-            className="cursor-pointer text-[13px] text-smoke transition-colors hover:text-snow"
+            className="cursor-pointer text-[14px] text-smoke transition-colors hover:text-snow"
           >
             + Add field
           </button>

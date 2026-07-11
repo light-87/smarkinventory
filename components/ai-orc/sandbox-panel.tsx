@@ -147,7 +147,7 @@ export function SandboxPanel({ onRunStarted }: { onRunStarted: (runId: string) =
                 className="hidden"
                 onChange={(e) => setFileName(e.target.files?.[0]?.name ?? null)}
               />
-              <div className="text-[13px] text-snow">{fileName ?? "Choose the .xlsx to test with"}</div>
+              <div className="text-[14px] text-snow">{fileName ?? "Choose the .xlsx to test with"}</div>
             </div>
             <div className="sm:col-span-2">
               <Button onClick={upload} loading={isPending}>

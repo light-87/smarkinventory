@@ -68,7 +68,7 @@ export function ModuleGrantsGrid({
   return (
     <div className="flex flex-col gap-4">
       {error && (
-        <div className="rounded-lg border border-smark-orange-soft bg-smark-orange-soft/10 px-3.5 py-2.5 text-[13px] text-smark-orange-soft">{error}</div>
+        <div className="rounded-lg border border-smark-orange-soft bg-smark-orange-soft/10 px-3.5 py-2.5 text-[14px] text-smark-orange-soft">{error}</div>
       )}
       {employees.map((employee) => {
         const employeeGrants = grants[employee.id] ?? [];
@@ -86,7 +86,7 @@ export function ModuleGrantsGrid({
                 return (
                   <label
                     key={module}
-                    className="flex min-h-11 cursor-pointer items-center gap-2.5 rounded-full border border-charcoal px-4 py-2 text-[13px] text-snow has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50"
+                    className="flex min-h-11 cursor-pointer items-center gap-2.5 rounded-full border border-charcoal px-4 py-2 text-[14px] text-snow has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50"
                   >
                     <input
                       type="checkbox"

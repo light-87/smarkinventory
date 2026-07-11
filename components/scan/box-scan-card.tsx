@@ -54,13 +54,13 @@ export function BoxScanCard({ data }: BoxScanCardProps) {
                 key={line.id}
                 className="flex items-center gap-3 border-b border-border-hairline px-5 py-[11px] last:border-b-0"
               >
-                <span className="w-28 flex-none truncate font-mono text-[13px] text-snow">
+                <span className="w-28 flex-none truncate font-mono text-[14px] text-snow">
                   {line.part.internal_pid}
                 </span>
                 <span className="min-w-0 flex-1 truncate font-mono text-caption text-smoke">
                   {line.part.mpn ?? "—"}
                 </span>
-                <span className={`flex-none font-mono text-[13px] ${low ? "text-smark-orange" : "text-snow"}`}>
+                <span className={`flex-none font-mono text-[14px] ${low ? "text-smark-orange" : "text-snow"}`}>
                   {formatNumber(line.qty)}
                 </span>
               </div>

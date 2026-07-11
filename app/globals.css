@@ -33,11 +33,11 @@
   --color-forest-depth: #1f4b37;
   --color-midnight-emerald: #006239;
 
-  /* ---- Ink tiers (dark text on white) ---- */
-  --color-snow: #1d2130; /* primary text */
-  --color-silver-mist: #474950; /* secondary text */
-  --color-smoke: #6b6d72; /* tertiary text */
-  --color-graphite: #b6bccb; /* empty-state icon grey, visible on white */
+  /* ---- Ink tiers (dark text on white) — darkened for WCAG-AA contrast on white ---- */
+  --color-snow: #171a26; /* primary text */
+  --color-silver-mist: #3f424b; /* secondary text (~9:1) */
+  --color-smoke: #565961; /* tertiary text (~6:1) */
+  --color-graphite: #a4abbb; /* empty-state icon grey, visible on white */
   --color-slate: #d5d9e8; /* strong border */
   --color-charcoal: #e6e9f2; /* default component border */
   --color-ash: #f0f2f7; /* hover fills, toast/chip bg */
@@ -74,23 +74,23 @@
 
   /* ---- Text ---- */
   /* primary snow · secondary silver-mist · tertiary smoke · faintest: */
-  --color-faint: #9aa0ad;
+  --color-faint: #6c6f79; /* was #9aa0ad (~2.6:1, failed AA) → ~4.6:1 on white */
 
   /* ---- Type scale — size + line-height + letter-spacing per role ---- */
-  --text-caption: 12px;
+  --text-caption: 13px;
   --text-caption--line-height: 1.5;
   --text-caption--letter-spacing: -0.084px;
-  --text-body-sm: 14px;
-  --text-body-sm--line-height: 1.43;
+  --text-body-sm: 15px;
+  --text-body-sm--line-height: 1.47;
   --text-body-sm--letter-spacing: -0.098px;
   --text-body: 16px;
   --text-body--line-height: 1.5;
   --text-body--letter-spacing: -0.112px;
-  --text-subheading: 18px;
-  --text-subheading--line-height: 1.38;
+  --text-subheading: 19px;
+  --text-subheading--line-height: 1.4;
   --text-subheading--letter-spacing: -0.126px;
-  --text-heading-sm: 24px;
-  --text-heading-sm--line-height: 1.33;
+  --text-heading-sm: 26px;
+  --text-heading-sm--line-height: 1.3;
   --text-heading-sm--letter-spacing: -0.168px;
   --text-heading: 36px;
   --text-heading--line-height: 1.2;

@@ -163,10 +163,10 @@ export function ReviewLineCard({ projectId, runId, writable, line }: ReviewLineC
       {line.aiSkipReason ? (
         <div className="flex items-center gap-2.5 rounded-lg border border-smark-orange bg-surface-accent-hover px-3.5 py-3">
           <span className="text-sm text-smark-orange">✓</span>
-          <span className="text-[13px] text-snow">{line.aiSkipReason}</span>
+          <span className="text-[14px] text-snow">{line.aiSkipReason}</span>
         </div>
       ) : line.rows.length === 0 ? (
-        <div className="rounded-lg border border-charcoal bg-surface-well px-3.5 py-3 text-[13px] text-smoke">
+        <div className="rounded-lg border border-charcoal bg-surface-well px-3.5 py-3 text-[14px] text-smoke">
           No listings found across any site in the sequence.
         </div>
       ) : (
@@ -178,7 +178,7 @@ export function ReviewLineCard({ projectId, runId, writable, line }: ReviewLineC
                   {["", "Site", "Price", "Stock", "MPN", "Pkg", "Link"].map((h, i) => (
                     <th
                       key={h || `col-${i}`}
-                      className={`px-2 py-1 text-[10px] tracking-[0.04em] text-graphite uppercase ${i >= 4 ? "text-center" : i === 2 ? "text-right" : "text-left"}`}
+                      className={`px-2 py-1 text-[11px] tracking-[0.04em] text-graphite uppercase ${i >= 4 ? "text-center" : i === 2 ? "text-right" : "text-left"}`}
                     >
                       {h}
                     </th>
@@ -203,7 +203,7 @@ export function ReviewLineCard({ projectId, runId, writable, line }: ReviewLineC
                           className="size-4 cursor-pointer accent-smark-orange"
                         />
                       </td>
-                      <td className="border-t border-border-hairline px-2 py-1.5 font-mono text-[12px] whitespace-nowrap text-snow">
+                      <td className="border-t border-border-hairline px-2 py-1.5 font-mono text-[13px] whitespace-nowrap text-snow">
                         {row.distributorName}
                         {row.isRecommended && (
                           <Chip tone="accent" size="sm" className="ml-1.5">
@@ -211,17 +211,17 @@ export function ReviewLineCard({ projectId, runId, writable, line }: ReviewLineC
                           </Chip>
                         )}
                       </td>
-                      <td className="border-t border-border-hairline px-2 py-1.5 text-right font-mono text-[12px] text-snow">{formatINR(row.price)}</td>
-                      <td className="border-t border-border-hairline px-2 py-1.5 text-[12px] text-smoke">{formatNumber(row.stockQty)}</td>
-                      <td className={`border-t border-border-hairline px-2 py-1.5 text-center text-[13px] ${mpn.className}`}>{mpn.glyph}</td>
-                      <td className={`border-t border-border-hairline px-2 py-1.5 text-center text-[13px] ${pkg.className}`}>{pkg.glyph}</td>
+                      <td className="border-t border-border-hairline px-2 py-1.5 text-right font-mono text-[13px] text-snow">{formatINR(row.price)}</td>
+                      <td className="border-t border-border-hairline px-2 py-1.5 text-[13px] text-smoke">{formatNumber(row.stockQty)}</td>
+                      <td className={`border-t border-border-hairline px-2 py-1.5 text-center text-[14px] ${mpn.className}`}>{mpn.glyph}</td>
+                      <td className={`border-t border-border-hairline px-2 py-1.5 text-center text-[14px] ${pkg.className}`}>{pkg.glyph}</td>
                       <td className="border-t border-border-hairline px-2 py-1.5 text-right">
                         {row.orderLink ? (
-                          <a href={row.orderLink} target="_blank" rel="noreferrer" className="text-[12px] text-smark-orange-hover hover:underline">
+                          <a href={row.orderLink} target="_blank" rel="noreferrer" className="text-[13px] text-smark-orange-hover hover:underline">
                             Open ↗
                           </a>
                         ) : (
-                          <span className="text-[12px] text-graphite">—</span>
+                          <span className="text-[13px] text-graphite">—</span>
                         )}
                       </td>
                     </tr>
@@ -245,14 +245,14 @@ export function ReviewLineCard({ projectId, runId, writable, line }: ReviewLineC
           </div>
 
           {selectedRow && (
-            <div className="mt-2 text-[13px] leading-[1.5] text-silver-mist">
+            <div className="mt-2 text-[14px] leading-[1.5] text-silver-mist">
               <span className="text-smark-orange">AI ·</span> {selectedRow.why}
             </div>
           )}
 
           <div className="mt-4 flex flex-wrap items-end gap-3 border-t border-border-hairline pt-4">
             <div className="flex flex-col gap-1.5">
-              <label className="text-[13px] text-silver-mist">Qty needed</label>
+              <label className="text-[14px] text-silver-mist">Qty needed</label>
               <Input uiSize="sm" mono type="number" inputMode="numeric" value={qty} onChange={(e) => setQty(e.target.value)} disabled={!writable} className="w-24" />
             </div>
             {writable && (

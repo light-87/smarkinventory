@@ -88,7 +88,7 @@ export function ApprovalsInbox({ bugs, changeRequests, taskTitleById, engineers 
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <div className="text-caption text-smoke">{taskTitleById.get(bug.taskId) ?? "Task"}</div>
-                    <p className="text-[13px] text-snow">{bug.description}</p>
+                    <p className="text-[14px] text-snow">{bug.description}</p>
                   </div>
                   <Chip tone={bug.reportedSource === "client" ? "accent" : "neutral"}>{bug.reportedSource}</Chip>
                 </div>
@@ -121,7 +121,7 @@ export function ApprovalsInbox({ bugs, changeRequests, taskTitleById, engineers 
             {pendingCrs.map((cr) => (
               <li key={cr.id} className="flex flex-col gap-2 px-5 py-3.5">
                 <div className="flex items-start justify-between gap-2">
-                  <p className="min-w-0 text-[13px] text-snow">{cr.description}</p>
+                  <p className="min-w-0 text-[14px] text-snow">{cr.description}</p>
                   <Chip tone={cr.requestedSource === "client" ? "accent" : "neutral"}>{cr.requestedSource}</Chip>
                 </div>
 

@@ -34,7 +34,7 @@ export function StatGrid({
   const inventoryLabel = unpricedNote ? (
     <span className="flex flex-col gap-0.5">
       <span>Inventory value ₹</span>
-      <span className="text-[11px] text-smoke/80">{unpricedNote}</span>
+      <span className="text-[12px] text-smoke/80">{unpricedNote}</span>
     </span>
   ) : (
     "Inventory value ₹"

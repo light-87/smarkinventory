@@ -16,11 +16,11 @@ export interface PortalHeaderProps {
  */
 export function PortalHeader({ project, estDelivery }: PortalHeaderProps) {
   return (
-    <header className="flex flex-col gap-4 border-b border-border-divider pb-6">
+    <header className="flex flex-col gap-4 rounded-2xl border border-smark-orange/20 bg-gradient-to-br from-surface-accent to-surface p-6">
       <div className="flex items-center gap-2.5">
         {/* eslint-disable-next-line @next/next/no-img-element -- static brand asset (dark+orange mark, reads on white); no next/image benefit */}
         <img src="/brand/smark-mark.svg" alt="Smark" className="h-6 w-auto" />
-        <span className="text-caption text-smoke">Client Portal</span>
+        <span className="text-caption font-medium tracking-[0.04em] text-smark-orange uppercase">Client Portal</span>
       </div>
       <div className="flex flex-col gap-2.5">
         <h1 className="text-heading-sm leading-tight font-medium text-snow">{project.name}</h1>

@@ -43,7 +43,7 @@ export function PrintQueueStrip({ initialCount }: PrintQueueStripProps) {
   return (
     <Card padding="md" className="flex flex-wrap items-center justify-between gap-3">
       <div>
-        <div className="text-[13px] text-snow">Print queue</div>
+        <div className="text-[14px] text-snow">Print queue</div>
         <div className="mt-0.5 text-caption text-smoke">
           {count === 0 ? "Nothing queued" : `${count} label${count === 1 ? "" : "s"} queued`}
         </div>

@@ -28,7 +28,7 @@ export function FacetSidebar({
   return (
     <aside className="hidden w-[250px] flex-none overflow-y-auto border-r border-charcoal px-3.5 py-4 lg:block">
       <div className="mb-1.5 flex items-center justify-between px-1">
-        <span className="text-[11px] tracking-[0.08em] text-smoke uppercase">Filters</span>
+        <span className="text-[12px] tracking-[0.08em] text-smoke uppercase">Filters</span>
         {hasFilters && (
           <button
             type="button"
@@ -49,11 +49,11 @@ export function FacetSidebar({
               aria-expanded={open}
               className="flex w-full cursor-pointer items-center justify-between px-1 py-2.5 text-left"
             >
-              <span className="text-[13px] text-snow">{group.name}</span>
+              <span className="text-[14px] text-snow">{group.name}</span>
               <span
                 aria-hidden
                 className={cn(
-                  "text-[10px] text-faint transition-transform",
+                  "text-[11px] text-faint transition-transform",
                   open ? "rotate-90" : "rotate-0",
                 )}
               >
@@ -80,17 +80,17 @@ export function FacetSidebar({
                         v.selected ? "border-smark-orange bg-smark-orange" : "border-graphite",
                       )}
                     >
-                      {v.selected && <span className="text-[11px] leading-none font-medium text-obsidian">✓</span>}
+                      {v.selected && <span className="text-[12px] leading-none font-medium text-obsidian">✓</span>}
                     </span>
                     <span
                       className={cn(
-                        "min-w-0 flex-1 truncate text-[13px]",
+                        "min-w-0 flex-1 truncate text-[14px]",
                         v.selected ? "text-snow" : "text-silver-mist",
                       )}
                     >
                       {displayLabelForFacetValue(group.name, v.value)}
                     </span>
-                    <span className="flex-none font-mono text-[11px] text-faint">{v.count}</span>
+                    <span className="flex-none font-mono text-[12px] text-faint">{v.count}</span>
                   </label>
                 ))}
               </div>

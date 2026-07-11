@@ -85,7 +85,7 @@ export function OnboardingQueue({ rows, boxes }: OnboardingQueueProps) {
               onClick={() => (isOpen ? setOpenRowId(null) : openRow(row))}
               className="flex w-full flex-wrap items-center gap-3 px-5 py-3 text-left transition-colors hover:bg-surface-hover"
             >
-              <span className="min-w-0 flex-1 truncate font-mono text-[13px] text-snow">
+              <span className="min-w-0 flex-1 truncate font-mono text-[14px] text-snow">
                 {row.part.mpn ?? row.part.internal_pid}
               </span>
               <span className="text-caption text-smoke">
@@ -107,7 +107,7 @@ export function OnboardingQueue({ rows, boxes }: OnboardingQueueProps) {
               <div className="bg-surface-panel border-t border-border-divider px-5 py-4">
                 <div className="flex flex-wrap items-end gap-3">
                   <div className="min-w-[200px] flex-1">
-                    <div className="mb-1.5 text-[13px] text-silver-mist">Existing box</div>
+                    <div className="mb-1.5 text-[14px] text-silver-mist">Existing box</div>
                     <NativeSelect
                       options={boxOptions}
                       value={boxId}
@@ -123,7 +123,7 @@ export function OnboardingQueue({ rows, boxes }: OnboardingQueueProps) {
                   </div>
                   <span className="pb-2.5 text-caption text-faint">or</span>
                   <div className="min-w-[140px]">
-                    <div className="mb-1.5 text-[13px] text-silver-mist">New box name</div>
+                    <div className="mb-1.5 text-[14px] text-silver-mist">New box name</div>
                     <Input
                       value={newBoxName}
                       onChange={(e) => {
@@ -135,11 +135,11 @@ export function OnboardingQueue({ rows, boxes }: OnboardingQueueProps) {
                     />
                   </div>
                   <div className="min-w-[100px]">
-                    <div className="mb-1.5 text-[13px] text-silver-mist">Shelf</div>
+                    <div className="mb-1.5 text-[14px] text-silver-mist">Shelf</div>
                     <Input value={shelfCode} onChange={(e) => setShelfCode(e.target.value)} placeholder="A" mono />
                   </div>
                   <div className="min-w-[160px] flex-1">
-                    <div className="mb-1.5 text-[13px] text-silver-mist">ESD note (optional)</div>
+                    <div className="mb-1.5 text-[14px] text-silver-mist">ESD note (optional)</div>
                     <Input value={esdNote} onChange={(e) => setEsdNote(e.target.value)} placeholder="reel + working box" />
                   </div>
                   <Button onClick={() => submitAssign(row.part.id)} loading={isPending}>

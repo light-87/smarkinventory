@@ -63,8 +63,8 @@ export function PartDetailView({ data, variant, onClose }: PartDetailViewProps) 
       <DrawerHeader>
         <div className="min-w-0">
           <div className="font-mono text-2xl text-snow">{data.part.internal_pid}</div>
-          {data.part.mpn && <div className="mt-1 truncate font-mono text-[13px] text-silver-mist">{data.part.mpn}</div>}
-          {data.part.manufacturer && <div className="mt-0.5 text-[13px] text-smoke">{data.part.manufacturer}</div>}
+          {data.part.mpn && <div className="mt-1 truncate font-mono text-[14px] text-silver-mist">{data.part.mpn}</div>}
+          {data.part.manufacturer && <div className="mt-0.5 text-[14px] text-smoke">{data.part.manufacturer}</div>}
         </div>
         <div className="flex flex-none items-center gap-3">
           <Chip tone={STATUS_TONE[data.part.part_status]}>{STATUS_LABEL[data.part.part_status]}</Chip>
@@ -74,7 +74,7 @@ export function PartDetailView({ data, variant, onClose }: PartDetailViewProps) 
             <button
               type="button"
               onClick={() => router.push("/inventory")}
-              className="cursor-pointer text-[13px] text-smoke hover:text-snow"
+              className="cursor-pointer text-[14px] text-smoke hover:text-snow"
             >
               ← Inventory
             </button>
@@ -92,7 +92,7 @@ export function PartDetailView({ data, variant, onClose }: PartDetailViewProps) 
             href={data.part.datasheet_url}
             target="_blank"
             rel="noreferrer"
-            className="mb-6 inline-block text-[13px] text-smark-orange hover:underline"
+            className="mb-6 inline-block text-[14px] text-smark-orange hover:underline"
           >
             Datasheet ↗
           </a>
@@ -121,9 +121,9 @@ export function PartDetailView({ data, variant, onClose }: PartDetailViewProps) 
           onChange={setTimelineFilter}
         />
         {data.timeline.length === 0 ? (
-          <p className="py-6 text-center text-[13px] text-smoke">No history yet for this part.</p>
+          <p className="py-6 text-center text-[14px] text-smoke">No history yet for this part.</p>
         ) : filteredTimeline.length === 0 ? (
-          <p className="py-6 text-center text-[13px] text-smoke">No events match these filters.</p>
+          <p className="py-6 text-center text-[14px] text-smoke">No events match these filters.</p>
         ) : (
           <TimelineList entries={filteredTimeline} />
         )}

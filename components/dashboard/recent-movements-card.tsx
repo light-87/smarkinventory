@@ -50,15 +50,15 @@ export function RecentMovementsCard({
               className="flex flex-col gap-1.5 border-b border-border-faint px-5 py-3 last:border-b-0 sm:flex-row sm:items-center sm:gap-3"
             >
               <div className="flex items-center gap-3">
-                <span className="w-11 flex-none font-mono text-[12px] text-smoke">{m.time}</span>
+                <span className="w-11 flex-none font-mono text-[13px] text-smoke">{m.time}</span>
                 {m.pid === "—" ? (
-                  <span className="flex-none truncate font-mono text-[13px] text-snow sm:w-28">
+                  <span className="flex-none truncate font-mono text-[14px] text-snow sm:w-28">
                     {m.pid}
                   </span>
                 ) : (
                   <Link
                     href={`/part/${m.pid}`}
-                    className="flex-none truncate font-mono text-[13px] text-snow transition-colors hover:text-smark-orange sm:w-28"
+                    className="flex-none truncate font-mono text-[14px] text-snow transition-colors hover:text-smark-orange sm:w-28"
                   >
                     {m.pid}
                   </Link>

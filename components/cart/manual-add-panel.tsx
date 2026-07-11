@@ -81,7 +81,7 @@ export function ManualAddPanel({ canWrite }: { canWrite: boolean }) {
               key={hit.id}
               className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-charcoal px-3 py-2"
             >
-              <div className="min-w-0 text-[13px]">
+              <div className="min-w-0 text-[14px]">
                 <span className="font-mono text-snow">{hit.internalPid}</span>{" "}
                 <span className="text-silver-mist">{hit.mpn ?? hit.value ?? "—"}</span>{" "}
                 <span className="text-smoke">

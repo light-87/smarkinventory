@@ -89,14 +89,14 @@ export function TaskCard({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           {projectName && <div className="text-caption text-smoke">{projectName}</div>}
-          <div className="text-[15px] text-snow">{task.title}</div>
-          {task.description && <p className="mt-1 text-[13px] text-smoke">{task.description}</p>}
+          <div className="text-[16px] text-snow">{task.title}</div>
+          {task.description && <p className="mt-1 text-[14px] text-smoke">{task.description}</p>}
         </div>
         <Chip tone={STATUS_TONE[task.status]}>{STATUS_LABEL[task.status]}</Chip>
       </div>
 
       {openHold && (
-        <div className="rounded-lg border border-smark-orange bg-surface-accent px-3.5 py-2.5 text-[13px] text-silver-mist">
+        <div className="rounded-lg border border-smark-orange bg-surface-accent px-3.5 py-2.5 text-[14px] text-silver-mist">
           Awaiting client input since {formatDate(openHold.startedAt)} — time logging is paused.
           {isOwner && " Open Manage to mark it received or send a reminder."}
         </div>

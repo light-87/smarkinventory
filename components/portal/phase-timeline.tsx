@@ -64,7 +64,7 @@ export function PhaseTimeline({ phases }: { phases: PortalPhase[] }) {
                 {isDone && (
                   <span
                     aria-hidden
-                    className="flex size-4 flex-none items-center justify-center rounded-full bg-phosphor-green text-[10px] leading-none font-medium text-obsidian"
+                    className="flex size-4 flex-none items-center justify-center rounded-full bg-phosphor-green text-[11px] leading-none font-medium text-obsidian"
                   >
                     ✓
                   </span>

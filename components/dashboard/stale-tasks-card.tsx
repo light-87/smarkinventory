@@ -27,7 +27,7 @@ export interface StaleTasksCardProps {
 export function StaleTasksCard({ tasks, error }: StaleTasksCardProps) {
   return (
     <Card>
-      <div className="mb-1 text-[15px] font-medium text-snow">Oldest open tasks</div>
+      <div className="mb-1 text-[16px] font-medium text-snow">Oldest open tasks</div>
       <div className="mb-4 text-caption text-smoke">Proxy for task expiry — this system has no due-date field.</div>
       {error || !tasks ? (
         <div className="text-body-sm text-smoke">{error ?? "Task data unavailable."}</div>
@@ -36,7 +36,7 @@ export function StaleTasksCard({ tasks, error }: StaleTasksCardProps) {
       ) : (
         <ul className="flex flex-col gap-2.5">
           {tasks.map((task) => (
-            <li key={task.id} className="flex flex-wrap items-center justify-between gap-2 text-[13px]">
+            <li key={task.id} className="flex flex-wrap items-center justify-between gap-2 text-[14px]">
               <div className="flex flex-col">
                 <span className="text-snow">{task.title}</span>
                 <span className="text-caption text-smoke">{task.projectName}</span>

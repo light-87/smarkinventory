@@ -92,9 +92,9 @@ export function CartLineCard({ line, distributors, canWrite, selected, onToggleS
           )}
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              {line.internalPid && <span className="font-mono text-[13px] text-snow">{line.internalPid}</span>}
-              {line.mpn && <span className="truncate text-[13px] text-silver-mist">{line.mpn}</span>}
-              {!line.internalPid && !line.mpn && <span className="text-[13px] text-smoke">New part</span>}
+              {line.internalPid && <span className="font-mono text-[14px] text-snow">{line.internalPid}</span>}
+              {line.mpn && <span className="truncate text-[14px] text-silver-mist">{line.mpn}</span>}
+              {!line.internalPid && !line.mpn && <span className="text-[14px] text-smoke">New part</span>}
             </div>
             <div className="mt-1 flex flex-wrap gap-1.5">
               {line.value && (

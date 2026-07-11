@@ -119,7 +119,7 @@ function DrawerError({
   return (
     <>
       <DrawerHeader>
-        <div className="text-[15px] text-snow">Part detail</div>
+        <div className="text-[16px] text-snow">Part detail</div>
         <DrawerCloseButton onClick={onClose} />
       </DrawerHeader>
       <div className="px-6 py-8">

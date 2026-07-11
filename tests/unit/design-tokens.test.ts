@@ -19,7 +19,7 @@ describe("design tokens (app/globals.css)", () => {
     ["lime CTA", "--color-lime: #bfff5a"],
     ["obsidian ink", "--color-obsidian: #0a0d16"],
     ["canvas page background", "--color-canvas: #fcfcfd"],
-    ["snow primary ink", "--color-snow: #1d2130"],
+    ["snow primary ink", "--color-snow: #171a26"],
   ])("%s stays locked (%s)", (_name, declaration) => {
     expect(globalsCss).toContain(declaration);
   });

@@ -60,7 +60,7 @@ export function UploadPasteCard({ onResolved, onError, loading, onLoadingChange 
 
   return (
     <Card padding="lg" className="flex flex-1 flex-col">
-      <div className="text-[15px] text-snow">Upload or paste a BOM</div>
+      <div className="text-[16px] text-snow">Upload or paste a BOM</div>
       <div className="mt-1 text-caption text-smoke">
         Any sheet with Reference / Qty / Value (+ MPN or LCSC Part #) columns — the same shape a project BOM uses.
       </div>

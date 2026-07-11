@@ -57,7 +57,7 @@ export function UploadBomPanel({ projectId }: UploadBomPanelProps) {
           <SectionLabel>Upload a filled template</SectionLabel>
           <a
             href="/api/boms/template"
-            className="text-[13px] text-smoke transition-colors hover:text-snow"
+            className="text-[14px] text-smoke transition-colors hover:text-snow"
             download
           >
             Download template ↓
@@ -89,8 +89,8 @@ export function UploadBomPanel({ projectId }: UploadBomPanelProps) {
             className="hidden"
             onChange={(e) => setFileName(e.target.files?.[0]?.name ?? null)}
           />
-          <div className="text-[15px] text-snow">{fileName ?? "Drop your filled template here"}</div>
-          <div className="mt-1.5 text-[13px] text-smoke">{fileName ? "Tap to choose a different file" : ".xlsx only"}</div>
+          <div className="text-[16px] text-snow">{fileName ?? "Drop your filled template here"}</div>
+          <div className="mt-1.5 text-[14px] text-smoke">{fileName ? "Tap to choose a different file" : ".xlsx only"}</div>
         </div>
 
         {error && <div className="text-caption text-smark-orange-soft">{error}</div>}

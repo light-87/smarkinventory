@@ -65,7 +65,7 @@ export function CardHeader({
       {...props}
     >
       {title !== undefined && (
-        <span className="truncate text-[15px] font-medium text-snow">
+        <span className="truncate text-[16px] font-medium text-snow">
           {title}
         </span>
       )}
@@ -92,7 +92,7 @@ export function SectionLabel({
   return (
     <div
       className={cn(
-        "text-[11px] tracking-[0.06em] text-smoke uppercase",
+        "text-[12px] tracking-[0.06em] text-smoke uppercase",
         className,
       )}
       {...props}

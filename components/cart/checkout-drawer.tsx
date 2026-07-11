@@ -99,14 +99,14 @@ export function CheckoutDrawer({ open, onClose, lines, distributors, onPlaced }:
     <Drawer open={open} onClose={onClose} width={480} aria-label="Checkout">
       <DrawerHeader>
         <div>
-          <div className="text-[15px] text-snow">Checkout</div>
+          <div className="text-[16px] text-snow">Checkout</div>
           <div className="text-caption text-smoke">Grouped by distributor — a group without an order number stays in the cart.</div>
         </div>
         <DrawerCloseButton onClick={onClose} />
       </DrawerHeader>
       <DrawerBody>
         {groups.length === 0 ? (
-          <div className="text-[13px] text-smoke">
+          <div className="text-[14px] text-smoke">
             Select cart lines with a distributor chosen, then come back here.
           </div>
         ) : (

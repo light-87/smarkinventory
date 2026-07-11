@@ -17,7 +17,7 @@ export function SpecsGrid({ specs, className }: SpecsGridProps) {
     >
       {specs.map((spec) => (
         <div key={spec.label} className="bg-surface px-3.5 py-[11px]">
-          <div className="mb-1 text-[11px] text-smoke">{spec.label}</div>
+          <div className="mb-1 text-[12px] text-smoke">{spec.label}</div>
           <div className="truncate text-sm text-snow">{spec.value}</div>
         </div>
       ))}

@@ -126,7 +126,7 @@ export function DocumentsCard({ documents }: { documents: EmployeeDocumentRow[] 
               <Chip tone="accent" size="sm">
                 {DOC_TYPE_LABELS[doc.doc_type]}
               </Chip>
-              <span className="min-w-0 flex-1 truncate text-[13px] text-snow">
+              <span className="min-w-0 flex-1 truncate text-[14px] text-snow">
                 {doc.client_label ? `${doc.client_label} — ${doc.display_name}` : doc.display_name}
               </span>
               <span className="flex-none text-caption text-smoke">

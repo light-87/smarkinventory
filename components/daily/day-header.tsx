@@ -39,7 +39,7 @@ export function DayHeader({ viewedDate, personParam, showPersonFilter, people }:
           >
             ‹
           </Link>
-          <div className="text-[15px] text-snow">
+          <div className="text-[16px] text-snow">
             {formatDate(viewedDate)}
             {isToday && <span className="ml-2 text-caption text-smark-orange">Today</span>}
           </div>
@@ -58,12 +58,12 @@ export function DayHeader({ viewedDate, personParam, showPersonFilter, people }:
         </div>
 
         <form method="get" action="/daily" className="flex flex-wrap items-center gap-2">
-          <input type="date" name="date" defaultValue={viewedDate} className="h-9 rounded-lg border border-charcoal bg-surface-well px-3 text-[13px] text-snow outline-none focus:border-smark-orange" />
+          <input type="date" name="date" defaultValue={viewedDate} className="h-9 rounded-lg border border-charcoal bg-surface-well px-3 text-[14px] text-snow outline-none focus:border-smark-orange" />
           {showPersonFilter && (
             <select
               name="person"
               defaultValue={personParam}
-              className="h-9 rounded-lg border border-charcoal bg-surface-well px-3 text-[13px] text-snow outline-none focus:border-smark-orange"
+              className="h-9 rounded-lg border border-charcoal bg-surface-well px-3 text-[14px] text-snow outline-none focus:border-smark-orange"
               aria-label="Person"
             >
               <option value="all">All people</option>

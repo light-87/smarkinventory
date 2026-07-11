@@ -32,7 +32,7 @@ export default async function PartDetailPage({ params }: PartDetailPageProps) {
           title={result.reason === "not_found" ? `No part found for "${pid}"` : "Couldn't load this part"}
           description={result.message ?? "Please try again."}
           actions={
-            <Link href="/inventory" className="text-[13px] text-smark-orange-soft hover:underline">
+            <Link href="/inventory" className="text-[14px] text-smark-orange-soft hover:underline">
               ← Back to Inventory
             </Link>
           }

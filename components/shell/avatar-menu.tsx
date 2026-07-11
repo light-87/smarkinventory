@@ -50,7 +50,7 @@ export function AvatarMenu({ user }: { user: SessionUser }) {
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-label="Account menu"
-        className="flex size-9 items-center justify-center rounded-full border border-charcoal bg-surface-raised font-mono text-[13px] font-medium text-snow hover:border-slate"
+        className="flex size-9 items-center justify-center rounded-full border border-charcoal bg-surface-raised font-mono text-[14px] font-medium text-snow hover:border-slate"
       >
         {initialsFor(displayName)}
       </button>
@@ -60,8 +60,8 @@ export function AvatarMenu({ user }: { user: SessionUser }) {
           <div aria-hidden onClick={() => setOpen(false)} className="fixed inset-0 z-[59]" />
           <div className="absolute right-0 top-11 z-[60] w-[190px] rounded-xl border border-charcoal bg-surface-raised p-1.5">
             <div className="border-b border-border-divider px-3 py-2.5">
-              <div className="truncate text-[13px] text-snow">{displayName}</div>
-              <div className="mt-1 inline-flex rounded-full border border-charcoal px-2 py-[1px] text-[11px] text-smoke">
+              <div className="truncate text-[14px] text-snow">{displayName}</div>
+              <div className="mt-1 inline-flex rounded-full border border-charcoal px-2 py-[1px] text-[12px] text-smoke">
                 {ROLE_LABEL[user.role]}
               </div>
             </div>
@@ -69,7 +69,7 @@ export function AvatarMenu({ user }: { user: SessionUser }) {
               <Link
                 href="/settings"
                 onClick={() => setOpen(false)}
-                className="block rounded-lg px-3 py-2 text-[13px] text-silver-mist hover:bg-ash hover:text-snow"
+                className="block rounded-lg px-3 py-2 text-[14px] text-silver-mist hover:bg-ash hover:text-snow"
               >
                 Settings
               </Link>
@@ -78,7 +78,7 @@ export function AvatarMenu({ user }: { user: SessionUser }) {
               type="button"
               onClick={logout}
               disabled={loggingOut}
-              className="block w-full cursor-pointer rounded-lg px-3 py-2 text-left text-[13px] text-silver-mist hover:bg-ash hover:text-snow disabled:opacity-50"
+              className="block w-full cursor-pointer rounded-lg px-3 py-2 text-left text-[14px] text-silver-mist hover:bg-ash hover:text-snow disabled:opacity-50"
             >
               {loggingOut ? "Logging out…" : "Logout"}
             </button>

@@ -18,6 +18,14 @@ const STATUS_TONE: Record<PortalTaskStatus, ChipTone> = {
   done: "success",
 };
 
+/** Left-edge accent colour per status — gives the task list colour at a glance (matches the chip tone). */
+const STATUS_ACCENT: Record<PortalTaskStatus, string> = {
+  open: "border-l-slate",
+  awaiting_client_input: "border-l-warn",
+  submitted: "border-l-smark-orange",
+  done: "border-l-phosphor-green",
+};
+
 /** `null` means the owner's `show_time_to_client` toggle is off — never render a fabricated value in its place. */
 function formatHours(hours: number | null): string {
   return hours === null ? "—" : `${hours}h`;
@@ -49,7 +57,7 @@ export function PmDashboard({ token, progress, tasks }: PmDashboardProps) {
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <span className="text-body-sm text-silver-mist">Tasks complete</span>
-          <span className="font-mono text-[15px] text-snow">{progress}%</span>
+          <span className="font-mono text-[16px] text-snow">{progress}%</span>
         </div>
         <div
           className="h-2 w-full overflow-hidden rounded-full bg-surface-well"
@@ -69,7 +77,7 @@ export function PmDashboard({ token, progress, tasks }: PmDashboardProps) {
         {tasks.map((task) => (
           <li
             key={task.id}
-            className="flex flex-col gap-2 rounded-xl border border-charcoal bg-surface-panel px-4 py-3"
+            className={`flex flex-col gap-2 rounded-xl border border-l-[3px] border-charcoal bg-surface-panel px-4 py-3 ${STATUS_ACCENT[task.status]}`}
           >
             <div className="flex flex-wrap items-start justify-between gap-2">
               <span className="min-w-0 flex-1 text-[14px] font-medium break-words text-snow">{task.title}</span>

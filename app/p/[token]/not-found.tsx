@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 export default function PortalNotFound() {
   return (
     <main className="mx-auto flex min-h-dvh max-w-lg flex-col items-center justify-center gap-4 px-6 text-center">
-      <span className="text-[13px] font-bold tracking-[0.14em] text-smark-orange uppercase">
+      <span className="text-[14px] font-bold tracking-[0.14em] text-smark-orange uppercase">
         Smark
       </span>
       <h1 className="text-heading-sm font-medium text-snow">This link isn&apos;t available</h1>

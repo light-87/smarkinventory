@@ -337,7 +337,7 @@ export function CameraScanner({
         className="absolute inset-x-0 top-0 z-[3] flex items-center justify-between gap-2 bg-gradient-to-b from-black/60 to-transparent px-3.5 pb-2.5"
         style={{ paddingTop: "calc(14px + env(safe-area-inset-top))" }}
       >
-        <div className="truncate text-[15px] font-medium text-white">{title ?? "Scan a code"}</div>
+        <div className="truncate text-[16px] font-medium text-white">{title ?? "Scan a code"}</div>
         <div className="flex flex-none gap-2">
           {hasTorch && (
             <button
@@ -386,7 +386,7 @@ export function CameraScanner({
       {errKind && (
         <div className="absolute inset-0 z-[2] flex flex-col items-center justify-center px-7 text-center">
           <CameraIcon className="mb-3.5 size-12 text-white/60" />
-          <div className="max-w-[300px] text-[15px] leading-relaxed font-medium text-white">{errMsg}</div>
+          <div className="max-w-[300px] text-[16px] leading-relaxed font-medium text-white">{errMsg}</div>
         </div>
       )}
 

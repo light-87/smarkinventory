@@ -20,7 +20,7 @@ export function ContestedStockStrip({ contested, className }: ContestedStockStri
       <span aria-hidden className="mt-0.5 flex-none text-warn">
         ⚠
       </span>
-      <p className="min-w-0 text-[13px] text-snow">
+      <p className="min-w-0 text-[14px] text-snow">
         {buildContestedMessage(contested)}{" "}
         <Link href={`/cart?part_id=${contested.partId}`} className="text-smark-orange hover:underline">
           Cart →

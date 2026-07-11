@@ -19,14 +19,14 @@ export function IncomeStrip({ income }: IncomeStripProps) {
     <Card padding="none">
       <div className="flex items-center justify-between border-b border-border-divider px-5 py-4">
         <SectionLabel>Payments received</SectionLabel>
-        <span className="font-mono text-[15px] text-snow">{formatINR(total)}</span>
+        <span className="font-mono text-[16px] text-snow">{formatINR(total)}</span>
       </div>
       {income.length === 0 ? (
         <div className="px-5 py-6 text-center text-caption text-smoke">No payments recorded against this project yet.</div>
       ) : (
         <ul className="divide-y divide-border-hairline">
           {income.map((p) => (
-            <li key={p.id} className="flex items-center justify-between gap-3 px-5 py-3 text-[13px]">
+            <li key={p.id} className="flex items-center justify-between gap-3 px-5 py-3 text-[14px]">
               <div className="flex items-center gap-2.5">
                 <span className="text-smoke">{formatDate(p.entryDate)}</span>
                 {p.isDraft && <Chip tone="accent">Draft</Chip>}
