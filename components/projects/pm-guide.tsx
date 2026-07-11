@@ -78,6 +78,10 @@ export function PmGuide() {
   const [open, setOpen] = useState(true);
 
   useEffect(() => {
+    // One-time read of the persisted collapse preference on mount — the
+    // pattern react-hooks/set-state-in-effect explicitly allows (matches
+    // components/shelves/AuditLauncher.tsx).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (localStorage.getItem(STORAGE_KEY) === "1") setOpen(false);
   }, []);
 
