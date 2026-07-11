@@ -9,7 +9,7 @@ export type ButtonVariant = "primary" | "outline" | "accent-outline" | "ghost";
 export type ButtonSize = "sm" | "md" | "lg" | "xl";
 
 export interface ButtonProps extends ComponentPropsWithRef<"button"> {
-  /** primary = orange pill · outline = charcoal pill · accent-outline = orange border · ghost = quiet text */
+  /** primary = lime pill · outline = hairline pill · accent-outline = cobalt border · ghost = quiet text */
   variant?: ButtonVariant;
   size?: ButtonSize;
   /** Shows a spinner and disables the button. */
@@ -21,7 +21,7 @@ export interface ButtonProps extends ComponentPropsWithRef<"button"> {
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   primary:
-    "bg-smark-orange font-medium text-obsidian hover:bg-smark-orange-hover",
+    "bg-lime font-medium text-obsidian hover:bg-lime-hover",
   outline: "border border-charcoal text-snow hover:bg-ash",
   "accent-outline":
     "border border-smark-orange text-snow hover:bg-surface-accent-hover",

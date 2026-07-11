@@ -1,6 +1,9 @@
 import { InventoryClient } from "@/components/inventory/inventory-client";
 import { getInventoryList } from "@/lib/inventory/query";
 import { getPartDetailData } from "@/lib/part-events/query";
+import { getSessionUser } from "@/lib/auth/session";
+import { effectiveCanSee } from "@/lib/rbac/access";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export const metadata = { title: "Inventory" };
 
@@ -17,6 +20,15 @@ interface InventoryPageProps {
  */
 export default async function InventoryPage({ searchParams }: InventoryPageProps) {
   const { pid } = await searchParams;
+
+  const sessionUser = await getSessionUser();
+  if (!sessionUser || !effectiveCanSee(sessionUser.role, "inventory", sessionUser.grantedModules)) {
+    return (
+      <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
+        <EmptyState title="No access" description="Your account doesn't have access to Inventory. Ask an owner to grant the Inventory module." />
+      </div>
+    );
+  }
 
   const listResult = await getInventoryList();
   const drawerResult = pid ? await getPartDetailData(pid) : null;

@@ -84,7 +84,7 @@ export function CalendarView({ month, calendar, selectedDay, todayDate, extraPar
                 href={hrefFor(month, day.date, extraParams)}
                 title={statusLabel(day.status, day.holidayName, day.leaveReason)}
                 className={cn(
-                  "flex aspect-square min-h-9 flex-col items-center justify-center rounded-lg border text-[13px] transition-colors hover:brightness-125",
+                  "flex aspect-square min-h-9 flex-col items-center justify-center rounded-lg border text-[13px] transition-[filter] hover:brightness-95",
                   statusCellClasses(day.status),
                   isSelected && "ring-2 ring-smark-orange ring-offset-2 ring-offset-surface",
                   isToday && !isSelected && "border-2",
@@ -97,10 +97,10 @@ export function CalendarView({ month, calendar, selectedDay, todayDate, extraPar
         </div>
 
         <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-border-faint pt-3 text-caption text-smoke">
-          <LegendDot className="border-forest-depth bg-forest-depth/25" label="Present / Comp" />
+          <LegendDot className="border-forest-depth bg-forest-depth/15" label="Present / Comp" />
+          <LegendDot className="border-smark-orange bg-surface-accent" label="Leave" />
+          <LegendDot className="border-smark-orange-soft bg-smark-orange-soft/10" label="Absent" />
           <LegendDot className="border-charcoal bg-ash" label="Holiday" />
-          <LegendDot className="border-smark-orange-soft/60 bg-surface-accent" label="Leave" />
-          <LegendDot className="border-smark-orange bg-surface-accent" label="Absent" />
           <LegendDot className="border-charcoal bg-surface-well" label="Not marked" />
         </div>
       </div>

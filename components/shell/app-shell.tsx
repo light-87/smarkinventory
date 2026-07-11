@@ -40,7 +40,7 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
     // — Rail already assumed this shape (`sticky top-0 h-dvh` + its own
     // internal `overflow-y-auto` nav list).
     <NavigationProgressProvider>
-      <div className="flex h-dvh overflow-hidden bg-obsidian">
+      <div className="flex h-dvh overflow-hidden bg-canvas">
         <TopProgressBar />
         <Rail role={user.role} pathname={pathname} grantedModules={user.grantedModules} />
         <div className="flex min-w-0 flex-1 flex-col">

@@ -4,6 +4,7 @@ import { useState, useTransition, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { submitPortalComment } from "@/lib/portal/actions";
 
 /**
@@ -51,22 +52,21 @@ export function CommentForm({ token }: { token: string }) {
         />
       </Field>
       <Field label="Message" error={error}>
-        <textarea
+        <Textarea
           value={body}
           onChange={(event) => setBody(event.target.value)}
           placeholder="Ask a question or share feedback…"
           maxLength={2000}
           required
           disabled={pending}
-          rows={3}
-          className="w-full resize-none rounded-lg border border-charcoal bg-surface-well px-3.5 py-2.5 text-sm text-snow outline-none transition-colors placeholder:text-smoke focus:border-smark-orange disabled:cursor-not-allowed disabled:opacity-50"
+          invalid={Boolean(error)}
         />
       </Field>
       <div className="flex items-center gap-3">
         <Button type="submit" size="lg" loading={pending} disabled={pending}>
           Send
         </Button>
-        {success && <span className="text-body-sm text-phosphor-green">Sent — thank you!</span>}
+        {success && <span className="text-body-sm text-phosphor-green">Sent ✓ — thank you!</span>}
       </div>
     </form>
   );

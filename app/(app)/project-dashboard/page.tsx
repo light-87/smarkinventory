@@ -27,6 +27,7 @@ import { HoursBreakdownChart } from "@/components/project-dashboard/hours-breakd
 import { TaskBugDistribution } from "@/components/project-dashboard/task-bug-distribution";
 import { EntriesFeed } from "@/components/project-dashboard/entries-feed";
 import { OverrunsList } from "@/components/project-dashboard/overruns-list";
+import { DashboardViewSwitch, type DashboardView } from "@/components/project-dashboard/dashboard-view-switch";
 
 export const metadata: Metadata = { title: "Project Dashboard" };
 
@@ -75,6 +76,10 @@ export default async function ProjectDashboardPage({
   const rawEntriesPage = Number(firstOf(params.entriesPage));
   const entriesPage = Number.isInteger(rawEntriesPage) && rawEntriesPage > 0 ? rawEntriesPage : 1;
 
+  const rawView = firstOf(params.view);
+  const view: DashboardView =
+    rawView === "projects" || rawView === "employees" || rawView === "timelog" ? rawView : "overview";
+
   const supabase = await createClient();
   const [filterOptions, dataset] = await Promise.all([
     getDashboardFilterOptions(supabase),
@@ -90,13 +95,14 @@ export default async function ProjectDashboardPage({
   const entriesPageData = deriveTimeLogEntries(dataset, entriesPage, ENTRIES_PAGE_SIZE);
   const overruns = deriveOverruns(dataset);
 
-  // Carried on every Link/pagination control so toggling group-by or paging never drops the active filters.
+  // Carried on every Link/pagination control so toggling group-by or paging never drops the active filters or view.
   const baseParams: Record<string, string> = {
     from: filters.from ?? "",
     to: filters.to ?? "",
     client: filters.client ?? "",
     project: filters.projectId ?? "",
     employee: filters.employeeId ?? "",
+    view,
   };
 
   return (
@@ -108,24 +114,35 @@ export default async function ProjectDashboardPage({
 
       <FilterBar filters={filters} options={filterOptions} />
 
-      <StatTiles stats={statTiles} />
+      <DashboardViewSwitch active={view} />
 
-      <ProjectsTable rows={projectRows} />
+      {view === "overview" && (
+        <>
+          <StatTiles stats={statTiles} />
+          <TaskBugDistribution taskStatus={taskStatusBuckets} bugBands={bugBandBuckets} />
+        </>
+      )}
 
-      <EmployeeKpiPanel rows={employeeRows} focusedUserId={filters.employeeId} />
+      {view === "projects" && (
+        <>
+          <ProjectsTable rows={projectRows} />
+          <OverrunsList rows={overruns} />
+        </>
+      )}
 
-      <HoursBreakdownChart buckets={hoursBuckets} groupBy={groupBy} baseParams={baseParams} />
+      {view === "employees" && <EmployeeKpiPanel rows={employeeRows} focusedUserId={filters.employeeId} />}
 
-      <TaskBugDistribution taskStatus={taskStatusBuckets} bugBands={bugBandBuckets} />
-
-      <EntriesFeed
-        page={entriesPageData}
-        currentPage={entriesPage}
-        pageSize={ENTRIES_PAGE_SIZE}
-        baseParams={{ ...baseParams, group: groupBy }}
-      />
-
-      <OverrunsList rows={overruns} />
+      {view === "timelog" && (
+        <>
+          <EntriesFeed
+            page={entriesPageData}
+            currentPage={entriesPage}
+            pageSize={ENTRIES_PAGE_SIZE}
+            baseParams={{ ...baseParams, group: groupBy }}
+          />
+          <HoursBreakdownChart buckets={hoursBuckets} groupBy={groupBy} baseParams={baseParams} />
+        </>
+      )}
     </div>
   );
 }

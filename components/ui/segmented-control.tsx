@@ -63,7 +63,7 @@ export function SegmentedControl<T extends string>({
                   : "text-smoke hover:text-snow"),
               variant === "accent" &&
                 (active
-                  ? "bg-smark-orange font-medium text-obsidian"
+                  ? "bg-smark-orange font-medium text-white"
                   : "text-silver-mist hover:text-snow"),
             )}
           >

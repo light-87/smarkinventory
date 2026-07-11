@@ -18,7 +18,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
-import { Chip } from "@/components/ui/chip";
+import { Chip, type ChipTone } from "@/components/ui/chip";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -44,20 +44,15 @@ function matchGlyph(ok: boolean | "exact" | "approx" | "none") {
 }
 
 /**
- * Three distinct tiers matching the locked prototype (SmarkStock.dc.html:1556
- * review-lane `confColor`) — high=silver-mist (NOT green), mid=orange-soft,
- * low=full orange. The two Chip tones this design system ships (`neutral` →
- * silver-mist text, `accent` → full smark-orange) cover the high/low ends
- * exactly; the mid tier has no dedicated Chip tone, so it reuses `accent`'s
- * structure with a `className` override to the soft-orange token instead of
- * proposing a new tone to the (integrator-locked) Chip component for one
- * screen's use.
+ * Confidence tiers: high (≥80) reads quiet neutral; anything below is a caution
+ * to verify, voiced in the amber `warn` tone (the white theme's dedicated
+ * caution colour — distinct from the red used for real errors and the cobalt
+ * used for links/accents).
  */
-function confidenceTone(confidence: number | null): { tone: "success" | "accent" | "neutral"; label: string; className?: string } {
+function confidenceTone(confidence: number | null): { tone: ChipTone; label: string } {
   if (confidence == null) return { tone: "neutral", label: "—" };
   if (confidence >= 80) return { tone: "neutral", label: `${confidence}/100` };
-  if (confidence >= 50) return { tone: "accent", label: `${confidence}/100`, className: "border-smark-orange-soft text-smark-orange-soft" };
-  return { tone: "accent", label: `${confidence}/100` };
+  return { tone: "warn", label: `${confidence}/100` };
 }
 
 export function ReviewLineCard({ projectId, runId, writable, line }: ReviewLineCardProps) {
@@ -238,10 +233,10 @@ export function ReviewLineCard({ projectId, runId, writable, line }: ReviewLineC
 
           <div className="mt-3.5 flex flex-wrap items-center gap-2.5 border-t border-border-hairline pt-3.5">
             <span className="text-caption text-smoke">Confidence</span>
-            <Chip tone={confidence.tone} mono className={confidence.className}>
+            <Chip tone={confidence.tone} mono>
               {confidence.label}
             </Chip>
-            {lowConfidence && <span className="text-caption text-smark-orange-soft">⚠ verify manually</span>}
+            {lowConfidence && <span className="text-caption text-warn">⚠ verify manually</span>}
             {selectedRow?.orderLink && (
               <a href={selectedRow.orderLink} target="_blank" rel="noreferrer" className="text-caption text-smark-orange-hover hover:underline">
                 View recommended listing ↗

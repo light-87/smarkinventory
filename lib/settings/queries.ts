@@ -11,10 +11,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/db";
 import { DistributorRowSchema, OrderingRuleRowSchema, PartFieldTemplateRowSchema, TABLES } from "@/types/db";
 import {
-  KNOWN_DISTRIBUTOR_KEY_ENV_VARS,
   labelForRule,
   type DistributorItem,
-  type KeyState,
   type OrderingRuleItem,
   type PartFieldTemplateItem,
 } from "./types";
@@ -41,23 +39,12 @@ export async function getOrderingRules(supabase: DB): Promise<OrderingRuleItem[]
  * Distributors
  * ──────────────────────────────────────────────────────────────────────────── */
 
-/** Best-effort "is a key configured" check — see lib/settings/types.ts's KNOWN_DISTRIBUTOR_KEY_ENV_VARS header note. */
-function keyStateFor(name: string, apiType: string): { keyState: KeyState; envVarNames: readonly string[] } {
-  if (apiType !== "rest") return { keyState: "not_applicable", envVarNames: [] };
-
-  const envVarNames = KNOWN_DISTRIBUTOR_KEY_ENV_VARS[name] ?? [];
-  if (envVarNames.length === 0) return { keyState: "needed", envVarNames: [] };
-
-  const configured = envVarNames.every((v) => Boolean(process.env[v]));
-  return { keyState: configured ? "configured" : "needed", envVarNames };
-}
-
 export async function getDistributors(supabase: DB): Promise<DistributorItem[]> {
   const { data, error } = await supabase.from(TABLES.distributors).select("*").order("name", { ascending: true });
   assertNoError(error, "smark_distributors");
 
   const rows = DistributorRowSchema.array().parse(data ?? []);
-  return rows.map((row) => ({ row, ...keyStateFor(row.name, row.api_type) }));
+  return rows.map((row) => ({ row }));
 }
 
 /** Next `rank` for `smark_distributor_preferences` — new sites land ranked last, `enabled: false` (default OFF). */

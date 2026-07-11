@@ -251,7 +251,7 @@ export function CommandPalette({ className, hideTrigger = false }: CommandPalett
 
       {open && (
         <>
-          <div aria-hidden onClick={close} className="animate-fade-in fixed inset-0 z-[70] bg-black/55" />
+          <div aria-hidden onClick={close} className="animate-fade-in fixed inset-0 z-[70] bg-[#1d2130]/40" />
           <div
             role="dialog"
             aria-modal="true"

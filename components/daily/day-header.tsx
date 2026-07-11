@@ -51,7 +51,7 @@ export function DayHeader({ viewedDate, personParam, showPersonFilter, people }:
             ›
           </Link>
           {!isToday && (
-            <Link href={hrefFor(todayDateOnly(), personParam)} className="text-caption text-smark-orange hover:text-smark-orange-soft">
+            <Link href={hrefFor(todayDateOnly(), personParam)} className="text-caption text-smark-orange hover:text-smark-orange-hover">
               Jump to today
             </Link>
           )}

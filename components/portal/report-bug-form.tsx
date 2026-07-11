@@ -3,6 +3,7 @@
 import { useState, useTransition, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { reportPortalBug } from "@/lib/portal/actions";
 
 /**
@@ -36,7 +37,7 @@ export function ReportBugForm({ token, taskId }: { token: string; taskId: string
   }
 
   if (success) {
-    return <p className="text-body-sm text-phosphor-green">Thanks — Smark has been notified.</p>;
+    return <p className="text-body-sm text-phosphor-green">Sent ✓ — Smark has been notified.</p>;
   }
 
   if (!open) {
@@ -49,16 +50,15 @@ export function ReportBugForm({ token, taskId }: { token: string; taskId: string
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-2">
-      <textarea
+      <Textarea
         value={description}
         onChange={(event) => setDescription(event.target.value)}
         placeholder="What went wrong?"
         maxLength={2000}
         required
         disabled={pending}
-        rows={3}
         autoFocus
-        className="w-full resize-none rounded-lg border border-charcoal bg-surface-well px-3.5 py-2.5 text-sm text-snow outline-none transition-colors placeholder:text-smoke focus:border-smark-orange disabled:cursor-not-allowed disabled:opacity-50"
+        invalid={Boolean(error)}
       />
       {error && <p className="text-caption text-smark-orange-soft">{error}</p>}
       <div className="flex items-center gap-2">

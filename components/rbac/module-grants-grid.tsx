@@ -68,7 +68,7 @@ export function ModuleGrantsGrid({
   return (
     <div className="flex flex-col gap-4">
       {error && (
-        <div className="rounded-lg border border-red-900/50 bg-red-950/30 px-3.5 py-2.5 text-[13px] text-red-300">{error}</div>
+        <div className="rounded-lg border border-smark-orange-soft bg-smark-orange-soft/10 px-3.5 py-2.5 text-[13px] text-smark-orange-soft">{error}</div>
       )}
       {employees.map((employee) => {
         const employeeGrants = grants[employee.id] ?? [];

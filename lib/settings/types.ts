@@ -67,26 +67,8 @@ export const DISTRIBUTOR_METHOD_LABELS: Record<DistributorApiType, string> = {
   none: "No integration",
 };
 
-/**
- * Best-effort env-var presence map for the baseline five (.env.local.example,
- * integrator-owned registry — read-only here). `smark_distributors` has NO
- * column for "which env var to read" (see notes-for-integrator in this
- * package's handoff) — this is a stopgap until that column exists, keyed by
- * the exact seeded name (supabase/seed.sql).
- */
-export const KNOWN_DISTRIBUTOR_KEY_ENV_VARS: Record<string, readonly string[]> = {
-  Digikey: ["DIGIKEY_CLIENT_ID", "DIGIKEY_CLIENT_SECRET"],
-  Mouser: ["MOUSER_API_KEY"],
-  element14: ["ELEMENT14_API_KEY"],
-};
-
-export type KeyState = "configured" | "needed" | "not_applicable";
-
 export interface DistributorItem {
   row: DistributorRow;
-  keyState: KeyState;
-  /** Env var name(s) this distributor's key would be read from — never a secret, purely descriptive. */
-  envVarNames: readonly string[];
 }
 
 /* ────────────────────────────────────────────────────────────────────────────

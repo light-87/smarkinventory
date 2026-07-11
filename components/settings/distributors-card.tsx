@@ -19,26 +19,16 @@ interface FormState {
 
 const EMPTY_FORM: FormState = { name: "", method: "rest", baseUrl: "" };
 
-/** `null` for browse-method rows — the method chip alone already says "no key needed". */
-function keyStateChip(item: DistributorItem) {
-  if (item.keyState === "not_applicable") return null;
-  if (item.keyState === "configured") return <Chip tone="success">Key configured</Chip>;
-  return <Chip tone="accent">Key needed</Chip>;
-}
-
 /**
  * Distributors card (plan/tab-settings.md R2-28 — "addable"). Real writes:
  * `smark_distributors` (name/URL/method/active) + a
- * `smark_distributor_preferences` row seeded `enabled: false` so a new site
- * starts OFF in every BOM's sequence editor (bom-pipeline, not built yet —
- * this is the exact mechanism its default-OFF requirement reads from).
+ * `smark_distributor_preferences` row seeded `enabled: true` so a new site is
+ * searched by default in every BOM's sequence editor (that per-BOM editor can
+ * still turn it off for a specific BOM).
  *
- * "Masked key state" for the baseline five is a best-effort env-presence
- * check (lib/settings/queries.ts `keyStateFor`) — `smark_distributors` has
- * no column recording WHICH env var a given row's key lives in (see this
- * package's notes-for-integrator); a freshly-added REST-with-key site always
- * reads "Key needed" until that column exists and the integrator wires it up.
- * The secret itself is NEVER entered here — only env var names are ever shown.
+ * No API keys are entered or shown here: since the ordering pivot to the
+ * desktop app the sourcing agent browses every site with the user's own
+ * Claude session, so there's no per-distributor key to configure.
  */
 export function DistributorsCard({ distributors }: { distributors: DistributorItem[] }) {
   const router = useRouter();
@@ -57,7 +47,7 @@ export function DistributorsCard({ distributors }: { distributors: DistributorIt
         baseUrl: form.baseUrl.trim() || null,
       });
       if (result.ok) {
-        push({ msg: `${form.name.trim()} added — starts OFF in BOM sequence editors until turned on` });
+        push({ msg: `${form.name.trim()} added — on by default in BOM sequence editors` });
         setForm(EMPTY_FORM);
         setAdding(false);
         router.refresh();
@@ -79,7 +69,7 @@ export function DistributorsCard({ distributors }: { distributors: DistributorIt
 
   return (
     <Card padding="none">
-      <CardHeader title="Distributors & API keys" />
+      <CardHeader title="Distributors" />
       <CardBody>
         <div className="flex flex-col gap-2">
           {distributors.map((item) => (
@@ -92,7 +82,6 @@ export function DistributorsCard({ distributors }: { distributors: DistributorIt
                 {item.row.base_url ?? "no URL on file"}
               </span>
               <Chip tone="default">{DISTRIBUTOR_METHOD_LABELS[item.row.api_type]}</Chip>
-              {keyStateChip(item)}
               <Button
                 size="sm"
                 variant={item.row.active ? "outline" : "ghost"}
@@ -143,12 +132,6 @@ export function DistributorsCard({ distributors }: { distributors: DistributorIt
             >
               Cancel
             </Button>
-            {form.method === "rest" && (
-              <p className="w-full text-caption text-faint">
-                REST-with-key sites need their key added to the server&apos;s env vars by whoever manages deploys — the
-                key itself is never entered here, only the name/URL/method.
-              </p>
-            )}
           </div>
         ) : (
           <button

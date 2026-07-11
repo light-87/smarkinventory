@@ -126,7 +126,7 @@ export function HeaderCameraScan() {
 
       {results && createPortal(
         <>
-          <div aria-hidden onClick={closeResults} className="animate-fade-in fixed inset-0 z-[70] bg-black/55" />
+          <div aria-hidden onClick={closeResults} className="animate-fade-in fixed inset-0 z-[70] bg-[#1d2130]/40" />
           <div
             role="dialog"
             aria-modal="true"

@@ -11,8 +11,8 @@ export interface OfflineBannerProps {
 export function OfflineBanner({ count }: OfflineBannerProps) {
   if (count <= 0) return null;
   return (
-    <div className="mb-5 flex items-center gap-2.5 rounded-xl border border-smark-orange/40 bg-surface-accent px-4 py-3 text-body-sm text-snow">
-      <span aria-hidden className="size-2 flex-none rounded-full bg-smark-orange" />
+    <div className="mb-5 flex items-center gap-2.5 rounded-xl border border-warn/40 bg-warn/10 px-4 py-3 text-body-sm text-snow">
+      <span aria-hidden className="size-2 flex-none rounded-full bg-warn" />
       {count} queued — will sync
     </div>
   );

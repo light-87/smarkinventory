@@ -92,7 +92,7 @@ export function PartDetailView({ data, variant, onClose }: PartDetailViewProps) 
             href={data.part.datasheet_url}
             target="_blank"
             rel="noreferrer"
-            className="mb-6 inline-block text-[13px] text-smark-orange-soft hover:underline"
+            className="mb-6 inline-block text-[13px] text-smark-orange hover:underline"
           >
             Datasheet ↗
           </a>

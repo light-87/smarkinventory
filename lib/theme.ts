@@ -1,64 +1,64 @@
 import { createTheme } from "@mui/material/styles";
 
 /**
- * SmarkStock locked dark design system — raw tokens.
+ * SmarkStock light design system ("Buddy" white theme) — raw tokens.
  *
- * Single source: /tokens.json + /theme.css (locked) + the approved prototype
- * (SmarkStock-prototype/SmarkStock.dc.html). Use Tailwind utilities from
- * app/globals.css in JSX; reach for this object only where CSS classes can't
- * go (charts, canvas, emails, MUI `sx`).
+ * Mirrors app/globals.css (new_design/). Use Tailwind utilities in JSX; reach
+ * for this object only where CSS classes can't go (charts, canvas, emails,
+ * MUI `sx`). `accent` is cobalt (links/interactive); the lime CTA is a
+ * Tailwind-only concern (components/ui/button.tsx), not surfaced here.
  */
 export const smk = {
-  /* surfaces */
-  canvas: "#121212",
-  surface: "#141414",
-  surfacePanel: "#131313",
-  surfaceWell: "#0f0f0f",
-  surfaceRaised: "#1c1c1c",
-  surfaceHover: "#181818",
-  surfaceAccent: "#161210",
-  surfaceAccentHover: "#1a1411",
-  ash: "#242424",
-  /* borders */
-  border: "#2e2e2e",
-  borderStrong: "#393939",
-  borderDivider: "#232323",
-  borderFaint: "#1e1e1e",
-  borderHairline: "#1a1a1a",
-  graphite: "#4d4d4d",
-  /* text */
-  text: "#fafafa",
-  textSecondary: "#b4b4b4",
-  textTertiary: "#898989",
-  textFaint: "#5a5a5a",
-  /* accent */
-  accent: "#f57d05",
-  accentHover: "#c25e02",
-  accentSoft: "#ff9a3c",
-  /* rationed green from the locked palette (positive/success only) */
-  success: "#3ecf8e",
+  /* surfaces (white/paper) */
+  canvas: "#fcfcfd",
+  surface: "#ffffff",
+  surfacePanel: "#fafbfc",
+  surfaceWell: "#f4f6fa",
+  surfaceRaised: "#f0f2f7",
+  surfaceHover: "#f5f7fb",
+  surfaceAccent: "#eef3ff",
+  surfaceAccentHover: "#e3ecff",
+  ash: "#f0f2f7",
+  /* borders (light hairline) */
+  border: "#e6e9f2",
+  borderStrong: "#d5d9e8",
+  borderDivider: "#e6e9f2",
+  borderFaint: "#eef0f6",
+  borderHairline: "#eef0f6",
+  graphite: "#b6bccb",
+  /* text (dark ink tiers) */
+  text: "#1d2130",
+  textSecondary: "#474950",
+  textTertiary: "#6b6d72",
+  textFaint: "#9aa0ad",
+  /* accent (cobalt) + danger red + amber caution */
+  accent: "#1a67fd",
+  accentHover: "#1550d0",
+  accentSoft: "#dc2626",
+  warn: "#b45309",
+  /* success green (readable on white) */
+  success: "#15a05f",
   /* type */
   fontSans:
-    'var(--font-inter), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    'var(--font-ibm-plex-sans), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
   fontMono:
-    "var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+    "var(--font-ibm-plex-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
 } as const;
 
 /**
- * MUI dark theme mirroring the locked design system, so any MUI component
- * dropped into the app (pickers, menus, dialogs, tooltips…) matches the
- * Tailwind-built kit in components/ui.
+ * MUI light theme mirroring the design system, so any MUI component dropped
+ * into the app (pickers, menus, dialogs, tooltips…) matches the Tailwind-built
+ * kit in components/ui.
  *
- * Rules ported from the prototype:
+ * Rules:
  *  - buttons and chips are pills (9999px); cards/dialogs are 16px
- *  - surfaces separate with 1px borders, never shadows
+ *  - surfaces separate with 1px hairline borders, never heavy shadows
  *  - weights top out at 500 — no bold anywhere
- *  - orange #f57d05 is the only CTA color; errors/warnings speak in the soft
- *    orange #ff9a3c, never red
+ *  - cobalt #1a67fd marks interactivity; errors/warnings speak in red #dc2626
  */
 export const muiTheme = createTheme({
   palette: {
-    mode: "dark",
+    mode: "light",
     primary: {
       main: smk.accent,
       dark: smk.accentHover,
@@ -67,8 +67,8 @@ export const muiTheme = createTheme({
     },
     secondary: { main: smk.textSecondary, contrastText: smk.canvas },
     success: { main: smk.success, contrastText: smk.canvas },
-    warning: { main: smk.accentSoft, contrastText: smk.canvas },
-    error: { main: smk.accentSoft, contrastText: smk.canvas },
+    warning: { main: smk.warn, contrastText: "#fff" },
+    error: { main: smk.accentSoft, contrastText: "#fff" },
     info: { main: smk.textSecondary, contrastText: smk.canvas },
     background: { default: smk.canvas, paper: smk.surface },
     divider: smk.border,
@@ -78,8 +78,8 @@ export const muiTheme = createTheme({
       disabled: smk.textFaint,
     },
     action: {
-      hover: "rgba(255, 255, 255, 0.04)",
-      selected: "rgba(245, 125, 5, 0.10)",
+      hover: "rgba(0, 0, 0, 0.04)",
+      selected: "rgba(26, 103, 253, 0.10)",
       disabledOpacity: 0.4,
     },
   },
@@ -198,7 +198,7 @@ export const muiTheme = createTheme({
     MuiAppBar: {
       styleOverrides: {
         root: {
-          backgroundColor: "rgba(18, 18, 18, 0.86)",
+          backgroundColor: "rgba(252, 252, 253, 0.85)",
           backdropFilter: "blur(8px)",
           backgroundImage: "none",
           boxShadow: "none",

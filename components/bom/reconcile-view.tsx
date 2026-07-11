@@ -17,6 +17,8 @@ export interface ReconcileViewProps {
   bom: BomRow;
   lines: BomLineRow[];
   writable: boolean;
+  /** Set when this BOM's most recent run is sitting in review — surfaces a "In review →" CTA. */
+  reviewRunId?: string | null;
 }
 
 /** "tolerance_pct" → "tolerance pct" — extra-column keys are slugs, headers should read like words. */
@@ -41,7 +43,7 @@ function safePartLink(raw: string | null): string | null {
  * agents' job during a run, not this page's — reconcile still runs silently
  * on upload/×N change to feed cross-project demand).
  */
-export function ReconcileView({ bom, lines, writable }: ReconcileViewProps) {
+export function ReconcileView({ bom, lines, writable, reviewRunId }: ReconcileViewProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [buildQty, setBuildQty] = useState(String(bom.build_qty));
@@ -181,10 +183,20 @@ export function ReconcileView({ bom, lines, writable }: ReconcileViewProps) {
       </TableShell>
 
       <div>
-        <Link href={`/projects/${bom.project_id}/ordering/${bom.id}`}>
-          <Button size="lg">Set up ordering →</Button>
-        </Link>
-        <p className="mt-2 text-caption text-smoke">Sequence, priorities, tier, then run AI sourcing.</p>
+        <div className="flex flex-wrap items-center gap-3">
+          <Link href={`/projects/${bom.project_id}/ordering/${bom.id}`}>
+            <Button size="lg">Set up ordering →</Button>
+          </Link>
+          {reviewRunId && (
+            <Link
+              href={`/projects/${bom.project_id}/runs/${reviewRunId}/review`}
+              className="inline-flex h-9 items-center rounded-full bg-smark-orange/15 px-3.5 text-[13px] font-medium text-smark-orange transition-colors hover:bg-smark-orange/25"
+            >
+              In review →
+            </Link>
+          )}
+        </div>
+        <p className="mt-2 text-caption text-smoke">Sequence, priorities and memory rules — then source from the Desktop app.</p>
       </div>
     </div>
   );

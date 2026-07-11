@@ -74,7 +74,7 @@ export function PutAwayList({ groups }: PutAwayListProps) {
       {!hasLines && (
         <div className="p-5">
           <EmptyState tone="subtle">
-            Nothing waiting. On the <span className="text-smark-orange-soft">On-order &amp; arrivals</span> screen tap
+            Nothing waiting. On the <span className="text-smark-orange">On-order &amp; arrivals</span> screen tap
             &ldquo;Mark arrived&rdquo; — the item appears here to put away.
           </EmptyState>
         </div>

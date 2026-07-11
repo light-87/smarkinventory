@@ -7,8 +7,6 @@ import {
   getChangeRequests,
   getEmployeeKpiRollup,
   getOpenHold,
-  getPmProjectFull,
-  getProjectIncome,
   getProjectProgress,
   getProjectTasks,
   listEngineers,
@@ -17,10 +15,8 @@ import { getActiveReminderForTask, getProjectClientEmail } from "@/lib/reminders
 import { TaskList } from "@/components/projects/task-list";
 import { NewTaskForm } from "@/components/projects/new-task-form";
 import { ApprovalsInbox } from "@/components/projects/approvals-inbox";
-import { ShowTimeToggle } from "@/components/projects/show-time-toggle";
-import { ShareLinkControls } from "@/components/projects/share-link-controls";
-import { IncomeStrip } from "@/components/projects/income-strip";
 import { KpiSummary } from "@/components/projects/kpi-summary";
+import { PmGuide } from "@/components/projects/pm-guide";
 import { SectionLabel } from "@/components/ui/card";
 
 export const metadata: Metadata = { title: "Project overview" };
@@ -30,9 +26,10 @@ interface OverviewPageProps {
 }
 
 /**
- * Project hub → Overview: task list + progress, owner "Add task" + approvals
- * inbox (bugs/change requests) + hours-visibility toggle + share link +
- * income strip, engineer's own KPI when they have tasks here.
+ * Project hub → Overview: focused on the work — progress + task list, owner
+ * "Add task" and an Approvals inbox (only when bugs/change-requests are
+ * pending), plus the engineer's own KPI when they have tasks here. Income,
+ * client hours-visibility and the share link now live on the Manage tab.
  */
 export default async function ProjectOverviewPage({ params }: OverviewPageProps) {
   const { projectId } = await params;
@@ -40,13 +37,10 @@ export default async function ProjectOverviewPage({ params }: OverviewPageProps)
   const sessionUser = await getSessionUser();
   if (!sessionUser) return null;
 
-  const project = await getPmProjectFull(supabase, projectId);
-  if (!project) return null; // layout.tsx already 404s when the project is missing
-
+  // layout.tsx already loads the project and 404s a missing one.
   const role = sessionUser.role;
   const owner = isOwner(role);
   const writable = canWrite(role, "projects");
-  const canSeeIncome = role === "owner" || role === "accountant";
 
   const [tasks, progress, engineers] = await Promise.all([
     getProjectTasks(supabase, projectId),
@@ -54,9 +48,8 @@ export default async function ProjectOverviewPage({ params }: OverviewPageProps)
     owner ? listEngineers(supabase) : Promise.resolve([]),
   ]);
 
-  const [holdEntries, income, myKpi] = await Promise.all([
+  const [holdEntries, myKpi] = await Promise.all([
     Promise.all(tasks.map(async (t) => [t.id, await getOpenHold(supabase, t.id)] as const)),
-    canSeeIncome ? getProjectIncome(supabase, projectId) : Promise.resolve([]),
     role === "employee" ? getEmployeeKpiRollup(supabase, sessionUser.id) : Promise.resolve(null),
   ]);
   const holdByTask = new Map(holdEntries);
@@ -92,9 +85,13 @@ export default async function ProjectOverviewPage({ params }: OverviewPageProps)
   }
 
   const engineerHasTasksHere = role === "employee" && tasks.some((t) => t.assignees.some((a) => a.userId === sessionUser.id));
+  // Only surface the Approvals section when there's actually something to act on.
+  const hasPendingApprovals = changeRequests.length > 0 || bugs.some((b) => b.status === "open");
 
   return (
     <div className="flex flex-col gap-5">
+      {owner && <PmGuide />}
+
       {engineerHasTasksHere && myKpi && <KpiSummary kpi={myKpi} />}
 
       {owner && (
@@ -118,19 +115,10 @@ export default async function ProjectOverviewPage({ params }: OverviewPageProps)
         reminderByTask={reminderByTask}
       />
 
-      {owner && (
+      {owner && hasPendingApprovals && (
         <div className="flex flex-col gap-3">
           <SectionLabel>Approvals</SectionLabel>
           <ApprovalsInbox bugs={bugs} changeRequests={changeRequests} taskTitleById={taskTitleById} engineers={engineers} />
-        </div>
-      )}
-
-      {canSeeIncome && <IncomeStrip income={income} />}
-
-      {owner && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <ShowTimeToggle projectId={projectId} initialValue={project.showTimeToClient} />
-          <ShareLinkControls projectId={projectId} shareToken={project.shareToken} />
         </div>
       )}
     </div>

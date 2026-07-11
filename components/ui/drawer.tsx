@@ -57,7 +57,7 @@ export function Drawer({
       <div
         aria-hidden
         onClick={onClose}
-        className="animate-fade-in fixed inset-0 z-[60] bg-black/55"
+        className="animate-fade-in fixed inset-0 z-[60] bg-[#1d2130]/40"
       />
       <div
         role="dialog"

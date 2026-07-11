@@ -24,7 +24,7 @@ export function RecentMovementsCard({
         meta={
           <Link
             href="/daily"
-            className="text-smark-orange transition-colors hover:text-smark-orange-soft"
+            className="text-smark-orange transition-colors hover:text-smark-orange-hover"
           >
             today&rsquo;s report →
           </Link>

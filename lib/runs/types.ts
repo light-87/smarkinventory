@@ -28,12 +28,6 @@ export const SavePrioritiesInputSchema = z.object({
 });
 export type SavePrioritiesInput = z.infer<typeof SavePrioritiesInputSchema>;
 
-export const RunOrderingInputSchema = z.object({
-  bomId: z.uuid(),
-  tier: ConcurrencyPresetSchema,
-});
-export type RunOrderingInput = z.infer<typeof RunOrderingInputSchema>;
-
 export const ReRunItemInputSchema = z.object({
   runId: z.uuid(),
   bomLineId: z.uuid(),

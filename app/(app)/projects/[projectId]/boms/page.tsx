@@ -50,7 +50,7 @@ export default async function BomsPage({ params }: BomsPageProps) {
         {writable && (
           <Link
             href={`/projects/${projectId}/boms/new`}
-            className="inline-flex h-11 items-center justify-center rounded-full bg-smark-orange px-[22px] text-sm font-medium text-obsidian transition-colors hover:bg-smark-orange-hover"
+            className="inline-flex h-11 items-center justify-center rounded-full bg-lime px-[22px] text-sm font-medium text-obsidian transition-colors hover:bg-lime-hover"
           >
             + Upload / Create BOM
           </Link>

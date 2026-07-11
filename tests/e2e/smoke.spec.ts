@@ -5,9 +5,8 @@ import { expect, test } from "@playwright/test";
  * "E2E" layer + R2-29 CI gate). Runs on both playwright.config.ts projects
  * (desktop-1280 + mobile-360) automatically. Asserts exactly two things:
  *   1. the app boots (dev server responds, shell renders past the title),
- *   2. the locked dark theme renders (DESIGN.md / tokens.json / theme.css —
- *      "do not edit those files" — checked as computed style, so it fails if
- *      the actual rendered token ever drifts, not just the class name).
+ *   2. the white theme renders (new_design/ — checked as computed style, so it
+ *      fails if the actual rendered token ever drifts, not just the class name).
  *
  * Self-exclusion guard: `bunfig.toml` scopes `bun test` to the whole `tests/`
  * tree, and Bun's default test file matching also globs `*.spec.ts` — so a
@@ -29,22 +28,22 @@ if (typeof process.versions.bun === "undefined") {
       await expect(page).toHaveTitle(/SmarkStock/i);
     });
 
-    test("locked dark theme renders", async ({ page }) => {
+    test("white theme renders", async ({ page }) => {
       await page.goto("/");
 
-      // app/globals.css: body { background-color: var(--color-obsidian) },
-      // tokens.json/theme.css lock --color-obsidian to #121212.
+      // app/globals.css: body { background-color: var(--color-canvas) },
+      // --color-canvas is #fcfcfd in the new_design white theme.
       const bodyBackground = await page.evaluate(
         () => getComputedStyle(document.body).backgroundColor,
       );
-      expect(bodyBackground).toBe("rgb(18, 18, 18)");
+      expect(bodyBackground).toBe("rgb(252, 252, 253)");
 
-      // app/globals.css: html { color-scheme: dark } — native controls,
-      // scrollbars etc. render dark without extra per-component work.
+      // app/globals.css: html { color-scheme: light } — native controls,
+      // scrollbars etc. render light without extra per-component work.
       const colorScheme = await page.evaluate(
         () => getComputedStyle(document.documentElement).colorScheme,
       );
-      expect(colorScheme).toBe("dark");
+      expect(colorScheme).toBe("light");
     });
   });
 }

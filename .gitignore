@@ -44,3 +44,8 @@ bun-debug.log*
 .playwright-mcp/
 
 .vercel
+
+# local data dumps / test fixtures (not source)
+/Clockify_Time_Report_Detailed_*.csv
+/*.xlsx
+worker/*.tmp.mjs

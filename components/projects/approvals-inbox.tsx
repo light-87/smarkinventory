@@ -10,6 +10,7 @@ import { useToast } from "@/components/ui/toast";
 import { EmptyState } from "@/components/ui/empty-state";
 import { acceptChangeRequestAction, rejectChangeRequestAction, triageBugAction } from "@/lib/pm/actions";
 import type { BugView, ChangeRequestView, EngineerOption } from "@/lib/pm/queries";
+import { EngineerHoursMatrix } from "./engineer-hours-matrix";
 
 export interface ApprovalsInboxProps {
   bugs: readonly BugView[];
@@ -76,6 +77,10 @@ export function ApprovalsInbox({ bugs, changeRequests, taskTitleById, engineers 
         <Card padding="none">
           <div className="border-b border-border-divider px-5 py-4">
             <SectionLabel>Bugs pending triage</SectionLabel>
+            <p className="mt-1 text-caption text-faint">
+              Confirm a real bug (counts toward effectiveness), dismiss a non-issue, or reclassify it as a change request. The
+              chip shows who reported it.
+            </p>
           </div>
           <ul className="divide-y divide-border-hairline">
             {openBugs.map((bug) => (
@@ -108,6 +113,9 @@ export function ApprovalsInbox({ bugs, changeRequests, taskTitleById, engineers 
         <Card padding="none">
           <div className="border-b border-border-divider px-5 py-4">
             <SectionLabel>Change requests pending</SectionLabel>
+            <p className="mt-1 text-caption text-faint">
+              Accept to turn it into a new task (assign engineers below), or reject. The client sees the outcome in their portal.
+            </p>
           </div>
           <ul className="divide-y divide-border-hairline">
             {pendingCrs.map((cr) => (
@@ -122,45 +130,7 @@ export function ApprovalsInbox({ bugs, changeRequests, taskTitleById, engineers 
                     <Field label="New task title">
                       <Input value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)} />
                     </Field>
-                    {engineers.length > 0 && (
-                      <div className="flex flex-col gap-2">
-                        <SectionLabel>Assign engineers</SectionLabel>
-                        {engineers.map((eng) => {
-                          const checked = eng.id in hoursByUser;
-                          return (
-                            <div key={eng.id} className="flex items-center gap-3">
-                              <label className="flex min-h-11 flex-1 cursor-pointer items-center gap-2.5 text-[13px] text-snow select-none">
-                                <input
-                                  type="checkbox"
-                                  checked={checked}
-                                  onChange={(e) =>
-                                    setHoursByUser((prev) => {
-                                      const next = { ...prev };
-                                      if (e.target.checked) next[eng.id] = next[eng.id] ?? "1";
-                                      else delete next[eng.id];
-                                      return next;
-                                    })
-                                  }
-                                  className="size-[18px] flex-none accent-smark-orange"
-                                />
-                                {eng.displayName ?? eng.username}
-                              </label>
-                              {checked && (
-                                <Input
-                                  uiSize="sm"
-                                  type="number"
-                                  min="0.5"
-                                  step="0.5"
-                                  value={hoursByUser[eng.id]}
-                                  onChange={(e) => setHoursByUser((prev) => ({ ...prev, [eng.id]: e.target.value }))}
-                                  className="w-24"
-                                />
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
+                    <EngineerHoursMatrix engineers={engineers} value={hoursByUser} onChange={setHoursByUser} />
                     <div className="flex gap-2">
                       <Button size="sm" onClick={() => accept(cr.id)} loading={isPending}>
                         Create task + accept

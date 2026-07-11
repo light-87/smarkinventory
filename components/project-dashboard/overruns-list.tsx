@@ -21,7 +21,7 @@ export function OverrunsList({ rows }: { rows: OverrunRow[] }) {
                     <div className="text-[14px] font-medium text-snow">{row.title}</div>
                     <div className="text-caption text-smoke">{row.projectName}</div>
                   </div>
-                  <Chip tone="accent" size="sm" mono>
+                  <Chip tone="warn" size="sm" mono>
                     +{formatNumber(row.overrunHours, { decimals: 1 })}h over
                   </Chip>
                 </div>

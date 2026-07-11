@@ -21,8 +21,10 @@
 ## 1. The big picture
 
 ```
-Ordering workspace ── "Run ordering →"
-   │  runOrderingAction → enqueueRun            lib/runs/enqueue.ts:177
+Run entry points ── review "↺ Re-run whole order" · /ai_orc sandbox
+   │  reRunWholeOrder / ai_orc → enqueueRun     lib/runs/enqueue.ts:177
+   │    (the old web "Run ordering →" button + runOrderingAction were removed
+   │     with the desktop pivot; desktop uses createDesktopRun, not this path)
    │    · aliases ALL business context here     lib/ai/alias.ts (buildPlannerContext :379)
    │    · dry-run ₹ estimate + ceiling (4×)     lib/runs/dry-run.ts:55,72
    │    · writes smark_agent_runs (planning)

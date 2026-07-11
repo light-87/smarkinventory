@@ -120,16 +120,16 @@ export async function createDistributorAction(input: DistributorFormInput): Prom
       .single();
     if (error) throw new Error(error.message);
 
-    // New sites default OFF in every BOM's sequence editor (plan/tab-settings.md
-    // R2-28) — that starting-sequence lives in smark_distributor_preferences,
-    // separate from this row's global `active` flag.
+    // New sites are searched by default in every BOM's sequence editor — that
+    // starting-sequence lives in smark_distributor_preferences, separate from
+    // this row's global `active` flag. The per-BOM editor can still turn it off.
     const { data: prefRanks, error: rankError } = await supabase.from(TABLES.distributor_preferences).select("rank");
     if (rankError) throw new Error(rankError.message);
     const rank = nextRank((prefRanks ?? []).map((r) => r.rank as number));
 
     const { error: prefError } = await supabase
       .from(TABLES.distributor_preferences)
-      .insert({ distributor_id: distributor.id, rank, enabled: false });
+      .insert({ distributor_id: distributor.id, rank, enabled: true });
     if (prefError) throw new Error(prefError.message);
 
     revalidateSettings();

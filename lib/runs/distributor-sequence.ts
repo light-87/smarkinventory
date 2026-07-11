@@ -5,15 +5,13 @@
  * (types/worker.ts).
  *
  * `smark_boms.distributor_sequence` starts `null` (SCHEMA.md §3) — this
- * function computes what to SHOW/RUN in that case from the global
- * `smark_distributor_preferences` defaults, forcing Unikey off per
- * plan/tab-ordering-workspace.md §2.1 ("defaults from global preferences.
- * Unikey defaults OFF") even though `supabase/seed.sql` seeds every
- * distributor `enabled: true` in preferences — the per-BOM default is a
- * DELIBERATE narrowing of the global default, not a preferences bug. Once a
- * BOM has its own saved sequence, that sequence wins outright (including a
- * user re-enabling Unikey) and any distributor missing from it (soft-deleted
- * / never seen before) is appended at the end, enabled by the same rule.
+ * function computes what to SHOW/RUN in that case: EVERY active distributor,
+ * enabled, in `smark_distributor_preferences` rank order. The desktop sourcing
+ * agent should search all distributors per item by default, so there's no
+ * default narrowing here (Unikey included). Once a BOM has its own saved
+ * sequence, that sequence wins outright (including a user turning sites off)
+ * and any distributor missing from it (soft-deleted / never seen before) is
+ * appended at the end, enabled.
  *
  * Pure — no I/O — so both the workspace's read path and `lib/runs/enqueue.ts`
  * call this and always agree on "what does this BOM's sequence actually
@@ -45,19 +43,16 @@ export interface EffectiveDistributorRow {
   rank: number;
 }
 
-function isUnikey(name: string): boolean {
-  return name.trim().toLowerCase() === "unikey";
-}
-
 /**
  * Resolves the effective, ordered distributor sequence for a BOM.
  *
  * - `savedSequence` non-empty → that order/toggles win; distributors it
  *   references that no longer exist/aren't active are dropped; any active
  *   distributor NOT yet in it (e.g. added via Settings after this BOM's
- *   sequence was saved) is appended at the end (Unikey still forced off).
- * - `savedSequence` null/empty → build from `smark_distributor_preferences`
- *   rank order (unranked distributors sort last, stable by name), Unikey off.
+ *   sequence was saved) is appended at the end, enabled.
+ * - `savedSequence` null/empty → every active distributor, enabled, in
+ *   `smark_distributor_preferences` rank order (unranked distributors sort
+ *   last, stable by name).
  */
 export function resolveDistributorSequence(
   savedSequence: readonly DistributorSequenceItem[] | null,
@@ -78,7 +73,7 @@ export function resolveDistributorSequence(
     for (const d of distributors) {
       if (!d.active || seen.has(d.id)) continue;
       seen.add(d.id);
-      rows.push({ id: d.id, name: d.name, apiType: d.api_type, enabled: !isUnikey(d.name), rank: rows.length + 1 });
+      rows.push({ id: d.id, name: d.name, apiType: d.api_type, enabled: true, rank: rows.length + 1 });
     }
     return rows;
   }
@@ -95,7 +90,7 @@ export function resolveDistributorSequence(
     id: d.id,
     name: d.name,
     apiType: d.api_type,
-    enabled: isUnikey(d.name) ? false : (prefByDistributor.get(d.id)?.enabled ?? true),
+    enabled: true,
     rank: index + 1,
   }));
 }

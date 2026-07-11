@@ -13,16 +13,16 @@ export function ContestedStockStrip({ contested, className }: ContestedStockStri
   return (
     <div
       className={cn(
-        "flex items-start gap-3 rounded-lg border border-smark-orange bg-surface-accent px-4 py-3",
+        "flex items-start gap-3 rounded-lg border border-warn bg-warn/10 px-4 py-3",
         className,
       )}
     >
-      <span aria-hidden className="mt-0.5 flex-none text-smark-orange">
+      <span aria-hidden className="mt-0.5 flex-none text-warn">
         ⚠
       </span>
       <p className="min-w-0 text-[13px] text-snow">
         {buildContestedMessage(contested)}{" "}
-        <Link href={`/cart?part_id=${contested.partId}`} className="text-smark-orange-soft hover:underline">
+        <Link href={`/cart?part_id=${contested.partId}`} className="text-smark-orange hover:underline">
           Cart →
         </Link>
       </p>

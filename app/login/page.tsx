@@ -29,12 +29,12 @@ export default async function LoginPage() {
   if (user) redirect("/dashboard");
 
   return (
-    <main className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-obsidian p-6">
+    <main className="relative flex min-h-dvh items-center justify-center overflow-hidden bg-canvas p-6">
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 opacity-60"
         style={{
-          backgroundImage: "radial-gradient(circle at 1px 1px, #1c1c1c 1px, transparent 0)",
+          backgroundImage: "radial-gradient(circle at 1px 1px, #e6e9f2 1px, transparent 0)",
           backgroundSize: "26px 26px",
         }}
       />
@@ -42,7 +42,7 @@ export default async function LoginPage() {
       <div className="relative w-full max-w-[380px] rounded-2xl border border-charcoal bg-surface px-7 py-8">
         <div className="mb-[22px] flex justify-center">
           {/* eslint-disable-next-line @next/next/no-img-element -- static brand asset, no next/image benefit for a one-off login logo */}
-          <img src="/brand/smark-logo-on-dark-alt.svg" alt="Smark Automation" className="h-24 w-auto" />
+          <img src="/brand/smark-mark.svg" alt="Smark Automation" className="h-16 w-auto" />
         </div>
         <h1 className="text-center text-heading-sm font-normal text-snow">SmarkStock</h1>
         <p className="mt-1.5 text-center text-body-sm text-silver-mist">

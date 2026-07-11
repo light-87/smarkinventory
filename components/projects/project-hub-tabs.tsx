@@ -12,10 +12,12 @@ interface HubTab {
 
 export interface ProjectHubTabsProps {
   projectId: string;
+  /** Owner + accountant see the Manage tab (income + client sharing/visibility). */
+  showManage?: boolean;
 }
 
-/** Project-hub section nav: Overview · BOMs (bom-pipeline's own segment, untouched) · Documents. */
-export function ProjectHubTabs({ projectId }: ProjectHubTabsProps) {
+/** Project-hub section nav: Overview · BOMs (bom-pipeline's own segment, untouched) · Documents · Manage. */
+export function ProjectHubTabs({ projectId, showManage = false }: ProjectHubTabsProps) {
   const pathname = usePathname();
   const base = `/projects/${projectId}`;
 
@@ -23,6 +25,7 @@ export function ProjectHubTabs({ projectId }: ProjectHubTabsProps) {
     { id: "overview", label: "Overview", href: base },
     { id: "boms", label: "BOMs", href: `${base}/boms` },
     { id: "documents", label: "Documents", href: `${base}/documents` },
+    ...(showManage ? [{ id: "manage", label: "Manage", href: `${base}/manage` }] : []),
   ];
 
   return (

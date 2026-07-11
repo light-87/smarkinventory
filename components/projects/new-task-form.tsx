@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { createTaskAction } from "@/lib/pm/actions";
 import type { EngineerOption } from "@/lib/pm/queries";
+import { EngineerHoursMatrix } from "./engineer-hours-matrix";
 
 export interface NewTaskFormProps {
   projectId: string;
@@ -23,15 +24,6 @@ export function NewTaskForm({ projectId, engineers }: NewTaskFormProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [hoursByUser, setHoursByUser] = useState<Record<string, string>>({});
-
-  function toggleEngineer(userId: string, checked: boolean) {
-    setHoursByUser((prev) => {
-      const next = { ...prev };
-      if (checked) next[userId] = next[userId] ?? "1";
-      else delete next[userId];
-      return next;
-    });
-  }
 
   function submit() {
     const trimmed = title.trim();
@@ -85,39 +77,7 @@ export function NewTaskForm({ projectId, engineers }: NewTaskFormProps) {
         <Input value={description} onChange={(e) => setDescription(e.target.value)} />
       </Field>
 
-      {engineers.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <SectionLabel>Assign engineers</SectionLabel>
-          {engineers.map((eng) => {
-            const checked = eng.id in hoursByUser;
-            return (
-              <div key={eng.id} className="flex items-center gap-3">
-                <label className="flex min-h-11 flex-1 cursor-pointer items-center gap-2.5 text-[13px] text-snow select-none">
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={(e) => toggleEngineer(eng.id, e.target.checked)}
-                    className="size-[18px] flex-none accent-smark-orange"
-                  />
-                  {eng.displayName ?? eng.username}
-                </label>
-                {checked && (
-                  <Input
-                    uiSize="sm"
-                    type="number"
-                    min="0.5"
-                    step="0.5"
-                    value={hoursByUser[eng.id]}
-                    onChange={(e) => setHoursByUser((prev) => ({ ...prev, [eng.id]: e.target.value }))}
-                    className="w-24"
-                    aria-label={`Estimated hours for ${eng.displayName ?? eng.username}`}
-                  />
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
+      <EngineerHoursMatrix engineers={engineers} value={hoursByUser} onChange={setHoursByUser} />
 
       <div className="flex gap-2">
         <Button onClick={submit} loading={isPending}>

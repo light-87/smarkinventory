@@ -20,7 +20,7 @@ export function LineStatusChip({ matchState, contestedShortfall, locationLabel }
   if (matchState === "in_stock") {
     if (contestedShortfall && contestedShortfall > 0) {
       return (
-        <Chip tone="accent" mono>
+        <Chip tone="warn" mono>
           shortfall in cart ×{formatNumber(contestedShortfall)}
         </Chip>
       );

@@ -21,7 +21,7 @@ import { HeaderCameraScan } from "./header-search";
  */
 export function Header({ user, pathname }: { user: SessionUser; pathname: string }) {
   return (
-    <header className="sticky top-0 z-30 flex h-[60px] flex-none items-center gap-4 border-b border-charcoal bg-obsidian/[.86] px-4 backdrop-blur-md md:px-6">
+    <header className="sticky top-0 z-30 flex h-[60px] flex-none items-center gap-4 border-b border-charcoal bg-canvas/85 px-4 backdrop-blur-md md:px-6">
       <div className="flex-none truncate text-[18px] font-medium text-snow">
         {titleForPath(pathname, user.role)}
       </div>

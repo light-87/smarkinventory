@@ -5,12 +5,13 @@ import type { LeaveReason } from "@/types/db";
 /**
  * components/attendance/status-badge.tsx — the one place every attendance
  * surface (calendar grid, day breakdown, requests list) maps a derived
- * `AttendanceStatus` to a color + label. The design system reserves colour
- * for meaning (green = good, orange = the one warning voice) — see
- * app/globals.css header — so this mapping is deliberately restrained:
- * present/compensatory both read as "green" (comp still means they showed
- * up), absent is the one thing that gets the orange alert voice, everything
- * else stays a quiet neutral.
+ * `AttendanceStatus` to a color + label. Colour carries meaning, tuned for the
+ * white theme so the five states read distinctly:
+ *   present/compensatory → green (showed up)
+ *   absent → red (the alarm state — the thing to notice)
+ *   leave → blue/cobalt (planned/approved, calm)
+ *   holiday → grey · not_marked → pale grey
+ * Note the token names are legacy: `smark-orange` is now cobalt, `smark-orange-soft` is danger red.
  */
 
 export const STATUS_LABELS: Record<AttendanceStatus, string> = {
@@ -23,11 +24,11 @@ export const STATUS_LABELS: Record<AttendanceStatus, string> = {
 };
 
 const CELL_CLASSES: Record<AttendanceStatus, string> = {
-  present: "border-forest-depth bg-forest-depth/25 text-phosphor-green",
-  compensatory: "border-forest-depth bg-forest-depth/25 text-phosphor-green",
+  present: "border-forest-depth bg-forest-depth/15 text-phosphor-green",
+  compensatory: "border-forest-depth bg-forest-depth/15 text-phosphor-green",
   holiday: "border-charcoal bg-ash text-smoke",
-  leave: "border-smark-orange-soft/60 bg-surface-accent text-smark-orange-soft",
-  absent: "border-smark-orange bg-surface-accent text-smark-orange",
+  leave: "border-smark-orange bg-surface-accent text-smark-orange",
+  absent: "border-smark-orange-soft bg-smark-orange-soft/10 text-smark-orange-soft",
   not_marked: "border-charcoal bg-surface-well text-faint",
 };
 
@@ -35,8 +36,8 @@ const BADGE_CLASSES: Record<AttendanceStatus, string> = {
   present: "border-forest-depth text-phosphor-green",
   compensatory: "border-forest-depth text-phosphor-green",
   holiday: "border-charcoal text-smoke",
-  leave: "border-smark-orange-soft/60 text-smark-orange-soft",
-  absent: "border-smark-orange text-smark-orange",
+  leave: "border-smark-orange text-smark-orange",
+  absent: "border-smark-orange-soft text-smark-orange-soft",
   not_marked: "border-charcoal text-faint",
 };
 

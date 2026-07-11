@@ -48,7 +48,7 @@ export function ReviewView({ projectId, data, writable }: ReviewViewProps) {
       {data.run.isStale && (
         <Card padding="lg" className="border-smark-orange/50">
           <div className="flex items-center gap-2.5">
-            <Chip tone="accent">stale</Chip>
+            <Chip tone="warn">stale</Chip>
             <span className="text-[13px] text-snow">Build quantity changed since this run — consider re-running the whole order.</span>
           </div>
         </Card>

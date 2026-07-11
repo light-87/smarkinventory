@@ -3,11 +3,13 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionUser } from "@/lib/auth/session";
 import { isOwner } from "@/lib/auth/roles";
+import { effectiveCanSee } from "@/lib/rbac/access";
 import { getEmployeeKpiRollup, getOpenHold, getMyTasks, listProjects, listProjectsForEmployee } from "@/lib/pm/queries";
 import { NewProjectForm } from "@/components/projects/new-project-form";
 import { ProjectCard } from "@/components/projects/project-card";
 import { MyTasksList } from "@/components/projects/my-tasks-list";
 import { KpiSummary } from "@/components/projects/kpi-summary";
+import { PmGuide } from "@/components/projects/pm-guide";
 import { EmptyState } from "@/components/ui/empty-state";
 
 export const metadata: Metadata = { title: "Projects" };
@@ -26,6 +28,14 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
   const supabase = await createClient();
   const sessionUser = await getSessionUser();
   if (!sessionUser) return null;
+
+  if (!effectiveCanSee(sessionUser.role, "projects", sessionUser.grantedModules)) {
+    return (
+      <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
+        <EmptyState title="No access" description="Your account doesn't have access to Projects. Ask an owner to grant the Project management module." />
+      </div>
+    );
+  }
 
   if (sessionUser.role === "employee") {
     const [tasks, kpi, myProjects] = await Promise.all([
@@ -76,6 +86,12 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
           {showArchived ? "← Active projects" : `Archived${archivedCount > 0 ? ` (${archivedCount})` : ""} →`}
         </Link>
       </div>
+
+      {writable && !showArchived && (
+        <div className="mb-4">
+          <PmGuide />
+        </div>
+      )}
 
       {showEmptyState ? (
         <EmptyState

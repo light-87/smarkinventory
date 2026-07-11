@@ -79,7 +79,7 @@ export function TopProgressBar() {
     <div aria-hidden className="pointer-events-none fixed inset-x-0 top-0 z-[100] h-[3px] overflow-hidden">
       <div
         className={cn(
-          "h-full bg-smark-orange shadow-[0_0_6px_rgba(245,125,5,0.55)] transition-[width,opacity] ease-out",
+          "h-full bg-smark-orange shadow-[0_0_6px_rgba(26,103,253,0.55)] transition-[width,opacity] ease-out",
           fading ? "opacity-0 duration-300" : "opacity-100 duration-500",
         )}
         style={{ width: `${width}%` }}

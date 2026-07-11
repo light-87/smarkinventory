@@ -14,21 +14,11 @@
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Chip } from "@/components/ui/chip";
-import { SegmentedControl, type SegmentedOption } from "@/components/ui/segmented-control";
 import { DistributorSequenceCard } from "./distributor-sequence-card";
 import { PrioritiesCard } from "./priorities-card";
 import { MemoryContextCardView, StandardRulesCard } from "./memory-rules-cards";
-import { computeDryRunEstimate } from "@/lib/runs/dry-run";
-import { formatINR, formatNumber } from "@/lib/format";
+import { formatNumber } from "@/lib/format";
 import type { WorkspaceData } from "@/lib/runs/types";
-import type { ConcurrencyPreset } from "@/types/worker";
-import { useState } from "react";
-
-const TIER_OPTIONS: readonly SegmentedOption<ConcurrencyPreset>[] = [
-  { value: "economy", label: "Economy" },
-  { value: "balanced", label: "Balanced" },
-  { value: "thorough", label: "Thorough" },
-];
 
 export interface WorkspaceViewProps {
   projectId: string;
@@ -37,10 +27,8 @@ export interface WorkspaceViewProps {
 }
 
 export function WorkspaceView({ projectId, data, writable }: WorkspaceViewProps) {
-  const [tier, setTier] = useState<ConcurrencyPreset>("balanced");
-
-  const estimate = computeDryRunEstimate({ toOrderLineCount: data.toOrderLineCount, tier });
   const nothingToOrder = data.toOrderLineCount === 0;
+  const reviewRunId = data.savedRun?.status === "review" ? data.savedRun.id : null;
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-5 sm:px-6">
@@ -71,7 +59,17 @@ export function WorkspaceView({ projectId, data, writable }: WorkspaceViewProps)
                 {data.savedRun.isStale && " · build quantity changed since this run"}
               </div>
             </div>
-            {data.savedRun.isStale && <Chip tone="accent">stale</Chip>}
+            <div className="flex flex-none items-center gap-2">
+              {data.savedRun.isStale && <Chip tone="warn">stale</Chip>}
+              {reviewRunId && (
+                <Link
+                  href={`/projects/${projectId}/runs/${reviewRunId}/review`}
+                  className="inline-flex h-8 items-center rounded-full bg-smark-orange/15 px-3 text-[13px] font-medium text-smark-orange transition-colors hover:bg-smark-orange/25"
+                >
+                  Review results →
+                </Link>
+              )}
+            </div>
           </div>
         </Card>
       )}
@@ -92,37 +90,15 @@ export function WorkspaceView({ projectId, data, writable }: WorkspaceViewProps)
       <MemoryContextCardView memory={data.memory} />
       <StandardRulesCard rules={data.standardRules} />
 
-      {/* Search depth + dry-run ₹ estimate */}
-      <Card padding="lg">
-        <div className="mb-1 text-[15px] font-medium text-snow">Search depth</div>
-        <div className="mb-3.5 text-caption text-smoke">More depth is more thorough and costs more — per-site caps always apply.</div>
-        <SegmentedControl
-          variant="accent"
-          options={TIER_OPTIONS}
-          value={tier}
-          onChange={setTier}
-          aria-label="Concurrency tier"
-        />
-
-        <div className="mt-4 flex items-end justify-between gap-3 border-t border-border-hairline pt-4">
-          <div>
-            <div className="text-caption text-smoke">Dry-run estimate</div>
-            {nothingToOrder ? (
-              <div className="text-[13px] text-smoke">Every line is already in stock — nothing to order.</div>
-            ) : (
-              <div className="font-mono text-lg text-snow">{formatINR(estimate.estimatedRupees)}</div>
-            )}
-          </div>
-          {!nothingToOrder && (
-            <div className="text-right font-mono text-caption text-graphite">
-              ~{formatNumber(estimate.estimatedCalls)} AI calls
-            </div>
-          )}
-        </div>
-
-        {!nothingToOrder && (
-          <div className="mt-4 rounded-lg border border-charcoal bg-surface-well px-3.5 py-3 text-[13px] text-silver-mist">
-            Source this BOM from the SmarkStock Desktop app on your computer.
+      {/* How sourcing runs (desktop app) */}
+      <Card padding="lg" tone="panel">
+        <div className="mb-1 text-[15px] font-medium text-snow">How sourcing runs</div>
+        {nothingToOrder ? (
+          <div className="text-[13px] text-smoke">Every line is already in stock — nothing to order.</div>
+        ) : (
+          <div className="text-[13px] text-silver-mist">
+            Source this BOM from the SmarkStock Desktop app on your computer. When the agent finishes, the results come back
+            here for review.
           </div>
         )}
       </Card>

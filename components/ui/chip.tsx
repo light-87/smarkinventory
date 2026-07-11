@@ -5,7 +5,8 @@ export type ChipTone =
   | "default" /* charcoal border · smoke text — locations, quiet meta   */
   | "neutral" /* charcoal border · silver text — counts, mid emphasis   */
   | "bright" /* charcoal border · snow text — emphasized values         */
-  | "accent" /* orange border + text — low stock, running, alerts       */
+  | "accent" /* cobalt border + text — interactive / info emphasis      */
+  | "warn" /* amber border + text — caution: low stock, contested, offline */
   | "success" /* rationed green — in-stock / passed                     */
   | "soft"; /* ash fill + slate border — active filter chips            */
 
@@ -16,6 +17,7 @@ const TONE_CLASSES: Record<ChipTone, string> = {
   neutral: "border-charcoal text-silver-mist",
   bright: "border-charcoal text-snow",
   accent: "border-smark-orange text-smark-orange",
+  warn: "border-warn text-warn",
   success: "border-forest-depth text-phosphor-green",
   soft: "border-slate bg-ash text-snow",
 };

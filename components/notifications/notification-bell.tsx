@@ -54,7 +54,7 @@ export function NotificationBell({ userId, className }: NotificationBellProps) {
           <BellIcon />
         </span>
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-smark-orange px-1 font-mono text-[10px] font-medium text-obsidian">
+          <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-smark-orange px-1 font-mono text-[10px] font-medium text-white">
             {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         )}

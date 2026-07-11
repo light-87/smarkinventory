@@ -19,7 +19,7 @@ export function BigBoxCard({ box }: BigBoxCardProps) {
       className="relative w-[214px] flex-none overflow-hidden rounded-xl border border-charcoal bg-surface-raised transition-colors hover:border-smark-orange"
     >
       {box.low && (
-        <span aria-hidden className="absolute top-3 right-3 z-10 size-2 rounded-full bg-smark-orange" />
+        <span aria-hidden className="absolute top-3 right-3 z-10 size-2 rounded-full bg-warn" />
       )}
 
       <div className="border-b border-border-faint bg-surface-hover px-3.5 py-3">
@@ -40,7 +40,7 @@ export function BigBoxCard({ box }: BigBoxCardProps) {
               <div key={chip.pid} className="flex items-center gap-1.5 rounded-md px-1.5 py-1">
                 <span
                   aria-hidden
-                  className={cn("size-1.5 flex-none rounded-full", chip.low ? "bg-smark-orange" : "bg-graphite")}
+                  className={cn("size-1.5 flex-none rounded-full", chip.low ? "bg-warn" : "bg-graphite")}
                 />
                 <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-silver-mist">{chip.pid}</span>
                 <span

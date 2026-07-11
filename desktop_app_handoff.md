@@ -7,6 +7,23 @@
 > Bun-on-Windows — anything touching playwright runs under `node --import tsx`). End commits with
 > `Co-Authored-By:` line for the model in use.
 
+## COURSE CORRECTION (2026-07-05, later) — read this first
+
+Two changes from the user since the pivot below was written:
+
+1. **Browser-only sourcing. Drop the distributor REST prefetch entirely.** No DigiKey/Mouser/
+   element14 API-key lookups at all — the real-browser agent does 100% of sourcing through Brave.
+   `prefetch.ts` and its API candidates in the CLAUDE.md session are to be removed/bypassed. F-013
+   already showed the browser agent clears every bot wall, so the REST layer is redundant. (This
+   does NOT change the Claude auth story — the `claude` CLI still runs on the user's subscription
+   or whatever it's signed in with; that was never the concern.)
+2. **P1c verification run happens on a DIFFERENT machine.** This dev PC already has the `claude`
+   CLI + full dev stack, so running the supervised pilot here would interfere. Set it up on the
+   target/clean machine with the user present.
+
+Everything below is the original pivot brief — still accurate except for the prefetch/API-key
+sourcing path, which is now superseded by point 1 above.
+
 ## The pivot (approved 2026-07-05)
 
 Experiment F-013 (see `docs/experiments/AI-Sourcing-Pilot-Client-Report.pdf`) proved the
@@ -41,10 +58,13 @@ Web side:
 Desktop runner (`desktop/runner/`, CLI — P2's UI wraps this exact flow):
 - `brave.ts` — dedicated Brave/Chrome, CDP **:9333** (deliberately not 9222), persistent profile
   `~/.smarkstock-browser`. Pattern from `claude-session-control/server/browserCopilot.ts`.
-- `prefetch.ts` — DigiKey/Mouser/element14 REST pre-fetch with the LIVE payload shapes verified in
+- `prefetch.ts` — **SUPERSEDED, to be removed (see course correction above): browser-only now.**
+  ~~DigiKey/Mouser/element14 REST pre-fetch with the LIVE payload shapes verified in
   F-013: DigiKey pricing nests in `ProductVariations` (prefer Cut Tape variation); element14 stock
   = `inv`, India store = INR, free tier 403s → one paced retry; Mouser matches docs. Keys optional
-  (missing key = skip that API). Paced ~1.2s/line for Mouser's 30/min limit.
+  (missing key = skip that API). Paced ~1.2s/line for Mouser's 30/min limit.~~ Kept in git history
+  if ever needed, but the runner should no longer call it and the session CLAUDE.md should not list
+  API candidates.
 - `session.ts` — generates the Claude Code session folder: `CLAUDE.md` (the 7 ordering rules,
   every line + its API candidates, search URLs per site, STRICT incremental `results.json`
   contract — update after EVERY line, `complete: true` at end), `.mcp.json` (playwright MCP pinned

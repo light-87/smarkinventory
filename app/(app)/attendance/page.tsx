@@ -24,6 +24,8 @@ import { MarkPresentCard } from "@/components/attendance/mark-present-card";
 import { LeaveRequestsCard } from "@/components/attendance/leave-requests-card";
 import { ApprovalsInboxCard } from "@/components/attendance/approvals-inbox-card";
 import { HolidayAdminCard } from "@/components/attendance/holiday-admin-card";
+import { AttendanceViewSwitch, type AttendanceView, type AttendanceViewOption } from "@/components/attendance/attendance-view-switch";
+import { NativeSelect } from "@/components/attendance/native-select";
 
 export const metadata: Metadata = { title: "Attendance" };
 
@@ -162,6 +164,68 @@ export default async function AttendancePage({
     ownerPendingComp = allComp.data ?? [];
   }
 
+  // Owner/accountant get a view switch (Team calendar · Approvals · Holidays · My leave)
+  // so the page shows one focused view instead of 7 stacked sections. Employee keeps
+  // its lean single scroll. Kept in `?view=` so calendar/picker nav preserves it.
+  const viewOptions: AttendanceViewOption[] = showAll
+    ? [
+        { value: "team", label: "Team calendar" },
+        ...(ownerRole
+          ? ([
+              { value: "approvals", label: "Approvals" },
+              { value: "holidays", label: "Holidays" },
+            ] as AttendanceViewOption[])
+          : []),
+        { value: "myleave", label: "My leave" },
+      ]
+    : [];
+  const validViews = new Set(viewOptions.map((o) => o.value));
+  const rawView = Array.isArray(params.view) ? params.view[0] : params.view;
+  const view: AttendanceView = rawView && validViews.has(rawView as AttendanceView) ? (rawView as AttendanceView) : "team";
+
+  const calendarGrid = (
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.2fr_1fr]">
+      <CalendarView
+        month={month}
+        calendar={monthCalendar}
+        selectedDay={selectedDay}
+        todayDate={todayDate}
+        extraParams={showAll ? { user: viewingUserId, view } : {}}
+        title={showAll && viewingUserId !== user.id ? `Calendar — ${nameById.get(viewingUserId) ?? "user"}` : "My calendar"}
+      />
+      <DayBreakdownPanel
+        workDate={selectedDay}
+        entries={breakdownEntries}
+        attendanceByUser={attendanceByUser}
+        canManage={ownerRole}
+        selfOnly={!showAll}
+      />
+    </div>
+  );
+
+  const userPicker = showAll && activeUsers.length > 0 && (
+    <Card>
+      <form method="get" action="/attendance" className="flex flex-wrap items-center gap-2">
+        <input type="hidden" name="month" value={month} />
+        <input type="hidden" name="day" value={selectedDay} />
+        <input type="hidden" name="view" value={view} />
+        <label className="text-[13px] text-smoke" htmlFor="attendance-user-select">
+          Viewing calendar for
+        </label>
+        <NativeSelect
+          id="attendance-user-select"
+          name="user"
+          defaultValue={viewingUserId}
+          className="h-9 w-auto"
+          options={[
+            { value: user.id, label: "Me" },
+            ...activeUsers.filter((u) => u.id !== user.id).map((u) => ({ value: u.id, label: u.displayName ?? u.username })),
+          ]}
+        />
+      </form>
+    </Card>
+  );
+
   return (
     <div className="mx-auto flex max-w-[1180px] flex-col gap-4 px-4 pt-6 pb-24 sm:px-6 sm:pt-7">
       <div className="mb-1">
@@ -180,58 +244,31 @@ export default async function AttendancePage({
         myProjectOptions={myProjectOptions}
       />
 
-      {showAll && activeUsers.length > 0 && (
-        <Card>
-          <form method="get" action="/attendance" className="flex flex-wrap items-center gap-2">
-            <input type="hidden" name="month" value={month} />
-            <input type="hidden" name="day" value={selectedDay} />
-            <label className="text-[13px] text-smoke" htmlFor="attendance-user-select">
-              Viewing calendar for
-            </label>
-            <select
-              id="attendance-user-select"
-              name="user"
-              defaultValue={viewingUserId}
-              className="h-9 rounded-lg border border-charcoal bg-surface-well px-3 text-[13px] text-snow outline-none focus:border-smark-orange"
-            >
-              <option value={user.id}>Me</option>
-              {activeUsers
-                .filter((u) => u.id !== user.id)
-                .map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.displayName ?? u.username}
-                  </option>
-                ))}
-            </select>
-          </form>
-        </Card>
-      )}
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.2fr_1fr]">
-        <CalendarView
-          month={month}
-          calendar={monthCalendar}
-          selectedDay={selectedDay}
-          todayDate={todayDate}
-          extraParams={showAll ? { user: viewingUserId } : {}}
-          title={showAll && viewingUserId !== user.id ? `Calendar — ${nameById.get(viewingUserId) ?? "user"}` : "My calendar"}
-        />
-
-        <DayBreakdownPanel
-          workDate={selectedDay}
-          entries={breakdownEntries}
-          attendanceByUser={attendanceByUser}
-          canManage={ownerRole}
-          selfOnly={!showAll}
-        />
-      </div>
-
-      <LeaveRequestsCard myRequests={myLeaveRequests} compBalance={compBalance} canWrite={canWriteSelf} />
-
-      {ownerRole && (
+      {showAll ? (
         <>
-          <ApprovalsInboxCard pendingLeaves={ownerPendingLeaves} pendingCompWork={ownerPendingComp} nameById={nameById} />
-          <HolidayAdminCard holidays={holidays} />
+          <AttendanceViewSwitch active={view} options={viewOptions} />
+
+          {view === "team" && (
+            <>
+              {userPicker}
+              {calendarGrid}
+            </>
+          )}
+
+          {view === "approvals" && ownerRole && (
+            <ApprovalsInboxCard pendingLeaves={ownerPendingLeaves} pendingCompWork={ownerPendingComp} nameById={nameById} />
+          )}
+
+          {view === "holidays" && ownerRole && <HolidayAdminCard holidays={holidays} />}
+
+          {view === "myleave" && (
+            <LeaveRequestsCard myRequests={myLeaveRequests} compBalance={compBalance} canWrite={canWriteSelf} />
+          )}
+        </>
+      ) : (
+        <>
+          {calendarGrid}
+          <LeaveRequestsCard myRequests={myLeaveRequests} compBalance={compBalance} canWrite={canWriteSelf} />
         </>
       )}
     </div>

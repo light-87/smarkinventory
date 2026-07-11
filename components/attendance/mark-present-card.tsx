@@ -9,6 +9,7 @@ import { useToast } from "@/components/ui/toast";
 import { markPresentAction, submitCompWorkAction } from "@/lib/attendance/actions";
 import type { AttendanceStatus } from "@/lib/attendance/status";
 import { StatusBadge } from "./status-badge";
+import { NativeSelect } from "./native-select";
 import type { ProjectOption } from "@/lib/daily/queries";
 
 export interface MarkPresentCardProps {
@@ -82,19 +83,14 @@ export function MarkPresentCard({
         {canWriteSelf && (status === "not_marked" || status === "absent") && (
           <div className="flex flex-wrap items-center gap-2">
             {myProjectOptions.length > 0 && (
-              <select
+              <NativeSelect
                 value={projectId}
                 onChange={(e) => setProjectId(e.target.value)}
-                className="h-9 rounded-lg border border-charcoal bg-surface-well px-3 text-[13px] text-snow outline-none focus:border-smark-orange"
+                className="h-9 w-auto"
                 aria-label="Working on"
-              >
-                <option value="">No project</option>
-                {myProjectOptions.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
+                placeholder="No project"
+                options={myProjectOptions.map((p) => ({ value: p.id, label: p.name }))}
+              />
             )}
             <Button size="sm" onClick={handleMarkPresent} loading={pending}>
               Mark present
@@ -105,9 +101,14 @@ export function MarkPresentCard({
         {canWriteSelf && isTodayHoliday && status === "not_marked" && !hasPendingOrApprovedCompClaimToday && (
           <div className="border-t border-border-faint pt-3">
             {!showCompForm ? (
-              <Button size="sm" variant="accent-outline" onClick={() => setShowCompForm(true)}>
-                I worked today — claim comp
-              </Button>
+              <>
+                <Button size="sm" variant="accent-outline" onClick={() => setShowCompForm(true)}>
+                  I worked today — claim comp
+                </Button>
+                <p className="mt-2 text-caption text-faint">
+                  Worked on a holiday? Claim a comp day. Once the owner approves, it adds to your balance and you can take it as paid leave later.
+                </p>
+              </>
             ) : (
               <div className="flex flex-col gap-2">
                 <input

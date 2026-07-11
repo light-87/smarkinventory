@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { getSessionUser } from "@/lib/auth/session";
 import { canWrite } from "@/lib/auth/roles";
+import { effectiveCanSee } from "@/lib/rbac/access";
+import { EmptyState } from "@/components/ui/empty-state";
 import { ScanScreen } from "@/components/scan/scan-screen";
 
 export const metadata: Metadata = { title: "Scan" };
@@ -13,7 +15,14 @@ export const metadata: Metadata = { title: "Scan" };
  */
 export default async function ScanPage() {
   const sessionUser = await getSessionUser();
-  const writable = sessionUser != null && canWrite(sessionUser.role, "scan");
+  if (!sessionUser || !effectiveCanSee(sessionUser.role, "scan", sessionUser.grantedModules)) {
+    return (
+      <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
+        <EmptyState title="No access" description="Your account doesn't have access to Scan. Ask an owner to grant the Inventory module." />
+      </div>
+    );
+  }
+  const writable = canWrite(sessionUser.role, "scan");
 
   return <ScanScreen canWrite={writable} />;
 }

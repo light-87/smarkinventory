@@ -106,6 +106,25 @@ describe("desktop transform — objective rungs recomputed in code", () => {
     expect(warnings.some((w) => w.includes("unknown line"))).toBe(true);
   });
 
+  test("a non-recommended candidate's null why is accepted (only the recommended pick must explain itself)", () => {
+    const parsed = AgentResultsFileSchema.parse({
+      complete: true,
+      lines: {
+        [LINE_ID]: {
+          searchTerm: "GCM21BR72A104KA37L", notes: null, skipped: null,
+          candidates: [
+            { distributor: "LCSC", mpn: "GCM21BR72A104KA37L", package: "0805", price: 0.0313, recommended: true, why: "cheapest exact" },
+            { distributor: "Digikey", mpn: "GCM21BR72A104KA37L", package: "0805", price: 0.19, recommended: false, why: null },
+          ],
+        },
+      },
+    });
+    const { payload } = transformResults(config(), parsed);
+    const runnerUp = payload.results.find((r) => r["distributorId"] === DIST_DK)!;
+    expect(runnerUp["isRecommended"]).toBe(false);
+    expect(runnerUp["why"]).toBe(""); // null why on a non-winner falls back to empty, not a thrown error
+  });
+
   test("skipped lines land in masterPlan.skip, not in results", () => {
     const parsed = AgentResultsFileSchema.parse({
       complete: true,

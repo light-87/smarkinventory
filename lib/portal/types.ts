@@ -132,3 +132,30 @@ export const PortalPmPayloadSchema = z
   })
   .strict();
 export type PortalPmPayload = z.infer<typeof PortalPmPayloadSchema>;
+
+/**
+ * `portal_get_requests(p_token)` (0014_portal_requests.sql) — the client's OWN
+ * raised items (change requests + bug/issue reports) with their current status,
+ * so the portal can show the client what happened to what they raised. `status`
+ * is kept a plain string (union differs by `kind`: change → pending|accepted|
+ * rejected · issue → open|confirmed|dismissed|resolved) — the component maps it.
+ */
+export const PortalRequestKindSchema = z.enum(["change", "issue"]);
+export type PortalRequestKind = z.infer<typeof PortalRequestKindSchema>;
+
+export const PortalRequestSchema = z
+  .object({
+    id: z.string(),
+    kind: PortalRequestKindSchema,
+    description: z.string(),
+    status: z.string(),
+    task_title: z.string().nullable(),
+    created_at: z.string(),
+  })
+  .strict();
+export type PortalRequest = z.infer<typeof PortalRequestSchema>;
+
+export const PortalRequestsPayloadSchema = z.object({ requests: z.array(PortalRequestSchema) }).strict();
+export type PortalRequestsPayload = z.infer<typeof PortalRequestsPayloadSchema>;
+
+export const EMPTY_PORTAL_REQUESTS: PortalRequestsPayload = { requests: [] };

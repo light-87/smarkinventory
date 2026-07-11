@@ -51,7 +51,7 @@ export function MoreSheet({
       <div
         aria-hidden
         onClick={onClose}
-        className="animate-fade-in fixed inset-0 z-[70] bg-black/55 md:hidden"
+        className="animate-fade-in fixed inset-0 z-[70] bg-[#1d2130]/40 md:hidden"
       />
       <div
         role="dialog"

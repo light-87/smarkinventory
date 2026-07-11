@@ -79,7 +79,7 @@ export function ReceiveScreen({
                   <div className="flex items-center justify-between gap-2">
                     <div className="text-[15px] text-snow">{card.title}</div>
                     {badge !== null && (
-                      <span className="flex-none rounded-full bg-smark-orange px-2 py-0.5 font-mono text-[11px] text-obsidian">
+                      <span className="flex-none rounded-full bg-smark-orange px-2 py-0.5 font-mono text-[11px] text-white">
                         {badge}
                       </span>
                     )}

@@ -33,7 +33,7 @@ export function BottomBar({
     // phones with a home indicator; growing the height by the inset keeps the
     // tap targets full-size and the inset padding sits over the indicator.
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 flex border-t border-charcoal bg-obsidian/95 backdrop-blur md:hidden"
+      className="fixed inset-x-0 bottom-0 z-40 flex border-t border-charcoal bg-canvas/90 backdrop-blur md:hidden"
       style={{ height: "calc(60px + env(safe-area-inset-bottom))", paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       {items.map((item) => {

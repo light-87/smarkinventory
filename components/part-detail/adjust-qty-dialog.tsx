@@ -63,7 +63,7 @@ export function AdjustQtyDialog({ open, onClose, part, locations, onAdjusted }: 
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
-      <div aria-hidden onClick={onClose} className="absolute inset-0 bg-black/55" />
+      <div aria-hidden onClick={onClose} className="absolute inset-0 bg-[#1d2130]/40" />
       <div
         role="dialog"
         aria-modal="true"

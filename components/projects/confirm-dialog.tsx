@@ -55,7 +55,7 @@ export function ConfirmDialog({
 
   return (
     <>
-      <div aria-hidden onClick={onCancel} className="animate-fade-in fixed inset-0 z-[70] bg-black/55" />
+      <div aria-hidden onClick={onCancel} className="animate-fade-in fixed inset-0 z-[70] bg-[#1d2130]/40" />
       <div
         role="alertdialog"
         aria-modal="true"

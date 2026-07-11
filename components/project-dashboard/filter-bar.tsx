@@ -71,7 +71,7 @@ export function FilterBar({ filters, options }: FilterBarProps) {
         <div className="flex items-center gap-3">
           <button
             type="submit"
-            className="flex h-10 items-center justify-center rounded-lg bg-smark-orange px-5 text-[13px] font-medium text-obsidian transition-colors hover:bg-smark-orange-hover"
+            className="flex h-10 items-center justify-center rounded-lg bg-lime px-5 text-[13px] font-medium text-obsidian transition-colors hover:bg-lime-hover"
           >
             Apply filters
           </button>

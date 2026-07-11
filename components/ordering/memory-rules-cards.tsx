@@ -45,8 +45,9 @@ export function StandardRulesCard({ rules }: { rules: StandardRuleRow[] }) {
         Applied to every order · <Link href="/settings" className="text-smark-orange hover:underline">change in Settings</Link>
       </div>
       <div className="flex flex-col">
+        {/* `key` alone collides when multiple custom rules exist (all key="custom"); rank is unique per row. */}
         {rules.map((rule) => (
-          <div key={rule.key} className="flex items-center gap-3 border-b border-border-hairline py-2.5 last:border-0">
+          <div key={`${rule.key}-${rule.rank}`} className="flex items-center gap-3 border-b border-border-hairline py-2.5 last:border-0">
             <span className="flex size-[22px] flex-none items-center justify-center rounded-md bg-ash font-mono text-[11px] text-smoke">
               {rule.rank}
             </span>

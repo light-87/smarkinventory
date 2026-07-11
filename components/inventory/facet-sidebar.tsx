@@ -33,7 +33,7 @@ export function FacetSidebar({
           <button
             type="button"
             onClick={onClearAll}
-            className="cursor-pointer text-xs text-smark-orange-soft hover:underline"
+            className="cursor-pointer text-xs text-smark-orange hover:underline"
           >
             Clear all
           </button>

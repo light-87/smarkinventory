@@ -4,11 +4,13 @@ import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { ChangeRequestForm } from "@/components/portal/change-request-form";
 import { CommentForm } from "@/components/portal/comment-form";
 import { DocumentsList } from "@/components/portal/documents-list";
+import { PhaseTimeline } from "@/components/portal/phase-timeline";
 import { PmDashboard } from "@/components/portal/pm-dashboard";
 import { PortalHeader } from "@/components/portal/portal-header";
 import { UpdatesFeed } from "@/components/portal/updates-feed";
+import { YourRequests } from "@/components/portal/your-requests";
 import { lastPhaseEndDate } from "@/lib/portal/phase-math";
-import { getPortalPm, getPortalProject, getPortalShared } from "@/lib/portal/queries";
+import { getPortalPm, getPortalProject, getPortalRequests, getPortalShared } from "@/lib/portal/queries";
 
 /**
  * `/p/[token]` — the public client portal (FEATURES.md §17,
@@ -39,10 +41,11 @@ export async function generateMetadata({ params }: PortalPageProps): Promise<Met
 
 export default async function PortalPage({ params }: PortalPageProps) {
   const { token } = await params;
-  const [project, shared, pm] = await Promise.all([
+  const [project, shared, pm, requests] = await Promise.all([
     getPortalProject(token),
     getPortalShared(token),
     getPortalPm(token),
+    getPortalRequests(token),
   ]);
 
   // Unknown token, regenerated token, and an archived project's token all
@@ -50,53 +53,72 @@ export default async function PortalPage({ params }: PortalPageProps) {
   if (!project) notFound();
 
   const estDelivery = lastPhaseEndDate(project.phases) ?? project.est_delivery_date;
+  const scheduleRows = project.phases.filter((p) => p.row_kind !== "footnote");
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-lg flex-col gap-6 px-4 pt-6 pb-12 sm:px-6">
+    <main className="mx-auto flex min-h-dvh max-w-5xl flex-col gap-6 px-4 pt-6 pb-12 sm:px-6">
       <PortalHeader project={project} estDelivery={estDelivery} />
 
-      {pm && (
-        <Card padding="none">
-          <CardHeader title="Tasks" />
-          <CardBody>
-            <PmDashboard token={token} progress={pm.progress} tasks={pm.tasks} />
-          </CardBody>
-        </Card>
-      )}
+      <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] lg:items-start">
+        {/* Main column — the work */}
+        <div className="flex flex-col gap-6">
+          {pm && (
+            <Card padding="none">
+              <CardHeader title="Tasks" />
+              <CardBody>
+                <PmDashboard token={token} progress={pm.progress} tasks={pm.tasks} />
+              </CardBody>
+            </Card>
+          )}
 
-      <Card padding="lg">
-        <h2 className="mb-1 text-[15px] font-medium text-snow">Request a change</h2>
-        <p className="mb-4 text-body-sm text-smoke">
-          Need something added or adjusted? Let Smark know.
-        </p>
-        <ChangeRequestForm token={token} projectId={project.project_id} />
-      </Card>
+          {scheduleRows.length > 0 && (
+            <Card padding="none">
+              <CardHeader title="Schedule" />
+              <CardBody>
+                <PhaseTimeline phases={project.phases} />
+              </CardBody>
+            </Card>
+          )}
 
-      <Card padding="none">
-        <CardHeader title="Updates" />
-        <CardBody>
-          <UpdatesFeed activities={shared.activities} />
-        </CardBody>
-      </Card>
+          <Card padding="lg">
+            <h2 className="mb-1 text-[15px] font-medium text-snow">Request a change</h2>
+            <p className="mb-4 text-body-sm text-smoke">Need something added or adjusted? Let Smark know.</p>
+            <ChangeRequestForm token={token} projectId={project.project_id} />
+          </Card>
+        </div>
 
-      <Card padding="none">
-        <CardHeader title="Documents" />
-        <CardBody>
-          <DocumentsList documents={shared.documents} />
-        </CardBody>
-      </Card>
+        {/* Sidebar — reference + contact */}
+        <div className="flex flex-col gap-6">
+          <Card padding="none">
+            <CardHeader title="Your requests" />
+            <CardBody>
+              <YourRequests requests={requests.requests} />
+            </CardBody>
+          </Card>
 
-      <Card padding="lg">
-        <h2 className="mb-1 text-[15px] font-medium text-snow">Have a question?</h2>
-        <p className="mb-4 text-body-sm text-smoke">
-          Send a message and Smark will get back to you.
-        </p>
-        <CommentForm token={token} />
-      </Card>
+          <Card padding="none">
+            <CardHeader title="Updates" />
+            <CardBody>
+              <UpdatesFeed activities={shared.activities} />
+            </CardBody>
+          </Card>
 
-      <footer className="pt-2 pb-4 text-center text-caption text-faint">
-        Powered by SmarkStock
-      </footer>
+          <Card padding="none">
+            <CardHeader title="Documents" />
+            <CardBody>
+              <DocumentsList documents={shared.documents} />
+            </CardBody>
+          </Card>
+
+          <Card padding="lg">
+            <h2 className="mb-1 text-[15px] font-medium text-snow">Have a question?</h2>
+            <p className="mb-4 text-body-sm text-smoke">Send a message and Smark will get back to you.</p>
+            <CommentForm token={token} />
+          </Card>
+        </div>
+      </div>
+
+      <footer className="pt-2 pb-4 text-center text-caption text-faint">Powered by SmarkStock</footer>
     </main>
   );
 }

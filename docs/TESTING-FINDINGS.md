@@ -34,6 +34,87 @@ Screenshot: docs/testing-screenshots/f-001.png (optional)
 
 ---
 
+## P1c — first successful desktop end-to-end run (separate clean machine, 2026-07-05)
+
+Ran the SmarkStock Desktop supervised verification per `desktop_app_handoff.md` on a
+second, separate Windows machine (not the original dev PC). Result: **the full flow
+works** — sign-in → `/api/desktop/run-context` → real-browser Claude Code sourcing →
+`transform.ts` → `/api/desktop/results` upload → web review screen. First successful
+run outside the original dev environment, 5-line BOM, 22 candidates, uploaded clean.
+
+Setup/environment findings (all resolved, none are code bugs):
+- New machine needs Bun + **Node ≥20.9.0** (Next.js 16 requirement) + Brave/Chrome +
+  Claude Code CLI signed in + a hand-copied `.env.cloud.local` (gitignored, doesn't
+  travel with `git clone`) containing `NEXT_PUBLIC_SUPABASE_URL`,
+  `NEXT_PUBLIC_SUPABASE_ANON_KEY`, **and `SUPABASE_SERVICE_ROLE_KEY`** — a missing
+  service-role key 500s `/api/desktop/run-context` (`createServiceClient()`,
+  `lib/supabase/server.ts:92`). Web app must be started with
+  `bun --env-file=.env.cloud.local run dev` to actually point at cloud, not local.
+- `bun install` / `bunx` EPERM `NtSetInformationFile` failures on Windows — caused by
+  OneDrive-synced folders and/or Windows Defender real-time scanning locking files
+  mid-move. Fix: move the repo out of OneDrive, add Defender exclusions for the repo
+  + `%USERPROFILE%\.bun` + `%LOCALAPPDATA%\Temp`.
+- `bunx @playwright/mcp` first run failed (`Cannot find module
+  'playwright-core/lib/utilsBundle'`) — same underlying cause as above (partial
+  extraction). Workaround this session: installed a Playwright MCP plugin directly in
+  Claude Code instead of relying on the runner's generated `.mcp.json`. This validated
+  the sourcing/ordering logic but NOT the CDP-attach to the dedicated persistent Brave
+  profile (`brave.ts`) — that still needs a real run once the bunx path is reliable.
+- Desktop login is username→synthetic-email (`lib/auth/roles.ts` `usernameToEmail`):
+  `DESKTOP_EMAIL` must be `{username}@smark.internal` (e.g. `owner@smark.internal`),
+  not the plain username shown in the web UI.
+
+### F-014 · S2 · FIXED (this session)
+Surface: Desktop runner (`desktop/runner/transform.ts`, `desktop/runner/run.ts`)
+Role/device: desktop companion app / Windows
+What happened: `run.ts`'s watch loop retried silently forever (no output) even though
+the agent had written a complete, spec-compliant `results.json`. Root cause:
+`AgentCandidateSchema.why` was `z.string().default("")`, which only applies the
+default for `undefined` — an explicit `"why": null` (which the agent correctly writes
+for every non-recommended candidate, since CLAUDE.md only requires `why` on the
+recommended pick) failed `z.string()` validation, failing the whole file's
+`safeParse` with zero visible error.
+What I expected: either the null should validate, or a validation failure should be
+visible instead of an infinite silent retry.
+Fix: `why: z.string().nullable().default(null)` in `transform.ts`; added a
+"consecutive parse failures" warning to `run.ts`'s watch loop so this class of issue
+surfaces after 5 retries instead of hanging silently forever. Regression test added
+in `tests/unit/desktop-transform.test.ts`.
+Status: FIXED (this session).
+
+### F-015 · S3 · OPEN
+Surface: Desktop runner (`desktop/runner/run.ts` sign-in)
+Role/device: desktop companion app
+What happened: the runner signs in once at the start and reuses that access token for
+the final upload (`persistSession: false, autoRefreshToken: false`). A long
+human-supervised sourcing session outlasted the token's lifetime, so
+`POST /api/desktop/results` failed with `401 Not signed in.` on the first full run.
+Worked around by re-running with a fresh sign-in and pasting the already-completed
+`results.json` into the new session folder before the token aged out again.
+What I expected: the desktop app should stay signed in for the length of a
+supervised run, however long the human takes.
+Fix (not yet applied — decide when P2/Tauri app is built): flip to
+`autoRefreshToken: true` + `persistSession: true` with a secure storage adapter (e.g.
+Tauri's OS-keychain storage), mirroring whatever persistence pattern the web app's own
+client-side Supabase client already uses. Narrower alternative: re-authenticate right
+before the upload call rather than reusing the original token.
+Status: PLANNED (P2).
+
+### F-016 · S3 · OPEN
+Surface: Desktop runner (`transform.ts` package-match guard) / BOM data quality
+Role/device: desktop companion app
+What happened: on the test BOM, all 5 lines' recommended candidates were flagged
+"fails the mandatory package rung (no package vs ...)" — `derivePackageFromFootprint`
+returned no package because the BOM's `footprint` column was empty for these rows.
+Not a bug in the guard logic (it's working as designed — flagging, not silently
+trusting the agent), but worth checking this BOM's footprint data before drawing
+conclusions from the flags.
+What I expected: n/a — flagging behavior, just noting the root cause for whoever
+reviews this run's warnings.
+Status: OPEN (data quality check, not a code fix).
+
+---
+
 ## Processed log
 
 <!-- Claude moves resolved entries here with commit hashes, so the Findings section stays short -->

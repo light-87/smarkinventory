@@ -8,6 +8,7 @@ import { Chip } from "@/components/ui/chip";
 import { Field, Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useToast } from "@/components/ui/toast";
+import { NativeSelect } from "./native-select";
 import { formatDate } from "@/lib/format";
 import { submitLeaveRequestAction } from "@/lib/attendance/actions";
 import { countDaysInclusive } from "@/lib/attendance/status";
@@ -82,18 +83,12 @@ export function LeaveRequestsCard({ myRequests, compBalance, canWrite }: LeaveRe
                 <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
               </Field>
             </div>
-            <Field label="Reason">
-              <select
+            <Field label="Reason" hint="Compensatory uses a comp day you earned by working a holiday.">
+              <NativeSelect
                 value={reason}
                 onChange={(e) => setReason(e.target.value as LeaveReason)}
-                className="h-10 w-full rounded-lg border border-charcoal bg-surface-well px-3.5 text-sm text-snow outline-none focus:border-smark-orange"
-              >
-                {REASON_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
+                options={REASON_OPTIONS}
+              />
             </Field>
             <Field label="Note (optional)">
               <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Reason / details" />

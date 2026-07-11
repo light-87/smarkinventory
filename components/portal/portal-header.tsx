@@ -12,15 +12,14 @@ export interface PortalHeaderProps {
 /**
  * Minimal Smark-branded chrome for `/p/[token]` — deliberately NOT the app
  * shell (no rail/header/avatar menu; this route sits outside `app/(app)/`).
- * Orange-on-dark wordmark, project name, status + est-delivery chips.
+ * SMARK mark + "Client Portal", project name, status + est-delivery chips.
  */
 export function PortalHeader({ project, estDelivery }: PortalHeaderProps) {
   return (
     <header className="flex flex-col gap-4 border-b border-border-divider pb-6">
-      <div className="flex items-center gap-2">
-        <span className="text-[13px] font-medium tracking-[0.14em] text-smark-orange uppercase">
-          Smark
-        </span>
+      <div className="flex items-center gap-2.5">
+        {/* eslint-disable-next-line @next/next/no-img-element -- static brand asset (dark+orange mark, reads on white); no next/image benefit */}
+        <img src="/brand/smark-mark.svg" alt="Smark" className="h-6 w-auto" />
         <span className="text-caption text-smoke">Client Portal</span>
       </div>
       <div className="flex flex-col gap-2.5">

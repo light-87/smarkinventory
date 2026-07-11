@@ -3,11 +3,23 @@ import { createClient } from "@/lib/supabase/server";
 import { getRackShelves } from "./queries";
 import { ShelfBand } from "@/components/shelves/ShelfBand";
 import { EmptyState } from "@/components/ui/empty-state";
+import { getSessionUser } from "@/lib/auth/session";
+import { effectiveCanSee } from "@/lib/rbac/access";
 
 export const metadata: Metadata = { title: "Shelves" };
 
 export default async function ShelvesPage() {
   const supabase = await createClient();
+
+  const sessionUser = await getSessionUser();
+  if (!sessionUser || !effectiveCanSee(sessionUser.role, "shelves", sessionUser.grantedModules)) {
+    return (
+      <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
+        <EmptyState title="No access" description="Your account doesn't have access to Shelves. Ask an owner to grant the Inventory module." />
+      </div>
+    );
+  }
+
   const shelves = await getRackShelves(supabase);
 
   return (

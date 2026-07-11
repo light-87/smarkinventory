@@ -44,7 +44,7 @@ export function Rail({
     setOpenGroups((prev) => ({ ...prev, [group]: !prev[group] }));
 
   return (
-    <aside className="sticky top-0 hidden h-dvh w-[236px] flex-none flex-col border-r border-charcoal bg-obsidian md:flex">
+    <aside className="sticky top-0 hidden h-dvh w-[236px] flex-none flex-col border-r border-charcoal bg-canvas md:flex">
       <div className="flex items-center gap-[11px] border-b border-border-faint px-5 py-5">
         {/* eslint-disable-next-line @next/next/no-img-element -- static brand asset, no next/image benefit */}
         <img src="/brand/smark-mark.svg" alt="" className="h-[15px] w-auto flex-none" />

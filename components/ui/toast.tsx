@@ -6,7 +6,7 @@ import { cn } from "@/lib/cn";
 
 export interface ToastOptions {
   msg: ReactNode;
-  /** Shows an orange "Undo" pill; caller supplies the reverse action (prototype: stock take-out/add-in). */
+  /** Shows a lime "Undo" pill; caller supplies the reverse action (prototype: stock take-out/add-in). */
   undo?: boolean;
   onUndo?: () => void;
   /** Shows a quiet "×" close control — pair with a long/zero timeout. */
@@ -61,8 +61,8 @@ export interface ToastViewportProps {
 }
 
 /**
- * Fixed bottom-center toast stack (prototype: #242424 pill, 1px #393939
- * border, orange Undo pill). Newest toast renders closest to the anchor
+ * Fixed bottom-center toast stack (white pill, 1px hairline border, elevated,
+ * lime Undo pill). Newest toast renders closest to the anchor
  * edge; older ones stack upward. Mount once, e.g. in the app shell layout.
  */
 export function ToastViewport({
@@ -86,7 +86,7 @@ export function ToastViewport({
         <div
           key={t.id}
           role="status"
-          className="animate-toast-in pointer-events-auto flex max-w-[92vw] items-center gap-4 rounded-full border border-slate bg-ash py-[11px] pr-3 pl-5"
+          className="animate-toast-in pointer-events-auto flex max-w-[92vw] items-center gap-4 rounded-full border border-slate bg-surface py-[11px] pr-3 pl-5 shadow-sm"
         >
           <span className="truncate text-[13px] text-snow">{t.msg}</span>
           {t.undo && (
@@ -96,7 +96,7 @@ export function ToastViewport({
                 t.onUndo?.();
                 dismiss(t.id);
               }}
-              className="flex-none cursor-pointer rounded-full bg-smark-orange px-4 py-1.5 text-[13px] font-medium text-obsidian hover:bg-smark-orange-hover"
+              className="flex-none cursor-pointer rounded-full bg-lime px-4 py-1.5 text-[13px] font-medium text-obsidian hover:bg-lime-hover"
             >
               Undo
             </button>

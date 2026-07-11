@@ -24,7 +24,7 @@ const DEFAULT_PREFS: DistributorPreferenceRefRow[] = [
   { distributor_id: "d1", rank: 1, enabled: true },
   { distributor_id: "d2", rank: 2, enabled: true },
   { distributor_id: "d3", rank: 3, enabled: true },
-  { distributor_id: "d4", rank: 4, enabled: true }, // global prefs seed Unikey enabled — the per-BOM default still forces it off
+  { distributor_id: "d4", rank: 4, enabled: true },
 ];
 
 describe("resolveDistributorSequence — no saved sequence (BOM default)", () => {
@@ -33,15 +33,9 @@ describe("resolveDistributorSequence — no saved sequence (BOM default)", () =>
     expect(rows.map((r) => r.name)).toEqual(["Digikey", "Mouser", "LCSC", "Unikey"]);
   });
 
-  test("Unikey defaults OFF even when global preferences say enabled (deliberate narrowing, per module doc)", () => {
+  test("every active distributor is enabled by default, Unikey included", () => {
     const rows = resolveDistributorSequence(null, ALL, DEFAULT_PREFS);
-    const unikey = rows.find((r) => r.name === "Unikey");
-    expect(unikey?.enabled).toBe(false);
-  });
-
-  test("every other distributor is enabled by default", () => {
-    const rows = resolveDistributorSequence(null, ALL, DEFAULT_PREFS);
-    expect(rows.filter((r) => r.name !== "Unikey").every((r) => r.enabled)).toBe(true);
+    expect(rows.every((r) => r.enabled)).toBe(true);
   });
 
   test("excludes inactive distributors entirely", () => {
@@ -72,7 +66,7 @@ describe("resolveDistributorSequence — a saved per-BOM sequence", () => {
       { name: "Unikey", enabled: true },
       { name: "LCSC", enabled: true },
       { name: "Digikey", enabled: false },
-      { name: "Mouser", enabled: true }, // appended — not in the saved sequence, active, not Unikey
+      { name: "Mouser", enabled: true }, // appended — not in the saved sequence, active
     ]);
   });
 
@@ -110,7 +104,7 @@ describe("toStoredSequence", () => {
       { distributor_id: "d1", enabled: true },
       { distributor_id: "d2", enabled: true },
       { distributor_id: "d3", enabled: true },
-      { distributor_id: "d4", enabled: false },
+      { distributor_id: "d4", enabled: true },
     ]);
   });
 });

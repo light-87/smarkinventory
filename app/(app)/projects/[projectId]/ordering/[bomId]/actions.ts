@@ -9,15 +9,12 @@
  */
 
 import { revalidatePath } from "next/cache";
-import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { createClient } from "@/lib/supabase/server";
 import { canWrite } from "@/lib/auth/roles";
 import { TABLES } from "@/types/db";
-import { enqueueRun } from "@/lib/runs/enqueue";
 import {
-  RunOrderingInputSchema,
   SaveDistributorSequenceInputSchema,
   SavePrioritiesInputSchema,
-  type RunOrderingInput,
   type SaveDistributorSequenceInput,
   type SavePrioritiesInput,
 } from "@/lib/runs/types";
@@ -57,17 +54,4 @@ export async function savePrioritiesAction(input: SavePrioritiesInput): Promise<
   if (error) return { ok: false, error: error.message };
   revalidatePath(`/projects`, "layout");
   return { ok: true };
-}
-
-export type RunOrderingResult = { ok: true; runId: string } | { ok: false; error: string };
-
-/** "Run ordering →" — enqueues the run (lib/runs/enqueue.ts aliases the context before it's written). */
-export async function runOrderingAction(input: RunOrderingInput): Promise<RunOrderingResult> {
-  const parsed = RunOrderingInputSchema.parse(input);
-  const { supabase, actorId } = await requireProjectsWriter();
-  const service = createServiceClient();
-
-  const result = await enqueueRun(supabase, service, { bomId: parsed.bomId, tier: parsed.tier, actorId });
-  if (result.ok) revalidatePath(`/projects`, "layout");
-  return result;
 }

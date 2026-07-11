@@ -92,7 +92,7 @@ export function OnboardingQueue({ rows, boxes }: OnboardingQueueProps) {
                 {[row.part.value, row.part.package].filter(Boolean).join(" · ") || "—"}
               </span>
               {row.hasLocation && (
-                <Chip tone="accent" size="sm">
+                <Chip tone="warn" size="sm">
                   flagged for review
                 </Chip>
               )}

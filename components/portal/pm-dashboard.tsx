@@ -13,7 +13,7 @@ const STATUS_LABEL: Record<PortalTaskStatus, string> = {
 
 const STATUS_TONE: Record<PortalTaskStatus, ChipTone> = {
   open: "default",
-  awaiting_client_input: "accent",
+  awaiting_client_input: "warn", // amber — "we're waiting on YOU" nudge
   submitted: "bright",
   done: "success",
 };
@@ -72,7 +72,7 @@ export function PmDashboard({ token, progress, tasks }: PmDashboardProps) {
             className="flex flex-col gap-2 rounded-xl border border-charcoal bg-surface-panel px-4 py-3"
           >
             <div className="flex flex-wrap items-start justify-between gap-2">
-              <span className="text-[14px] font-medium text-snow">{task.title}</span>
+              <span className="min-w-0 flex-1 text-[14px] font-medium break-words text-snow">{task.title}</span>
               <Chip tone={STATUS_TONE[task.status]} size="sm">
                 {STATUS_LABEL[task.status]}
               </Chip>
