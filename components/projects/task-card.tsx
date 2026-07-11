@@ -3,29 +3,15 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
-import { Chip, type ChipTone } from "@/components/ui/chip";
+import { Chip } from "@/components/ui/chip";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { formatDate } from "@/lib/format";
-import type { TaskStatus } from "@/types/db";
 import type { EngineerOption, TaskHoldView, TaskView } from "@/lib/pm/queries";
 import type { TaskReminderView } from "@/lib/reminders/queries";
 import { markTaskDoneAction, submitTaskAction } from "@/lib/pm/actions";
+import { TASK_STATUS_ACCENT, TASK_STATUS_LABEL, TASK_STATUS_TONE } from "@/lib/pm/task-status-ui";
 import { TaskDrawer } from "./task-drawer";
-
-const STATUS_LABEL: Record<TaskStatus, string> = {
-  open: "Open",
-  awaiting_client_input: "Awaiting client input",
-  submitted: "Submitted",
-  done: "Done",
-};
-
-const STATUS_TONE: Record<TaskStatus, ChipTone> = {
-  open: "neutral",
-  awaiting_client_input: "accent",
-  submitted: "bright",
-  done: "success",
-};
 
 export interface TaskCardProps {
   task: TaskView;
@@ -85,18 +71,18 @@ export function TaskCard({
   const hasManage = canWrite || isOwner;
 
   return (
-    <Card className="flex flex-col gap-3">
+    <Card className={`flex flex-col gap-3 border-l-[3px] ${TASK_STATUS_ACCENT[task.status]}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           {projectName && <div className="text-caption text-smoke">{projectName}</div>}
           <div className="text-[16px] text-snow">{task.title}</div>
           {task.description && <p className="mt-1 text-[14px] text-smoke">{task.description}</p>}
         </div>
-        <Chip tone={STATUS_TONE[task.status]}>{STATUS_LABEL[task.status]}</Chip>
+        <Chip tone={TASK_STATUS_TONE[task.status]}>{TASK_STATUS_LABEL[task.status]}</Chip>
       </div>
 
       {openHold && (
-        <div className="rounded-lg border border-smark-orange bg-surface-accent px-3.5 py-2.5 text-[14px] text-silver-mist">
+        <div className="rounded-lg border border-warn bg-warn/10 px-3.5 py-2.5 text-[14px] text-warn">
           Awaiting client input since {formatDate(openHold.startedAt)} — time logging is paused.
           {isOwner && " Open Manage to mark it received or send a reminder."}
         </div>

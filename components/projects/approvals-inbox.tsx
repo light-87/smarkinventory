@@ -74,9 +74,9 @@ export function ApprovalsInbox({ bugs, changeRequests, taskTitleById, engineers 
   return (
     <div className="flex flex-col gap-4">
       {openBugs.length > 0 && (
-        <Card padding="none">
+        <Card padding="none" className="border-l-[3px] border-l-warn">
           <div className="border-b border-border-divider px-5 py-4">
-            <SectionLabel>Bugs pending triage</SectionLabel>
+            <SectionLabel className="text-warn">Bugs pending triage</SectionLabel>
             <p className="mt-1 text-caption text-faint">
               Confirm a real bug (counts toward effectiveness), dismiss a non-issue, or reclassify it as a change request. The
               chip shows who reported it.
@@ -110,9 +110,9 @@ export function ApprovalsInbox({ bugs, changeRequests, taskTitleById, engineers 
       )}
 
       {pendingCrs.length > 0 && (
-        <Card padding="none">
+        <Card padding="none" className="border-l-[3px] border-l-smark-orange">
           <div className="border-b border-border-divider px-5 py-4">
-            <SectionLabel>Change requests pending</SectionLabel>
+            <SectionLabel className="text-smark-orange">Change requests pending</SectionLabel>
             <p className="mt-1 text-caption text-faint">
               Accept to turn it into a new task (assign engineers below), or reject. The client sees the outcome in their portal.
             </p>

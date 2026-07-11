@@ -1,13 +1,15 @@
 import type { ComponentPropsWithRef, ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
-export type StatTone = "default" | "accent" | "muted" | "success";
+export type StatTone = "default" | "accent" | "muted" | "success" | "warn" | "danger";
 
 const TONE_CLASSES: Record<StatTone, string> = {
   default: "text-snow",
   accent: "text-smark-orange",
   muted: "text-smoke",
   success: "text-phosphor-green",
+  warn: "text-warn",
+  danger: "text-smark-orange-soft",
 };
 
 export interface StatCardProps extends ComponentPropsWithRef<"div"> {

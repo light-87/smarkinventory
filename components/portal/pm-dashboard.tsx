@@ -1,29 +1,21 @@
-import { Chip, type ChipTone } from "@/components/ui/chip";
+import { Chip } from "@/components/ui/chip";
 import { EmptyState } from "@/components/ui/empty-state";
 import type { PortalTask, PortalTaskStatus } from "@/lib/portal/types";
+import { TASK_STATUS_ACCENT, TASK_STATUS_TONE } from "@/lib/pm/task-status-ui";
 import { MarkInputProvidedButton } from "./mark-input-provided-button";
 import { ReportBugForm } from "./report-bug-form";
 
+/**
+ * Client-facing status labels — deliberately NOT the shared owner labels:
+ * "Awaiting your input" (second person) reads to the client, where the owner
+ * board says "Awaiting client input". Tone + left-accent colour ARE shared
+ * (lib/pm/task-status-ui.ts) so the colour language matches both views.
+ */
 const STATUS_LABEL: Record<PortalTaskStatus, string> = {
   open: "Open",
   awaiting_client_input: "Awaiting your input",
   submitted: "Submitted",
   done: "Done",
-};
-
-const STATUS_TONE: Record<PortalTaskStatus, ChipTone> = {
-  open: "default",
-  awaiting_client_input: "warn", // amber — "we're waiting on YOU" nudge
-  submitted: "bright",
-  done: "success",
-};
-
-/** Left-edge accent colour per status — gives the task list colour at a glance (matches the chip tone). */
-const STATUS_ACCENT: Record<PortalTaskStatus, string> = {
-  open: "border-l-slate",
-  awaiting_client_input: "border-l-warn",
-  submitted: "border-l-smark-orange",
-  done: "border-l-phosphor-green",
 };
 
 /** `null` means the owner's `show_time_to_client` toggle is off — never render a fabricated value in its place. */
@@ -77,11 +69,11 @@ export function PmDashboard({ token, progress, tasks }: PmDashboardProps) {
         {tasks.map((task) => (
           <li
             key={task.id}
-            className={`flex flex-col gap-2 rounded-xl border border-l-[3px] border-charcoal bg-surface-panel px-4 py-3 ${STATUS_ACCENT[task.status]}`}
+            className={`flex flex-col gap-2 rounded-xl border border-l-[3px] border-charcoal bg-surface-panel px-4 py-3 ${TASK_STATUS_ACCENT[task.status]}`}
           >
             <div className="flex flex-wrap items-start justify-between gap-2">
               <span className="min-w-0 flex-1 text-[14px] font-medium break-words text-snow">{task.title}</span>
-              <Chip tone={STATUS_TONE[task.status]} size="sm">
+              <Chip tone={TASK_STATUS_TONE[task.status]} size="sm">
                 {STATUS_LABEL[task.status]}
               </Chip>
             </div>
