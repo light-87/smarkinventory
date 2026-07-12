@@ -340,7 +340,7 @@ export async function deleteBom(supabase: DB, bomId: string): Promise<DeleteBomR
       return {
         ok: false,
         error:
-          "This BOM has AI sourcing runs recorded against it, so it can't be deleted — run and cost history stay traceable. Archive the project instead.",
+          "This BOM has AI sourcing runs recorded against it, so it can't be deleted — run and cost history stay traceable. Archive the BOM instead (hides it, keeps history, reversible).",
       };
     }
     throw error;
@@ -348,6 +348,34 @@ export async function deleteBom(supabase: DB, bomId: string): Promise<DeleteBomR
   // RLS blocking a delete surfaces as zero affected rows, not an error.
   if (!data || data.length === 0) {
     return { ok: false, error: "Could not delete this BOM — it may already be gone, or you don't have permission." };
+  }
+  return { ok: true };
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Archive BOM (soft-delete) [0015]
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+export type ArchiveBomResult = { ok: true } | { ok: false; error: string };
+
+/**
+ * Soft-archives (or un-archives) a BOM by stamping `smark_boms.archived_at`.
+ * Unlike {@link deleteBom} this is allowed even when AI runs exist — the row
+ * (and its run/cost history) is kept, just hidden. Its cross-project demand is
+ * released via `v_part_demand` (which now filters `archived_at is null`) and
+ * self-heals on the next cart render (`recomputeShortfallCartItems`), exactly
+ * like a delete does. Reversible: pass `archived = false` to restore.
+ */
+export async function setBomArchived(supabase: DB, bomId: string, archived: boolean): Promise<ArchiveBomResult> {
+  const { data, error } = await supabase
+    .from(TABLES.boms)
+    .update({ archived_at: archived ? new Date().toISOString() : null })
+    .eq("id", bomId)
+    .select("id");
+  if (error) throw error;
+  // RLS blocking the update surfaces as zero affected rows, not an error.
+  if (!data || data.length === 0) {
+    return { ok: false, error: "Could not update this BOM — it may be gone, or you don't have permission." };
   }
   return { ok: true };
 }

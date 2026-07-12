@@ -42,6 +42,7 @@ export async function getPickableProjects(supabase: DB): Promise<PickableProject
     supabase
       .from(TABLES.boms)
       .select("id, name, project_id, build_qty, line_count")
+      .is("archived_at", null)
       .order("name", { ascending: true }),
   ]);
   if (projectsErr) throw projectsErr;

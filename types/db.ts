@@ -632,6 +632,8 @@ export const BomRowSchema = z.object({
   created_in_app: z.boolean(),
   /** [R2-27] every need = line qty × build_qty; change flags the saved run stale. */
   build_qty: z.number().int(),
+  /** [0015] Soft-archive timestamp — non-null hides the BOM + releases its demand; reversible. */
+  archived_at: zTimestamptz.nullable(),
 });
 export type BomRow = z.infer<typeof BomRowSchema>;
 

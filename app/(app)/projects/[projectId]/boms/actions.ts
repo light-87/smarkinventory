@@ -29,7 +29,9 @@ import {
   createUploadedBom,
   deleteBom,
   runReconcile,
+  setBomArchived,
   setBuildQty,
+  type ArchiveBomResult,
   type CreateBomResult,
   type DeleteBomResult,
 } from "@/lib/bom/service";
@@ -139,6 +141,30 @@ export async function deleteBomAction(input: { projectId: string; bomId: string 
     return result;
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "Could not delete that BOM." };
+  }
+}
+
+/**
+ * Archive / un-archive a BOM (soft-delete) — allowed even when AI runs exist
+ * (keeps run/cost history, hides the BOM, releases its demand). Reversible.
+ */
+export async function setBomArchivedAction(input: {
+  projectId: string;
+  bomId: string;
+  archived: boolean;
+}): Promise<ArchiveBomResult> {
+  const { supabase } = await requireProjectsWriter();
+  try {
+    const result = await setBomArchived(supabase, input.bomId, input.archived);
+    if (result.ok) {
+      revalidatePath(`/projects/${input.projectId}/boms`);
+      // Demand release/restore self-heals on the next cart render — mirror the
+      // broad revalidate the other BOM writes use so on-order surfaces refresh.
+      revalidatePath("/projects", "layout");
+    }
+    return result;
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Could not archive that BOM." };
   }
 }
 
