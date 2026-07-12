@@ -20,9 +20,11 @@ import type {
   RejectChangeRequestInput,
   RemoveAssigneeInput,
   ReportBugInput,
+  SetProjectArchivedInput,
   SetShowTimeToClientInput,
   StartHoldInput,
   TriageBugInput,
+  UpdateProjectInput,
 } from "./types";
 
 type DB = SupabaseClient<Database>;
@@ -390,6 +392,31 @@ export async function setShowTimeToClient(supabase: DB, input: SetShowTimeToClie
   const { error } = await supabase
     .from(TABLES.projects)
     .update({ show_time_to_client: input.show })
+    .eq("id", input.projectId);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/** Owner edits a project's name + client label. */
+export async function updateProject(supabase: DB, input: UpdateProjectInput): Promise<Result> {
+  const { error } = await supabase
+    .from(TABLES.projects)
+    .update({ name: input.name, client: input.client?.trim() || null })
+    .eq("id", input.projectId);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/**
+ * Owner archives / restores a project. Archiving stamps `archived_at` — that
+ * one column hides it from active lists, releases its cart demand (v_part_demand
+ * filters `archived_at is null`) and suspends the client portal (portal RPCs
+ * null-out archived tokens). Reversible: `archived = false` clears it.
+ */
+export async function setProjectArchived(supabase: DB, input: SetProjectArchivedInput): Promise<Result> {
+  const { error } = await supabase
+    .from(TABLES.projects)
+    .update({ archived_at: input.archived ? new Date().toISOString() : null })
     .eq("id", input.projectId);
   if (error) return { ok: false, error: error.message };
   return { ok: true };

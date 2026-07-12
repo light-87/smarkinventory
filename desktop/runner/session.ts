@@ -35,6 +35,10 @@ function settingsJson(): string {
     {
       permissions: { allow: ["mcp__browser", "Read", "Write", "Edit"] },
       enabledMcpjsonServers: ["browser"],
+      // Mechanical browsing + a strict results.json contract, not open-ended
+      // reasoning — Haiku is the right tier (cheapest/fastest), and without
+      // this the spawned `claude` subprocess falls back to Opus by default.
+      model: "haiku",
     },
     null,
     2,
@@ -48,11 +52,20 @@ function claudeMd(config: WorkerRunConfig, prefetch: PrefetchLine[]): string {
   const lineBlocks = config.lines
     .map((l) => {
       const p = prefetchByLine.get(l.bomLineId);
+      // Every remaining BOM column (supplier codes, RoHS, notes columns, …) —
+      // the agent should see the whole row, nothing dropped.
+      const extraLines = l.extra
+        ? Object.entries(l.extra)
+            .filter(([, v]) => v !== null && v !== "")
+            .map(([k, v]) => `\n- ${k}: ${v}`)
+            .join("")
+        : "";
       return `### Line ${l.lineNo ?? "?"} — id \`${l.bomLineId}\`
 - references: ${l.refDesignators ?? "-"} · quantity needed: **${l.qty}**${l.dnp ? " · **DNP — skip this line**" : ""}
 - value: ${l.value ?? "-"} · footprint: ${l.footprint ?? "-"} · package: **${l.packageName ?? "UNKNOWN"}** · voltage: ${l.voltage ?? "-"}
 - MPN: ${l.mpn ? `**${l.mpn}**` : "NONE — identify the part from value + package first"} · manufacturer: ${l.manufacturer ?? "-"}
-- description: ${l.description ?? "-"}${l.priorityNote ? `\n- note: ${l.priorityNote}` : ""}
+- LCSC PN: ${l.lcscPn ? `**${l.lcscPn}** — source from LCSC directly (ordering rule 2)` : "-"} · part link: ${l.partLink ?? "-"}
+- description: ${l.description ?? "-"}${extraLines}${l.priorityNote ? `\n- note: ${l.priorityNote}` : ""}
 - VERIFIED API RESULTS (already fetched — trust these, do NOT re-browse these distributors for this line unless empty):
 \`\`\`json
 ${JSON.stringify(p?.candidates ?? [], null, 1).slice(0, 6000)}

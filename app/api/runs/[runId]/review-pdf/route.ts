@@ -23,7 +23,15 @@ export async function GET(_request: Request, context: { params: Promise<{ runId:
   const review = await getReviewData(supabase, service, runId);
   if (!review) return NextResponse.json({ error: "That run no longer exists." }, { status: 404 });
 
-  const pdfBytes = await buildReviewPdf(review);
+  let pdfBytes: Uint8Array;
+  try {
+    pdfBytes = await buildReviewPdf(review);
+  } catch (error) {
+    // Never surface a raw stack as the download — return a clean JSON error so
+    // a future font/encoding gap degrades gracefully instead of a 500 page.
+    console.error(`[review-pdf] build failed for run ${runId}:`, error);
+    return NextResponse.json({ error: "Could not build the PDF. Please try again." }, { status: 500 });
+  }
 
   return new NextResponse(new Uint8Array(pdfBytes), {
     status: 200,

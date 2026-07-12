@@ -409,7 +409,7 @@ export type DesktopRunContextResult =
 export async function createDesktopRun(
   supabase: DB,
   service: DB,
-  input: { bomId: string; actorId: string; lineLimit?: number; clientRendersColumns?: boolean },
+  input: { bomId: string; actorId: string; lineLimit?: number; clientRendersColumns?: boolean; resourceAll?: boolean },
 ): Promise<DesktopRunContextResult> {
   const loaded = await loadBomContext(supabase, input.bomId);
   if ("error" in loaded) return { ok: false, error: loaded.error };
@@ -418,13 +418,42 @@ export async function createDesktopRun(
   if (loaded.toOrderLines.length === 0) {
     return { ok: false, error: "Nothing to order — every line on this BOM is already in stock." };
   }
+
+  // Resume (no reinstall): reuse lines already sourced by the BOM's previous
+  // run so a re-run after a settings change doesn't source everything again.
+  // A line is "already sourced" if the prior run wrote ANY result row for it.
+  // Those lines are dropped from `config.lines` (so the agent — even an old
+  // installed one — skips them) and their prior results are CLONED into this
+  // new run so the review still shows the full order. `resourceAll` opts out.
+  const priorRunId = bom.saved_run_id;
+  let reusedResults: Record<string, unknown>[] = [];
+  const reusedLineIds = new Set<string>();
+  if (!input.resourceAll && priorRunId) {
+    const { data: prior, error: priorError } = await service
+      .from(TABLES.agent_results)
+      .select("*")
+      .eq("run_id", priorRunId);
+    if (priorError) return { ok: false, error: `Could not read the previous run's results: ${priorError.message}` };
+    reusedResults = (prior ?? []) as Record<string, unknown>[];
+    for (const r of reusedResults) reusedLineIds.add(r["bom_line_id"] as string);
+  }
+
+  const remainingToOrder = loaded.toOrderLines.filter((l) => !reusedLineIds.has(l.id));
+  if (remainingToOrder.length === 0) {
+    return {
+      ok: false,
+      error:
+        "Every line on this BOM is already sourced from a previous run — open its review on the web. Tick “Re-source all” to source them again.",
+    };
+  }
+
   const lineLimit =
     typeof input.lineLimit === "number" && Number.isFinite(input.lineLimit) && input.lineLimit >= 1
       ? Math.floor(input.lineLimit)
       : null;
   const toOrderLines = lineLimit
-    ? [...loaded.toOrderLines].sort((a, b) => (a.line_no ?? 0) - (b.line_no ?? 0)).slice(0, lineLimit)
-    : loaded.toOrderLines;
+    ? [...remainingToOrder].sort((a, b) => (a.line_no ?? 0) - (b.line_no ?? 0)).slice(0, lineLimit)
+    : remainingToOrder;
 
   const { plannerContext, rulesDigestVersion, rulesDigestAliased } = await buildAliasedRunContext(service, {
     bom,
@@ -487,6 +516,23 @@ export async function createDesktopRun(
     started_by: input.actorId,
   });
   if (runInsertError) return { ok: false, error: `Could not create the desktop run: ${runInsertError.message}` };
+
+  // Carry the reused lines' prior results forward onto this run so the review
+  // shows the full order (reused + newly sourced). Strip identity/timestamps
+  // (baseRow: id/created_at/updated_at) and re-point run_id — every other
+  // column, incl. the earlier selection, is preserved. Service client:
+  // smark_agent_results is service-role-only RLS (0004).
+  if (reusedResults.length > 0) {
+    const clones = reusedResults.map((r) => {
+      const { id: _id, created_at: _c, updated_at: _u, ...rest } = r;
+      void _id;
+      void _c;
+      void _u;
+      return { ...rest, run_id: runId };
+    });
+    const { error: cloneError } = await service.from(TABLES.agent_results).insert(clones as never);
+    if (cloneError) return { ok: false, error: `Run created but reused results couldn't be carried over: ${cloneError.message}` };
+  }
 
   const { error: bomUpdateError } = await supabase
     .from(TABLES.boms)

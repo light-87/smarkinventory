@@ -63,6 +63,23 @@ export default async function BomsPage({ params, searchParams }: BomsPageProps) 
               {showArchived ? "← Active BOMs" : `Archived (${archivedCount}) →`}
             </Link>
           )}
+          {!showArchived && (
+            <a
+              href="/api/desktop/download"
+              className="inline-flex h-11 items-center justify-center gap-1.5 rounded-full border border-charcoal px-4 text-sm font-medium text-snow transition-colors hover:bg-ash"
+            >
+              <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden>
+                <path
+                  d="M8 2v8m0 0 3-3m-3 3-3-3M3 13h10"
+                  stroke="currentColor"
+                  strokeWidth="1.4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              Download desktop app
+            </a>
+          )}
           {writable && !showArchived && (
             <Link
               href={`/projects/${projectId}/boms/new`}

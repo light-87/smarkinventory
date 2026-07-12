@@ -1,12 +1,20 @@
 /**
  * lib/runs/review-pdf.ts — "Save as PDF cart" snapshot (plan/tab-order-
- * review.md §2/§6 footer bar), built with `pdf-lib` (already a dependency —
- * see lib/labels/avery.ts for the sibling pattern this mirrors). Generated
- * on demand from current review data — no R2 storage, this is a point-in-
- * time snapshot the user downloads, not a persisted document.
+ * review.md §2/§6 footer bar). Generated on demand from current review data —
+ * no R2 storage, this is a point-in-time snapshot the user downloads, not a
+ * persisted document.
+ *
+ * Uses an embedded Noto Sans (lib/runs/fonts) via `@pdf-lib/fontkit` rather
+ * than a StandardFont — the amounts contain `₹` (U+20B9), which pdf-lib's
+ * built-in Helvetica (WinAnsi) cannot encode (it threw, 500ing the route).
+ * Noto Sans covers ₹ plus the ·/—/× the layout uses. The TTFs are traced into
+ * the serverless function via `outputFileTracingIncludes` in next.config.ts.
  */
 
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { PDFDocument, rgb } from "pdf-lib";
+import fontkit from "@pdf-lib/fontkit";
 import { formatINR } from "@/lib/format";
 import type { ReviewData } from "./types";
 
@@ -14,14 +22,19 @@ const PAGE_WIDTH = 595.28; // A4 pt
 const PAGE_HEIGHT = 841.89;
 const MARGIN = 40;
 
+const FONTS_DIR = path.join(process.cwd(), "lib", "runs", "fonts");
+const REGULAR_TTF = () => readFileSync(path.join(FONTS_DIR, "NotoSans-Regular.ttf"));
+const BOLD_TTF = () => readFileSync(path.join(FONTS_DIR, "NotoSans-Bold.ttf"));
+
 function selectedRow(line: ReviewData["lines"][number]) {
   return line.rows.find((r) => r.selected) ?? line.rows.find((r) => r.isRecommended) ?? null;
 }
 
 export async function buildReviewPdf(review: ReviewData): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
-  const font = await doc.embedFont(StandardFonts.Helvetica);
-  const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+  doc.registerFontkit(fontkit);
+  const font = await doc.embedFont(REGULAR_TTF(), { subset: true });
+  const bold = await doc.embedFont(BOLD_TTF(), { subset: true });
 
   let page = doc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
   let y = PAGE_HEIGHT - MARGIN;

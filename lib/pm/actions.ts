@@ -30,10 +30,12 @@ import {
   RejectChangeRequestInputSchema,
   RemoveAssigneeInputSchema,
   ReportBugInputSchema,
+  SetProjectArchivedInputSchema,
   SetShowTimeToClientInputSchema,
   StartHoldInputSchema,
   SubmitTaskInputSchema,
   TriageBugInputSchema,
+  UpdateProjectInputSchema,
   type AcceptChangeRequestInput,
   type AssignTaskInput,
   type CreateChangeRequestInput,
@@ -46,10 +48,12 @@ import {
   type RejectChangeRequestInput,
   type RemoveAssigneeInput,
   type ReportBugInput,
+  type SetProjectArchivedInput,
   type SetShowTimeToClientInput,
   type StartHoldInput,
   type SubmitTaskInput,
   type TriageBugInput,
+  type UpdateProjectInput,
 } from "./types";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
@@ -83,6 +87,27 @@ export async function setShowTimeToClientAction(input: SetShowTimeToClientInput)
   const { supabase } = await requirePmOwner();
   const result = await core.setShowTimeToClient(supabase, parsed);
   if (result.ok) revalidateProject(parsed.projectId);
+  return result;
+}
+
+/** Owner edits a project's name + client label (Manage tab). */
+export async function updateProjectAction(input: UpdateProjectInput): Promise<ActionResult> {
+  const parsed = UpdateProjectInputSchema.parse(input);
+  const { supabase } = await requirePmOwner();
+  const result = await core.updateProject(supabase, parsed);
+  if (result.ok) revalidateProject(parsed.projectId);
+  return result;
+}
+
+/** Owner archives / restores a whole project (reversible). Releases demand + suspends the portal. */
+export async function setProjectArchivedAction(input: SetProjectArchivedInput): Promise<ActionResult> {
+  const parsed = SetProjectArchivedInputSchema.parse(input);
+  const { supabase } = await requirePmOwner();
+  const result = await core.setProjectArchived(supabase, parsed);
+  if (result.ok) {
+    revalidateProject(parsed.projectId);
+    revalidatePath("/projects", "layout");
+  }
   return result;
 }
 

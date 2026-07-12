@@ -6,6 +6,22 @@ session do the sourcing; results land back in the web app's review screens.
 
 ## P1 usage (CLI — the P2 Tauri UI wraps this same flow)
 
+### One-time manual setup (per machine — everything else below is automatic)
+
+Only two things a human has to do by hand on a fresh machine:
+1. **Sign into the Claude Code CLI** (`claude` → sign in with your own
+   subscription/API key). This can't be scripted — it's your own account.
+2. **Install/enable a browser MCP plugin in Claude Code** so it has browser
+   tools available. Ideally this is `@playwright/mcp` resolving automatically
+   via the generated `.mcp.json` (see below) — if `bunx @playwright/mcp`
+   fails to auto-download on a given machine (seen on Windows with
+   antivirus/OneDrive file-locking — see `docs/TESTING-FINDINGS.md`), install
+   it manually in Claude Code as a fallback.
+
+Everything else — Brave launch, session generation, sending the sourcing
+instruction, watching for completion, uploading — is automatic once those two
+are done.
+
 ```powershell
 # needs: web app running (pointed at the same Supabase), Brave or Chrome,
 # the claude CLI installed & signed in (subscription or API key — user's choice)
@@ -23,8 +39,13 @@ What happens:
    CLAUDE.md = ordering rules + BOM lines + API candidates + strict
    results.json contract; .mcp.json = playwright MCP over CDP; pre-approved
    settings.
-5. Opens a `claude` terminal there — **you supervise the agent**; it browses
-   LCSC/gaps and writes results.json line by line.
+5. Opens a `claude` terminal there running `--dangerously-skip-permissions`
+   with the sourcing instruction already sent — nothing to press. You
+   supervise (solve any CAPTCHAs it hits); it browses LCSC/gaps and writes
+   results.json line by line. The skip-permissions flag requires an explicit
+   `Bash(claude --dangerously-skip-permissions*)` allow rule in
+   `.claude/settings.local.json` (gitignored, project-scoped) — add it
+   yourself before running; it won't be silently assumed.
 6. The runner watches results.json, recomputes the objective rungs in code
    (MPN match, mandatory package match — agent text never decides those),
    and uploads via `POST /api/desktop/results` → run flips to REVIEW on web.

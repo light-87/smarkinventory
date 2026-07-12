@@ -25,6 +25,10 @@ const InputSchema = z.object({
   // their own CLAUDE.md, so the server skips the note fold-in for them. Absent
   // (older installs) → the server folds those columns into the note instead.
   clientRendersColumns: z.boolean().optional(),
+  // v0.3.0+ "Re-source all" checkbox. Absent/false → reuse lines already
+  // sourced by the BOM's previous run (only source the remaining ones). True
+  // → ignore prior results and source every to-order line from scratch.
+  resourceAll: z.boolean().optional(),
 });
 
 export async function POST(request: Request): Promise<NextResponse> {
@@ -55,6 +59,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     actorId: user.id,
     lineLimit: input.lineLimit,
     clientRendersColumns: input.clientRendersColumns,
+    resourceAll: input.resourceAll,
   });
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: 422 });
 

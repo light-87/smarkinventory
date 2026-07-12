@@ -8,7 +8,7 @@ import { TableBody, TableHead, TableShell, Td, Th, Tr } from "@/components/ui/ta
 import { ConfirmDialog } from "@/components/projects/confirm-dialog";
 import { formatDate, formatNumber } from "@/lib/format";
 import type { BomListRow } from "@/lib/bom/queries";
-import { deleteBomAction, setBomArchivedAction } from "@/app/(app)/projects/[projectId]/boms/actions";
+import { setBomArchivedAction } from "@/app/(app)/projects/[projectId]/boms/actions";
 
 const SOURCING_LABEL: Record<BomListRow["sourcingStatus"], string> = {
   draft: "Draft",
@@ -37,11 +37,8 @@ export interface BomListTableProps {
 export function BomListTable({ projectId, boms, writable = false, reviewRunIdByBom, mode = "active" }: BomListTableProps) {
   const router = useRouter();
   const archivedView = mode === "archived";
-  const [pendingDelete, setPendingDelete] = useState<BomListRow | null>(null);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [pendingArchive, setPendingArchive] = useState<BomListRow | null>(null);
   const [archiveError, setArchiveError] = useState<string | null>(null);
-  const [deleting, startDelete] = useTransition();
   const [archiving, startArchive] = useTransition();
 
   if (boms.length === 0) {
@@ -56,20 +53,6 @@ export function BomListTable({ projectId, boms, writable = false, reviewRunIdByB
       />
     );
   }
-
-  const confirmDelete = () => {
-    if (!pendingDelete) return;
-    setDeleteError(null);
-    startDelete(async () => {
-      const result = await deleteBomAction({ projectId, bomId: pendingDelete.id });
-      if (result.ok) {
-        setPendingDelete(null);
-        router.refresh();
-      } else {
-        setDeleteError(result.error);
-      }
-    });
-  };
 
   const confirmArchive = () => {
     if (!pendingArchive) return;
@@ -196,27 +179,6 @@ export function BomListTable({ projectId, boms, writable = false, reviewRunIdByB
                         </svg>
                       </button>
                     )}
-                    <button
-                      type="button"
-                      aria-label={`Delete BOM ${bom.name}`}
-                      title="Delete BOM"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDeleteError(null);
-                        setPendingDelete(bom);
-                      }}
-                      className="inline-flex h-11 w-11 items-center justify-center rounded-full text-faint transition-colors hover:bg-charcoal hover:text-smark-orange"
-                    >
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
-                        <path
-                          d="M2.5 4h11M6.5 4V2.75c0-.41.34-.75.75-.75h1.5c.41 0 .75.34.75.75V4m2.75 0-.55 9.06a1 1 0 0 1-1 .94H5.3a1 1 0 0 1-1-.94L3.75 4M6.5 7v4M9.5 7v4"
-                          stroke="currentColor"
-                          strokeWidth="1.3"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    </button>
                   </div>
                 </Td>
               )}
@@ -244,30 +206,6 @@ export function BomListTable({ projectId, boms, writable = false, reviewRunIdByB
         onConfirm={confirmArchive}
         onCancel={() => {
           if (!archiving) setPendingArchive(null);
-        }}
-      />
-
-      <ConfirmDialog
-        open={pendingDelete !== null}
-        title={`Delete "${pendingDelete?.name ?? ""}"?`}
-        description={
-          <>
-            <p>
-              This removes the BOM and all {formatNumber(pendingDelete?.lineCount ?? 0)} of its lines. Cross-project
-              demand from this BOM is released. This cannot be undone.
-            </p>
-            <p className="mt-2 text-smoke">
-              A BOM with AI sourcing runs can&apos;t be deleted (history stays traceable) — archive it instead.
-            </p>
-            {deleteError && <p className="mt-2 text-smark-orange">{deleteError}</p>}
-          </>
-        }
-        confirmLabel="Delete BOM"
-        destructive
-        loading={deleting}
-        onConfirm={confirmDelete}
-        onCancel={() => {
-          if (!deleting) setPendingDelete(null);
         }}
       />
     </>

@@ -7,6 +7,7 @@ import { getPmProjectFull, getProjectIncome } from "@/lib/pm/queries";
 import { IncomeStrip } from "@/components/projects/income-strip";
 import { ShowTimeToggle } from "@/components/projects/show-time-toggle";
 import { ShareLinkControls } from "@/components/projects/share-link-controls";
+import { ProjectSettingsForm } from "@/components/projects/project-settings-form";
 import { SectionLabel } from "@/components/ui/card";
 
 export const metadata: Metadata = { title: "Manage project" };
@@ -39,6 +40,17 @@ export default async function ProjectManagePage({ params }: ManagePageProps) {
 
   return (
     <div className="flex flex-col gap-6">
+      {owner && (
+        <section className="flex flex-col gap-2">
+          <ProjectSettingsForm
+            projectId={projectId}
+            name={project.name}
+            client={project.client}
+            archivedAt={project.archivedAt}
+          />
+        </section>
+      )}
+
       <section className="flex flex-col gap-2">
         <SectionLabel>Payments</SectionLabel>
         <IncomeStrip income={income} />

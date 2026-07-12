@@ -29,6 +29,21 @@ export const CreateProjectInputSchema = z.object({
 });
 export type CreateProjectInput = z.infer<typeof CreateProjectInputSchema>;
 
+/** Owner edits a project's basic details (name + client). */
+export const UpdateProjectInputSchema = z.object({
+  projectId: zUuid,
+  name: z.string().trim().min(1, "Project name is required"),
+  client: z.string().trim().nullish(),
+});
+export type UpdateProjectInput = z.infer<typeof UpdateProjectInputSchema>;
+
+/** Owner archives / restores a whole project (reversible soft-archive). */
+export const SetProjectArchivedInputSchema = z.object({
+  projectId: zUuid,
+  archived: z.boolean(),
+});
+export type SetProjectArchivedInput = z.infer<typeof SetProjectArchivedInputSchema>;
+
 /** Owner creates a task, optionally assigning engineers with their own estimated hours. */
 export const CreateTaskInputSchema = z.object({
   projectId: zUuid,

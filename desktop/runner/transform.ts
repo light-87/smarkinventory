@@ -23,7 +23,7 @@ export const AgentCandidateSchema = z.object({
   status: z.enum(["active", "nrnd", "eol"]).nullable().default(null),
   url: z.string().nullable().default(null),
   recommended: z.boolean().default(false),
-  why: z.string().default(""),
+  why: z.string().nullable().default(null),
 });
 
 export const AgentResultsFileSchema = z.object({
