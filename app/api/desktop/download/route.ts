@@ -10,8 +10,13 @@
 import { NextResponse } from "next/server";
 import { getStorageAdapter, StorageNotFoundError } from "@/lib/storage";
 
-/** Fixed key the upload script writes to — one "latest" object, overwritten per release. */
-export const DESKTOP_INSTALLER_KEY = "desktop/SmarkStock-Desktop-latest-setup.exe";
+/**
+ * R2 key of the current installer. Uploaded manually to the `smark` bucket via
+ * the Cloudflare dashboard (this network resets direct uploads > ~2 MB, so the
+ * script can't push it from here). Bump this string when a new version is
+ * uploaded, or re-point it to a stable "latest" key if uploads move there.
+ */
+export const DESKTOP_INSTALLER_KEY = "boms/SmarkStock Desktop_0.3.0_x64-setup.exe";
 
 export async function GET(): Promise<NextResponse> {
   try {
