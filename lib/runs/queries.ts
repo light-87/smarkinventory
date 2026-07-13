@@ -206,6 +206,7 @@ async function getInStockLanes(supabase: DB, lines: BomLineRow[]): Promise<InSto
     return {
       bomLineId: l.id,
       ref: lineRef(l),
+      lineNo: l.line_no,
       value: lineValue(l),
       flag: loc ? `${formatNumber(loc.qty)} in Box ${loc.boxName}` : "Already in stock",
     };
@@ -319,6 +320,7 @@ async function getSourcingLanes(
     return {
       bomLineId: line.id,
       ref: lineRef(line),
+      lineNo: line.line_no,
       value: lineValue(line),
       jobStatus,
       // Model-authored (Opus master plan) — same de-aliasing requirement as `why` above (report finding #1).

@@ -28,6 +28,7 @@ import {
   submitItemFeedbackAction,
 } from "@/app/(app)/projects/[projectId]/runs/[runId]/actions";
 import { formatINR, formatNumber } from "@/lib/format";
+import { isLowStock, LOW_CONFIDENCE_MAX } from "@/lib/runs/stock";
 import type { ReviewLineCard as ReviewLineCardData } from "@/lib/runs/types";
 
 export interface ReviewLineCardProps {
@@ -73,7 +74,11 @@ export function ReviewLineCard({ projectId, runId, writable, line }: ReviewLineC
 
   const selectedRow = line.rows.find((r) => r.resultId === selectedResultId) ?? null;
   const confidence = confidenceTone(selectedRow?.confidence ?? null);
-  const lowConfidence = selectedRow?.confidence != null && selectedRow.confidence < 50;
+  const lowConfidence = selectedRow?.confidence != null && selectedRow.confidence < LOW_CONFIDENCE_MAX;
+  // #8 — surface stock/confidence problems on the chosen option, up top, not
+  // buried in the AI note. Shares isLowStock() with the desktop re-run (#9).
+  const lowStock = selectedRow != null && isLowStock(selectedRow.stockQty, line.cartQtyNeeded);
+  const hasProblem = lowStock || lowConfidence;
 
   function selectOption(resultId: string) {
     setSelectedResultId(resultId);
@@ -135,10 +140,32 @@ export function ReviewLineCard({ projectId, runId, writable, line }: ReviewLineC
   const inCart = line.inCartQty != null;
 
   return (
-    <Card padding="lg">
+    <Card padding="lg" className={hasProblem ? "border-warn/60" : undefined}>
+      {hasProblem && (
+        <div className="mb-3.5 flex flex-col gap-1 rounded-lg border border-warn bg-warn/10 px-3.5 py-2.5 text-[14px] text-warn">
+          {lowStock && selectedRow && (
+            <div className="flex items-start gap-2">
+              <span aria-hidden className="mt-0.5 flex-none">⚠</span>
+              <span>
+                Low stock — only {formatNumber(selectedRow.stockQty)} available, need {formatNumber(line.cartQtyNeeded)}.
+                <span className="text-smoke"> Re-run this BOM from the desktop app to hunt an in-stock alternative.</span>
+              </span>
+            </div>
+          )}
+          {lowConfidence && selectedRow && (
+            <div className="flex items-start gap-2">
+              <span aria-hidden className="mt-0.5 flex-none">⚠</span>
+              <span>Low AI confidence ({selectedRow.confidence}/100) — verify this part manually.</span>
+            </div>
+          )}
+        </div>
+      )}
       <div className="mb-3.5 flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="font-mono text-sm text-snow">{line.ref}</div>
+          <div className="flex items-center gap-2">
+            {line.lineNo != null && <span className="font-mono text-caption text-graphite">#{line.lineNo}</span>}
+            <span className="font-mono text-sm text-snow">{line.ref}</span>
+          </div>
           <div className="mt-0.5 truncate text-caption text-smoke">{line.value}</div>
         </div>
         <div className="flex flex-none items-center gap-2">
@@ -236,7 +263,6 @@ export function ReviewLineCard({ projectId, runId, writable, line }: ReviewLineC
             <Chip tone={confidence.tone} mono>
               {confidence.label}
             </Chip>
-            {lowConfidence && <span className="text-caption text-warn">⚠ verify manually</span>}
             {selectedRow?.orderLink && (
               <a href={selectedRow.orderLink} target="_blank" rel="noreferrer" className="text-caption text-smark-orange-hover hover:underline">
                 View recommended listing ↗

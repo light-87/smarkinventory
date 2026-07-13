@@ -33,6 +33,7 @@ import type {
 import { CONCURRENCY_TIER_PRESETS } from "@/types/worker";
 import { computeDryRunEstimate, computeRupeeCeiling } from "./dry-run";
 import { resolveDistributorSequence, toStoredSequence, type EffectiveDistributorRow } from "./distributor-sequence";
+import { isLowStock } from "./stock";
 
 type DB = SupabaseClient<Database>;
 
@@ -217,6 +218,29 @@ function foldColumnsIntoNoteForDesktop(line: WorkerBomLine): WorkerBomLine {
   if (parts.length === 0) return line;
   const existing = line.priorityNote ? ` · ${line.priorityNote}` : "";
   return { ...line, priorityNote: parts.join(" · ") + existing };
+}
+
+/**
+ * Desktop low-stock "find an alternative" instruction (feature #9), injected
+ * into a line's `priorityNote` (rendered by the already-installed desktop
+ * runner — no re-install). It deliberately overrides the exact-MPN-first bias
+ * for THIS line only: the previously recommended part is short on stock, so the
+ * agent should keep it if it's since restocked, else find a different in-stock
+ * equivalent matching value + package/size + the part-type electrical rating.
+ * Best-effort by design (the agent reads listings) and flagged for review.
+ */
+function buildLowStockAlternativeNote(stock: number | null, needed: number): string {
+  return (
+    `ALTERNATIVES REQUESTED — the previously recommended part is low on stock (only ${stock ?? "?"}, need ${needed}). ` +
+    `First, if the EXACT part is now sufficiently in stock, keep it. Otherwise find a DIFFERENT in-stock equivalent: ` +
+    `same value, same package/size, and matching the electrical rating for this part type — resistor → voltage & power (wattage); ` +
+    `inductor → current rating; capacitor → voltage & dielectric. Must have stock ≥ ${needed}. ` +
+    `Check the distributors in the given order. Recommend the best in-stock equivalent and explain why; flagged for human review.`
+  );
+}
+
+function withLowStockAlternativeNote(line: WorkerBomLine, note: string): WorkerBomLine {
+  return { ...line, priorityNote: line.priorityNote ? `${note}\n${line.priorityNote}` : note };
 }
 
 export interface EnqueueRunInput {
@@ -419,23 +443,49 @@ export async function createDesktopRun(
     return { ok: false, error: "Nothing to order — every line on this BOM is already in stock." };
   }
 
-  // Resume (no reinstall): reuse lines already sourced by the BOM's previous
-  // run so a re-run after a settings change doesn't source everything again.
-  // A line is "already sourced" if the prior run wrote ANY result row for it.
-  // Those lines are dropped from `config.lines` (so the agent — even an old
-  // installed one — skips them) and their prior results are CLONED into this
-  // new run so the review still shows the full order. `resourceAll` opts out.
+  // Resume + low-stock alternatives (no reinstall). On a re-run we look at the
+  // BOM's previous run and split its already-sourced lines two ways:
+  //   • GOOD (recommended stock covers the need, or unknown) → reuse: dropped
+  //     from `config.lines` (agent skips them) and their prior results CLONED
+  //     onto this run so review still shows the full order.
+  //   • LOW-STOCK (recommended stock < needed) → re-source in "alternatives"
+  //     mode (feature #9): kept in `config.lines` with an injected note telling
+  //     the agent to find an in-stock equivalent; prior results NOT cloned.
+  // Never-sourced lines fall through and are sourced normally (exact). This is
+  // exactly what "run only the low-stock items and suggest equivalents" needs,
+  // triggered by a plain desktop re-run. `resourceAll` opts out of the whole
+  // split (full exact re-source). All server-side — the installed app is unchanged.
   const priorRunId = bom.saved_run_id;
-  let reusedResults: Record<string, unknown>[] = [];
+  const reusedResults: Record<string, unknown>[] = [];
   const reusedLineIds = new Set<string>();
+  const alternativeNoteByLineId = new Map<string, string>();
+
+  const neededByLineId = new Map<string, number>();
+  for (const l of loaded.toOrderLines) neededByLineId.set(l.id, l.dnp ? 0 : (l.qty ?? 0) * bom.build_qty);
+
   if (!input.resourceAll && priorRunId) {
     const { data: prior, error: priorError } = await service
       .from(TABLES.agent_results)
       .select("*")
       .eq("run_id", priorRunId);
     if (priorError) return { ok: false, error: `Could not read the previous run's results: ${priorError.message}` };
-    reusedResults = (prior ?? []) as Record<string, unknown>[];
-    for (const r of reusedResults) reusedLineIds.add(r["bom_line_id"] as string);
+
+    const rowsByLine = new Map<string, Record<string, unknown>[]>();
+    for (const r of (prior ?? []) as Record<string, unknown>[]) {
+      const lid = r["bom_line_id"] as string;
+      (rowsByLine.get(lid) ?? rowsByLine.set(lid, []).get(lid)!).push(r);
+    }
+    for (const [lid, rows] of rowsByLine) {
+      const needed = neededByLineId.get(lid) ?? 0;
+      const recommended = rows.find((r) => r["is_recommended"] === true) ?? null;
+      const recStock = recommended ? (recommended["stock_qty"] as number | null) : null;
+      if (isLowStock(recStock, needed)) {
+        alternativeNoteByLineId.set(lid, buildLowStockAlternativeNote(recStock, needed));
+      } else {
+        reusedLineIds.add(lid);
+        reusedResults.push(...rows);
+      }
+    }
   }
 
   const remainingToOrder = loaded.toOrderLines.filter((l) => !reusedLineIds.has(l.id));
@@ -477,7 +527,12 @@ export async function createDesktopRun(
   // columns first-class and send `clientRendersColumns`, so we skip the fold
   // to avoid printing them twice.
   const baseLines = buildWorkerBomLines(toOrderLines, bom.build_qty, aliasedTextByLineId);
-  const workerLines = input.clientRendersColumns ? baseLines : baseLines.map(foldColumnsIntoNoteForDesktop);
+  const foldedLines = input.clientRendersColumns ? baseLines : baseLines.map(foldColumnsIntoNoteForDesktop);
+  // Feature #9: low-stock lines carry the "find an in-stock equivalent" note.
+  const workerLines = foldedLines.map((wl) => {
+    const note = alternativeNoteByLineId.get(wl.bomLineId);
+    return note ? withLowStockAlternativeNote(wl, note) : wl;
+  });
 
   const runId = crypto.randomUUID();
   const config: WorkerRunConfig = {
@@ -511,7 +566,16 @@ export async function createDesktopRun(
     per_site_cap: 1,
     est_cost: 0,
     actual_cost: null,
-    plan: { config, masterPlan: null, appMeta: { buildQtyAtRun: bom.build_qty, lineLimit, executor: "desktop" } },
+    plan: {
+      config,
+      masterPlan: null,
+      appMeta: {
+        buildQtyAtRun: bom.build_qty,
+        lineLimit,
+        executor: "desktop",
+        ...(alternativeNoteByLineId.size > 0 ? { alternativesLineIds: [...alternativeNoteByLineId.keys()] } : {}),
+      },
+    },
     rules_doc_version: rulesDigestVersion || null,
     started_by: input.actorId,
   });

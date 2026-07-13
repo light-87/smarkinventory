@@ -60,6 +60,7 @@ export function ReviewView({ projectId, data, writable }: ReviewViewProps) {
           <div className="flex flex-col gap-2">
             {data.inStockLanes.map((lane) => (
               <div key={lane.bomLineId} className="flex items-center gap-3 rounded-full border border-charcoal bg-surface px-3.5 py-2">
+                {lane.lineNo != null && <span className="w-6 flex-none font-mono text-caption text-graphite">#{lane.lineNo}</span>}
                 <span className="w-20 flex-none font-mono text-[14px] text-snow">{lane.ref}</span>
                 <span className="flex-1 truncate text-[14px] text-smoke">{lane.value}</span>
                 <span className="flex-none text-caption text-phosphor-green">✓ {lane.flag}</span>

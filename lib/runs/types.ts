@@ -137,6 +137,8 @@ export interface WorkspaceData {
 export interface InStockLane {
   bomLineId: string;
   ref: string;
+  /** BOM sheet line number (`smark_bom_lines.line_no`) — maps review back to the sheet. */
+  lineNo: number | null;
   value: string;
   /** "2,568 in Box B-12" — primary location label, or a generic fallback if unresolved. */
   flag: string;
@@ -162,6 +164,8 @@ export interface LaneOptionRow {
 export interface SourcingLane {
   bomLineId: string;
   ref: string;
+  /** BOM sheet line number (`smark_bom_lines.line_no`) — maps review back to the sheet. */
+  lineNo: number | null;
   value: string;
   jobStatus: "queued" | "claimed" | "done" | "failed" | "not_dispatched";
   /** Set when Opus decided this line needs no distributor search at all (a rule hit, not a DB skip-buy). */
