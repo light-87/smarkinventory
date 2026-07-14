@@ -78,7 +78,7 @@ export function SetupGuide({ onClose }: SetupGuideProps) {
               <ListItem>
                 <ListItemText
                   primary="4. Review on the web — it stays live"
-                  secondary="Results upload as they're found and a review link appears here. The run stays LIVE: you can keep talking to the Claude window (e.g. “also check Mouser for line 12”) and the new results keep syncing to the web on their own. When you're happy, press “Finish & sync”. Long runs are fine — the app keeps your login fresh in the background."
+                  secondary="Results sync to the web as they're found — the review page updates on its own, no reload. The run stays LIVE: keep talking to the Claude window (e.g. “also check Mouser for line 12”) and new results keep syncing. Press “Finish & sync” when done — it always does a final upload. Changed something after finishing? Hit “Sync latest again” to re-upload. Long runs are fine — the app keeps your login fresh in the background."
                 />
               </ListItem>
             </List>

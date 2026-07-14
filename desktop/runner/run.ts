@@ -22,7 +22,7 @@
  * print the web review link.
  */
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 import { createClient } from "@supabase/supabase-js";
@@ -37,8 +37,13 @@ function arg(name: string): string | null {
   return i >= 0 ? (process.argv[i + 1] ?? null) : null;
 }
 
+// Upload-only mode: skip run-context/prefetch/browser and just re-POST an
+// existing run's already-written results.json (the "Sync latest again" button,
+// v0.4.0). Needs --run <runId> to locate ~/.smarkstock-sessions/<runId>/.
+const uploadOnly = process.argv.includes("--upload-only");
+const runArg = arg("run");
 const bomId = arg("bom");
-if (!bomId) {
+if (!uploadOnly && !bomId) {
   console.error("usage: bun run desktop/runner/run.ts --bom <bomId> [--lines N] [--web http://localhost:3000]");
   process.exit(1);
 }
@@ -47,6 +52,9 @@ const webBase = arg("web") ?? "http://localhost:3000";
 // Presence-based flag: force sourcing every to-order line, ignoring lines
 // already sourced by the BOM's previous run (default is to reuse them).
 const resourceAll = process.argv.includes("--resource-all");
+// The app writes this file to ask for a graceful stop (final flush + exit),
+// since a hard kill on Windows skips the SIGTERM handler.
+const stopFile = process.env.DESKTOP_STOP_FILE ?? null;
 
 // ── 1. Sign in (or reuse a token the desktop app already has) ───────────────
 // A 43-line supervised run easily outlives the ~1h Supabase access-token
@@ -110,6 +118,62 @@ async function freshAccessToken(): Promise<string> {
   }
   return token;
 }
+
+type ResultsFile = ReturnType<typeof AgentResultsFileSchema.parse>;
+
+/** Transform + POST one results.json snapshot. Shared by the live loop and upload-only mode. */
+async function postResults(cfg: WorkerRunConfig, file: ResultsFile): Promise<{ ok: boolean; written: number }> {
+  const { payload, warnings } = transformResults(cfg, file);
+  for (const w of warnings) console.warn(`  ⚠ ${w}`);
+  const uploadToken = await freshAccessToken();
+  const upRes = await fetch(`${webBase}/api/desktop/results`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${uploadToken}`, "content-type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const raw = await upRes.text();
+  let up: { ok?: boolean; written?: number; error?: string };
+  try {
+    up = JSON.parse(raw);
+  } catch {
+    console.error(`results sync returned non-JSON (HTTP ${upRes.status}) — is ${webBase} reachable?`);
+    console.error(raw.slice(0, 300));
+    return { ok: false, written: 0 };
+  }
+  if (!upRes.ok || !up.ok) {
+    console.error(`results sync failed (HTTP ${upRes.status}): ${up.error}`);
+    return { ok: false, written: 0 };
+  }
+  return { ok: true, written: up.written ?? 0 };
+}
+
+// ── Upload-only: re-sync an existing run's results.json, then exit ──────────
+if (uploadOnly) {
+  if (!runArg) {
+    console.error("--upload-only requires --run <runId>.");
+    process.exit(1);
+  }
+  const dir = path.join(homedir(), ".smarkstock-sessions", runArg);
+  const cfgPath = path.join(dir, "config.json");
+  const resPath = path.join(dir, "results.json");
+  if (!existsSync(cfgPath) || !existsSync(resPath)) {
+    console.error(`No saved session for run ${runArg} on this machine — nothing to re-sync.`);
+    process.exit(1);
+  }
+  const cfg = JSON.parse(readFileSync(cfgPath, "utf8")) as WorkerRunConfig;
+  const parsed = AgentResultsFileSchema.safeParse(JSON.parse(readFileSync(resPath, "utf8")));
+  if (!parsed.success) {
+    console.error(`results.json for run ${runArg} isn't valid — ${parsed.error.message}`);
+    process.exit(1);
+  }
+  console.log(`Re-syncing run ${runArg}…`);
+  const r = await postResults(cfg, parsed.data);
+  if (!r.ok) process.exit(1);
+  console.log(`✓ re-synced ${r.written} result(s) — refresh the review on the web.`);
+  process.exit(0);
+}
+
+if (!bomId) process.exit(1); // guarded above for normal mode; narrows for TS
 
 // ── 2. Create the desktop run + pull the aliased context ────────────────────
 const ctxRes = await fetch(`${webBase}/api/desktop/run-context`, {
@@ -176,44 +240,25 @@ console.log("✓ Claude Code terminal opened, auto-approved and sourcing started
 console.log("  Watching results.json — leave this window open…");
 
 // ── 5. Watch results.json and keep syncing (LIVE) ────────────────────────────
-// The agent writes results.json as it goes and sets complete:true when done.
-// We upload the first time it's complete, then KEEP watching and re-upload on
-// every further change — so anything you tell the live Claude window afterward
-// ("also check Mouser for line 12") still reaches the app + web. The run stays
-// live until you press "Finish & sync" in the app (which stops this process).
-type ResultsFile = ReturnType<typeof AgentResultsFileSchema.parse>;
+// We upload on EVERY change — even before the agent marks complete — so the web
+// review updates live *during* sourcing, not only at the end. It keeps watching
+// after complete too, so anything you tell the live Claude window afterward
+// still syncs. The app stops it by writing DESKTOP_STOP_FILE ("Finish & sync");
+// we do a guaranteed final flush before exiting (a hard kill on Windows would
+// skip the signal handler, which is why the app uses the sentinel file).
 
-async function uploadCurrent(file: ResultsFile, first: boolean): Promise<boolean> {
-  const { payload, warnings } = transformResults(config, file);
-  for (const w of warnings) console.warn(`  ⚠ ${w}`);
-  // Mint a fresh token each time — a long supervised run easily outlives the
-  // ~1h Supabase access token, and the upload must not 401 "Not signed in".
-  const uploadToken = await freshAccessToken();
-  const upRes = await fetch(`${webBase}/api/desktop/results`, {
-    method: "POST",
-    headers: { authorization: `Bearer ${uploadToken}`, "content-type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const upRawBody = await upRes.text();
-  let up: { ok?: boolean; written?: number; error?: string };
-  try {
-    up = JSON.parse(upRawBody);
-  } catch {
-    console.error(`results sync returned non-JSON (HTTP ${upRes.status}) — is ${webBase} reachable?`);
-    console.error(upRawBody.slice(0, 300));
+async function syncNow(file: ResultsFile, first: boolean): Promise<boolean> {
+  const r = await postResults(config, file);
+  if (!r.ok) {
     console.error(`results.json is preserved at ${session.resultsFile}.`);
     return false;
   }
-  if (!upRes.ok || !up.ok) {
-    console.error(`results sync failed (HTTP ${upRes.status}): ${up.error}`);
-    return false;
-  }
   if (first) {
-    console.log(`✓ ${up.written} result(s) synced — run is now in REVIEW.`);
+    console.log(`✓ ${r.written} result(s) synced — run is now in REVIEW.`);
     console.log(`\nReview it on the web: ${webBase}${reviewPath}`);
-    console.log("You can keep talking to the Claude window — new results keep syncing. Press “Finish & sync” when done.");
+    console.log("Keep talking to the Claude window — new results keep syncing on their own. Press “Finish & sync” when done.");
   } else {
-    console.log(`✓ re-synced ${up.written} result(s) after a change.`);
+    console.log(`✓ re-synced ${r.written} result(s) after a change.`);
   }
   return true;
 }
@@ -242,11 +287,10 @@ function readResults(): ResultsFile | null {
   }
 }
 
-// "Finish & sync" (the app kills this process) or any terminate request →
-// flush the very latest results first so nothing the agent just did is lost.
+// Final flush + exit — used both by the stop-file path and POSIX signals (CLI).
 async function finalFlushAndExit(): Promise<void> {
   const file = readResults();
-  if (file) await uploadCurrent(file, !firstUploadDone);
+  if (file) await syncNow(file, !firstUploadDone);
   process.exit(0);
 }
 process.on("SIGTERM", () => void finalFlushAndExit());
@@ -254,6 +298,14 @@ process.on("SIGINT", () => void finalFlushAndExit());
 
 for (;;) {
   await new Promise((r) => setTimeout(r, 3000));
+
+  // "Finish & sync" from the app writes the sentinel — flush the latest and
+  // exit cleanly (hard kill on Windows never runs the signal handler above).
+  if (stopFile && existsSync(stopFile)) {
+    console.log("Finishing — final sync…");
+    await finalFlushAndExit();
+  }
+
   const file = readResults();
   if (!file) continue;
 
@@ -269,14 +321,9 @@ for (;;) {
 
   const hash = JSON.stringify({ lines: file.lines, complete: file.complete });
   if (hash === lastHash) continue;
-  // Upload once the agent has completed (first upload), then on every later
-  // change. Pre-completion partials show as progress but aren't uploaded, so
-  // the run doesn't flip to REVIEW before the agent says it's done.
-  if (file.complete || firstUploadDone) {
-    const ok = await uploadCurrent(file, !firstUploadDone);
-    if (ok) {
-      lastHash = hash;
-      firstUploadDone = true;
-    }
+  const ok = await syncNow(file, !firstUploadDone);
+  if (ok) {
+    lastHash = hash;
+    firstUploadDone = true;
   }
 }

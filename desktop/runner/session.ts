@@ -141,6 +141,9 @@ export function generateSession(baseDir: string, config: WorkerRunConfig, prefet
   writeFileSync(path.join(dir, "CLAUDE.md"), claudeMd(config, prefetch), "utf8");
   writeFileSync(path.join(dir, ".mcp.json"), mcpJson(), "utf8");
   writeFileSync(path.join(dir, ".claude", "settings.local.json"), settingsJson(), "utf8");
+  // Persist the run config so "Sync latest again" (--upload-only) can rebuild
+  // the transform (distributor name→id map etc.) from disk without the server.
+  writeFileSync(path.join(dir, "config.json"), JSON.stringify(config), "utf8");
   const resultsFile = path.join(dir, "results.json");
   writeFileSync(resultsFile, JSON.stringify({ complete: false, lines: {} }, null, 2), "utf8");
   return { dir, resultsFile };

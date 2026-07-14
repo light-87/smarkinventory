@@ -88,12 +88,57 @@ export function RunProgress({ bom, config, onBack }: RunProgressProps) {
   }, [lines]);
 
   const reviewMatch = lines.join("\n").match(/Review it on the web: (\S+)/);
+  const runId = reviewMatch?.[1].match(/runs\/([^/]+)\/review/)?.[1] ?? null;
+  const [finishing, setFinishing] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
-  async function handleCancel() {
+  // "Finish & sync": ask the runner to flush + exit cleanly (via the sentinel
+  // file) — the run-complete event then flips us to done. Not a hard kill, so
+  // the final results always upload.
+  async function handleFinish() {
+    setFinishing(true);
+    try {
+      await invoke("finish_sourcing_run");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      setFinishing(false);
+    }
+  }
+
+  // Abandon: hard-kill without a final flush.
+  async function handleAbandon() {
     try {
       await invoke("cancel_sourcing_run");
     } finally {
       setDone({ code: -1 });
+    }
+  }
+
+  // "Sync latest again": re-upload this run's results.json from disk — works
+  // even after Finish, so late edits in the Claude window still reach the web.
+  async function handleSyncAgain() {
+    if (!runId) return;
+    setSyncing(true);
+    try {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      const refreshToken = data.session?.refresh_token;
+      if (!token || !refreshToken) {
+        setError("No active session — please sign in again.");
+        return;
+      }
+      await invoke("sync_run_again", {
+        runId,
+        webBase: WEB_BASE,
+        accessToken: token,
+        refreshToken,
+        supabaseUrl: import.meta.env.VITE_SUPABASE_URL,
+        supabaseAnonKey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSyncing(false);
     }
   }
 
@@ -163,8 +208,13 @@ export function RunProgress({ bom, config, onBack }: RunProgressProps) {
             </Button>
             {!done && (
               <Typography variant="caption" color="text.secondary">
-                Still live — keep talking to the Claude window if you want more, results keep syncing. Press “Finish &amp; sync” below when you're done.
+                Still live — results sync to the web on their own as they come in. Keep talking to the Claude window if you want more; press “Finish &amp; sync” below when you're done.
               </Typography>
+            )}
+            {done && (
+              <Button variant="outlined" color="success" onClick={handleSyncAgain} disabled={syncing || !runId}>
+                {syncing ? "Syncing…" : "↺ Sync latest again"}
+              </Button>
             )}
           </Box>
         )}
@@ -179,11 +229,11 @@ export function RunProgress({ bom, config, onBack }: RunProgressProps) {
           <Button onClick={onBack}>← Back to ordering setup</Button>
           {!done &&
             (reviewMatch ? (
-              <Button variant="contained" color="success" onClick={handleCancel}>
-                Finish &amp; sync
+              <Button variant="contained" color="success" onClick={handleFinish} disabled={finishing}>
+                {finishing ? "Finishing…" : "Finish & sync"}
               </Button>
             ) : (
-              <Button color="error" onClick={handleCancel}>
+              <Button color="error" onClick={handleAbandon}>
                 Cancel run
               </Button>
             ))}
