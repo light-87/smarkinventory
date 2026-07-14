@@ -7,6 +7,11 @@
 import { NextResponse } from "next/server";
 import { LATEST_DESKTOP_VERSION } from "@/lib/desktop/version";
 
-export async function GET(): Promise<NextResponse> {
-  return NextResponse.json({ latest: LATEST_DESKTOP_VERSION, downloadPath: "/api/desktop/download" });
+export async function GET(request: Request): Promise<NextResponse> {
+  const origin = new URL(request.url).origin;
+  return NextResponse.json({
+    latest: LATEST_DESKTOP_VERSION,
+    downloadPath: "/api/desktop/download",
+    downloadUrl: `${origin}/api/desktop/download`,
+  });
 }
