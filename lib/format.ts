@@ -38,6 +38,29 @@ export function formatINR(amount: number | null | undefined, options: FormatInrO
   return showSymbol ? `₹${formatted}` : formatted;
 }
 
+/**
+ * Money in its native currency — used where prices come straight from a
+ * distributor (LCSC/DigiKey/Mouser quote USD, element14 quotes INR), so the
+ * review shows "$2.49" / "₹18.20" rather than mislabelling everything ₹.
+ * USD uses en-US grouping; anything else falls back to the INR/en-IN path.
+ */
+export function formatMoney(
+  amount: number | null | undefined,
+  currency: string,
+  options: Pick<FormatInrOptions, "decimals" | "fallback"> = {},
+): string {
+  const { decimals = 2, fallback = "—" } = options;
+  if (amount === null || amount === undefined || Number.isNaN(amount)) return fallback;
+  if ((currency ?? "").toUpperCase() === "USD") {
+    const formatted = new Intl.NumberFormat("en-US", {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    }).format(amount);
+    return `$${formatted}`;
+  }
+  return formatINR(amount, { decimals, fallback });
+}
+
 const LAKH = 100_000;
 const CRORE = 10_000_000;
 

@@ -15,7 +15,7 @@ import { Chip } from "@/components/ui/chip";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useRunStream } from "@/hooks/use-run-stream";
-import { formatINR, formatNumber, formatRelativeTime } from "@/lib/format";
+import { formatINR, formatMoney, formatNumber, formatRelativeTime } from "@/lib/format";
 import type { InStockLane, RunConsoleData, SourcingLane } from "@/lib/runs/types";
 
 export interface RunConsoleViewProps {
@@ -120,7 +120,7 @@ function SourcingLaneCard({ lane }: { lane: SourcingLane }) {
                         </Chip>
                       )}
                     </td>
-                    <td className="border-t border-border-hairline px-2 py-1.5 text-right font-mono text-[13px] text-snow">{formatINR(row.price)}</td>
+                    <td className="border-t border-border-hairline px-2 py-1.5 text-right font-mono text-[13px] text-snow">{formatMoney(row.price, row.currency)}</td>
                     <td className="border-t border-border-hairline px-2 py-1.5 text-[13px] text-smoke">{formatNumber(row.stockQty)}</td>
                     <td className={`border-t border-border-hairline px-2 py-1.5 text-center text-[14px] ${mpn.className}`}>{mpn.glyph}</td>
                     <td className={`border-t border-border-hairline px-2 py-1.5 text-center text-[14px] ${pkg.className}`}>{pkg.glyph}</td>

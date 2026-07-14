@@ -56,6 +56,16 @@ function lineValue(line: Pick<BomLineRow, "value" | "footprint" | "mpn">): strin
   return [line.value, line.footprint].filter(Boolean).join(" · ") || (line.mpn ?? "—");
 }
 
+/**
+ * A distributor quotes in one fixed currency — element14/Farnell India in INR,
+ * LCSC/DigiKey/Mouser in USD (matches worker/src/distributors/*). Results carry
+ * no currency column, so we derive it from the distributor name on read so the
+ * review can show each price in its real currency instead of mislabelling ₹.
+ */
+function distributorCurrency(name: string | undefined): string {
+  return /element\s*14|farnell/i.test(name ?? "") ? "INR" : "USD";
+}
+
 function toWorkspaceBomHeader(bom: BomRow): WorkspaceBomHeader {
   return {
     id: bom.id,
@@ -295,13 +305,14 @@ async function getSourcingLanes(
     const rows: LaneOptionRow[] = (resultsByLine.get(line.id) ?? [])
       .slice()
       .sort((a, b) => (b.is_recommended ? 1 : 0) - (a.is_recommended ? 1 : 0) || (a.price ?? Infinity) - (b.price ?? Infinity))
-      .map(
-        (r): LaneOptionRow => ({
+      .map((r): LaneOptionRow => {
+        const distributorName = distributorNames.get(r.distributor_id) ?? "—";
+        return {
           resultId: r.id,
           distributorId: r.distributor_id,
-          distributorName: distributorNames.get(r.distributor_id) ?? "—",
+          distributorName,
           price: r.price,
-          currency: "INR",
+          currency: distributorCurrency(distributorName),
           stockQty: r.stock_qty,
           mpnMatch: r.mpn_match,
           packageMatch: r.package_match,
@@ -311,8 +322,8 @@ async function getSourcingLanes(
           confidence: r.confidence,
           why: resultWhy(r, dealiasMapping),
           selected: r.selected,
-        }),
-      );
+        };
+      });
 
     const jobStatus = (jobStatusByLine.get(line.id) ?? "not_dispatched") as SourcingLane["jobStatus"];
     const rawSkipReason = skipByLine.get(line.id) ?? null;
@@ -321,6 +332,8 @@ async function getSourcingLanes(
       bomLineId: line.id,
       ref: lineRef(line),
       lineNo: line.line_no,
+      mpn: line.mpn,
+      lcscPn: line.lcsc_pn,
       value: lineValue(line),
       jobStatus,
       // Model-authored (Opus master plan) — same de-aliasing requirement as `why` above (report finding #1).

@@ -9,6 +9,10 @@ import { ReviewView } from "@/components/review/review-view";
 
 export const metadata: Metadata = { title: "Order review" };
 
+// The review page auto-refreshes (components/review/review-auto-refresh.tsx) so
+// live desktop syncs appear without a manual reload — it must re-run per request.
+export const dynamic = "force-dynamic";
+
 interface ReviewPageProps {
   params: Promise<{ projectId: string; runId: string }>;
 }

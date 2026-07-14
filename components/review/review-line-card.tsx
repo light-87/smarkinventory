@@ -27,7 +27,7 @@ import {
   selectReviewOptionAction,
   submitItemFeedbackAction,
 } from "@/app/(app)/projects/[projectId]/runs/[runId]/actions";
-import { formatINR, formatNumber } from "@/lib/format";
+import { formatMoney, formatNumber } from "@/lib/format";
 import { isLowStock, LOW_CONFIDENCE_MAX } from "@/lib/runs/stock";
 import type { ReviewLineCard as ReviewLineCardData } from "@/lib/runs/types";
 
@@ -140,7 +140,13 @@ export function ReviewLineCard({ projectId, runId, writable, line }: ReviewLineC
   const inCart = line.inCartQty != null;
 
   return (
-    <Card padding="lg" className={hasProblem ? "border-warn/60" : undefined}>
+    <Card padding="lg" className={hasProblem ? "border-warn/60" : inCart ? "border-phosphor-green/60" : undefined}>
+      {inCart && (
+        <div className="mb-3.5 flex items-center gap-2 rounded-lg border border-phosphor-green bg-phosphor-green/10 px-3.5 py-2.5 text-[14px] text-phosphor-green">
+          <span aria-hidden className="flex-none">✓</span>
+          <span>Added to cart — ×{formatNumber(line.inCartQty)}.</span>
+        </div>
+      )}
       {hasProblem && (
         <div className="mb-3.5 flex flex-col gap-1 rounded-lg border border-warn bg-warn/10 px-3.5 py-2.5 text-[14px] text-warn">
           {lowStock && selectedRow && (
@@ -167,6 +173,20 @@ export function ReviewLineCard({ projectId, runId, writable, line }: ReviewLineC
             <span className="font-mono text-sm text-snow">{line.ref}</span>
           </div>
           <div className="mt-0.5 truncate text-caption text-smoke">{line.value}</div>
+          {(line.mpn || line.lcscPn) && (
+            <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 font-mono text-caption text-graphite">
+              {line.mpn && (
+                <span>
+                  MPN <span className="text-smoke">{line.mpn}</span>
+                </span>
+              )}
+              {line.lcscPn && (
+                <span>
+                  LCSC <span className="text-smoke">{line.lcscPn}</span>
+                </span>
+              )}
+            </div>
+          )}
         </div>
         <div className="flex flex-none items-center gap-2">
           {inCart && (
@@ -238,7 +258,7 @@ export function ReviewLineCard({ projectId, runId, writable, line }: ReviewLineC
                           </Chip>
                         )}
                       </td>
-                      <td className="border-t border-border-hairline px-2 py-1.5 text-right font-mono text-[13px] text-snow">{formatINR(row.price)}</td>
+                      <td className="border-t border-border-hairline px-2 py-1.5 text-right font-mono text-[13px] text-snow">{formatMoney(row.price, row.currency)}</td>
                       <td className="border-t border-border-hairline px-2 py-1.5 text-[13px] text-smoke">{formatNumber(row.stockQty)}</td>
                       <td className={`border-t border-border-hairline px-2 py-1.5 text-center text-[14px] ${mpn.className}`}>{mpn.glyph}</td>
                       <td className={`border-t border-border-hairline px-2 py-1.5 text-center text-[14px] ${pkg.className}`}>{pkg.glyph}</td>

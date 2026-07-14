@@ -166,6 +166,9 @@ export interface SourcingLane {
   ref: string;
   /** BOM sheet line number (`smark_bom_lines.line_no`) — maps review back to the sheet. */
   lineNo: number | null;
+  /** The BOM line's own MPN / LCSC PN, shown on review for quick reference. */
+  mpn: string | null;
+  lcscPn: string | null;
   value: string;
   jobStatus: "queued" | "claimed" | "done" | "failed" | "not_dispatched";
   /** Set when Opus decided this line needs no distributor search at all (a rule hit, not a DB skip-buy). */

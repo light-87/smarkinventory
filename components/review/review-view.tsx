@@ -18,6 +18,7 @@ import { formatNumber } from "@/lib/format";
 import type { ReviewData } from "@/lib/runs/types";
 import { ReviewLineCard } from "./review-line-card";
 import { OrderRemarkCard } from "./order-remark-card";
+import { ReviewAutoRefresh } from "./review-auto-refresh";
 
 export interface ReviewViewProps {
   projectId: string;
@@ -26,8 +27,22 @@ export interface ReviewViewProps {
 }
 
 export function ReviewView({ projectId, data, writable }: ReviewViewProps) {
+  const newerRunId = data.bom.savedRunId && data.bom.savedRunId !== data.run.id ? data.bom.savedRunId : null;
+
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 px-4 py-5 pb-28 sm:px-6">
+      <ReviewAutoRefresh />
+      {newerRunId && (
+        <Card padding="lg" className="border-smark-orange/50 bg-surface-accent">
+          <div className="flex flex-wrap items-center gap-2.5 text-[14px] text-snow">
+            <Chip tone="accent">newer run</Chip>
+            <span>A more recent run exists for this BOM — you may be viewing an old one.</span>
+            <Link href={`/projects/${projectId}/runs/${newerRunId}/review`} className="text-smark-orange hover:underline">
+              Open the latest review →
+            </Link>
+          </div>
+        </Card>
+      )}
       <div>
         <div className="text-caption text-smoke">
           <Link href={`/projects/${projectId}/runs/${data.run.id}`} className="text-smoke hover:text-snow">
