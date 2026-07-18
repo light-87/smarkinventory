@@ -9,12 +9,20 @@
 
 import { z } from "zod";
 import type { Area } from "@/lib/auth/roles";
-import { ModuleSchema, type Module } from "@/types/db";
+import { InventoryAccessSchema, ModuleSchema, type InventoryAccess, type Module } from "@/types/db";
 
-export { ModuleSchema };
-export type { Module };
+export { ModuleSchema, InventoryAccessSchema };
+export type { Module, InventoryAccess };
 
 export const MODULES: readonly Module[] = ModuleSchema.options;
+
+/**
+ * (0017) The physical-inventory Areas whose WRITES are gated by the inventory
+ * grant's access level (view vs edit). Cart is intentionally excluded — it's a
+ * separate ordering surface/table and stays writable by any employee who can
+ * see it. This is the app-side twin of migration 0017's repointed write RLS.
+ */
+export const INVENTORY_EDIT_AREAS: readonly Area[] = ["inventory", "shelves", "scan", "bulk_takeout", "receive"];
 
 /**
  * Which Areas each module unlocks for an otherwise-ungranted employee.
@@ -36,6 +44,13 @@ export const ModuleGrantInputSchema = z.object({
   module: ModuleSchema,
 });
 export type ModuleGrantInput = z.infer<typeof ModuleGrantInputSchema>;
+
+/** (0017) Owner sets an employee's inventory grant to view or edit. */
+export const SetInventoryAccessInputSchema = z.object({
+  userId: z.uuid(),
+  access: InventoryAccessSchema,
+});
+export type SetInventoryAccessInput = z.infer<typeof SetInventoryAccessInputSchema>;
 
 /** Result envelope shared by the mutating Server Actions (mirrors lib/employees/types.ts). */
 export type ActionResult<T extends Record<string, unknown> = Record<string, unknown>> =

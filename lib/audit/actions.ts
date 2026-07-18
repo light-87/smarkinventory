@@ -18,7 +18,6 @@
  */
 
 import { createClient } from "@/lib/supabase/server";
-import { canWrite } from "@/lib/auth/roles";
 import * as core from "./core";
 import type { ConfirmAuditCountInput, ConfirmAuditCountResult, UndoAuditCountResult } from "./core";
 
@@ -37,9 +36,10 @@ async function requireShelvesWriter(): Promise<{ supabase: SupabaseServerClient;
   } = await supabase.auth.getUser();
   if (!user) throw new Error("Not signed in.");
 
-  const { data: role } = await supabase.rpc("smark_role");
-  if (!role || !canWrite(role, "shelves")) {
-    throw new Error("You don't have permission to make changes on Shelves.");
+  // (0017) inventory view/edit-aware — RPC twin of the write RLS.
+  const { data: canEdit } = await supabase.rpc("smark_can_edit_inventory");
+  if (!canEdit) {
+    throw new Error("You have view-only access to inventory.");
   }
   return { supabase, userId: user.id };
 }

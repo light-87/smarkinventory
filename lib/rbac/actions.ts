@@ -12,7 +12,13 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionUser } from "@/lib/auth/session";
 import { TABLES } from "@/types/db";
-import { ModuleGrantInputSchema, type ActionResult, type ModuleGrantInput } from "./types";
+import {
+  ModuleGrantInputSchema,
+  SetInventoryAccessInputSchema,
+  type ActionResult,
+  type ModuleGrantInput,
+  type SetInventoryAccessInput,
+} from "./types";
 
 async function requireOwner() {
   const user = await getSessionUser();
@@ -47,6 +53,26 @@ export async function revokeModuleAction(input: ModuleGrantInput): Promise<Actio
     .delete()
     .eq("user_id", parsed.userId)
     .eq("module", parsed.module);
+  if (error) return { ok: false, error: error.message };
+
+  revalidatePath("/settings/users");
+  return { ok: true };
+}
+
+/**
+ * (0017) Owner flips an employee's inventory grant between view and edit. The
+ * inventory module must already be granted (the row exists) — the grid only
+ * shows this control when Inventory is on. Owner UPDATE policy added in 0017.
+ */
+export async function setInventoryAccessAction(input: SetInventoryAccessInput): Promise<ActionResult> {
+  const parsed = SetInventoryAccessInputSchema.parse(input);
+  const { supabase } = await requireOwner();
+
+  const { error } = await supabase
+    .from(TABLES.module_grants)
+    .update({ access: parsed.access })
+    .eq("user_id", parsed.userId)
+    .eq("module", "inventory");
   if (error) return { ok: false, error: error.message };
 
   revalidatePath("/settings/users");

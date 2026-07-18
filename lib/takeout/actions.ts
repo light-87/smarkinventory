@@ -31,7 +31,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { canSee, canWrite, type Role } from "@/lib/auth/roles";
+import { canSee, type Role } from "@/lib/auth/roles";
 import { recordMovement, undoMovement } from "@/lib/movements";
 import { getBomForTakeout, getPickableProjects, getTakeoutCatalog, getTakeoutLocations, type PickableProject } from "./queries";
 import { buildResolvedLines, matchAgainstCatalog } from "./resolve";
@@ -59,9 +59,11 @@ async function requireTakeoutReader(): Promise<{ supabase: Awaited<ReturnType<ty
 }
 
 async function requireTakeoutWriter() {
-  const { supabase, actorId, role } = await requireTakeoutReader();
-  if (!canWrite(role, "bulk_takeout")) {
-    throw new Error("You don't have permission to take out stock.");
+  const { supabase, actorId } = await requireTakeoutReader();
+  // (0017) inventory view/edit-aware — RPC twin of the write RLS.
+  const { data: canEdit } = await supabase.rpc("smark_can_edit_inventory");
+  if (!canEdit) {
+    throw new Error("You have view-only access to inventory.");
   }
   return { supabase, actorId };
 }

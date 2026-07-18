@@ -19,7 +19,6 @@
  */
 
 import { revalidatePath } from "next/cache";
-import { canWrite } from "@/lib/auth/roles";
 import { buildPartHumanText, queueLabelForPart, type LabelPartInput } from "@/lib/labels/queue";
 import { recordMovement, undoMovement } from "@/lib/movements";
 import { createClient } from "@/lib/supabase/server";
@@ -35,10 +34,13 @@ async function requireInventoryWriter(
   } = await supabase.auth.getUser();
   if (!user) return { ok: false, error: "Sign in to make changes." };
 
-  const { data: role, error } = await supabase.rpc("smark_role");
+  // (0017) view/edit-aware: owner or an edit-granted employee. The RPC is the
+  // exact twin of the write RLS on the inventory tables, so this pre-check and
+  // the DB boundary never disagree.
+  const { data: canEdit, error } = await supabase.rpc("smark_can_edit_inventory");
   if (error) return { ok: false, error: error.message };
-  if (!role || !canWrite(role, "inventory")) {
-    return { ok: false, error: "You don't have permission to change stock." };
+  if (!canEdit) {
+    return { ok: false, error: "You have view-only access to inventory." };
   }
   return { ok: true, userId: user.id };
 }

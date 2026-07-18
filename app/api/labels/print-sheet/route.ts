@@ -13,7 +13,6 @@
 
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { canWrite } from "@/lib/auth/roles";
 import { getStorageAdapter } from "@/lib/storage";
 import { printQueuedLabels } from "@/lib/labels/print";
 
@@ -27,9 +26,11 @@ export async function POST() {
     return NextResponse.json({ error: "Not signed in." }, { status: 401 });
   }
 
-  const { data: role } = await supabase.rpc("smark_role");
-  if (!role || !canWrite(role, "receive")) {
-    return NextResponse.json({ error: "You don't have permission to print labels." }, { status: 403 });
+  // Printing flips queued qr_labels → printed (an UPDATE on smark_qr_labels),
+  // so it needs inventory EDIT (0017), not just any role.
+  const { data: canEdit } = await supabase.rpc("smark_can_edit_inventory");
+  if (!canEdit) {
+    return NextResponse.json({ error: "You have view-only access to inventory." }, { status: 403 });
   }
 
   const result = await printQueuedLabels(supabase, getStorageAdapter());

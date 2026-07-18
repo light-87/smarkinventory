@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import { BulkTakeoutScreen } from "@/components/takeout/bulk-takeout-screen";
 import { EmptyState } from "@/components/ui/empty-state";
-import { canWrite } from "@/lib/auth/roles";
-import { effectiveCanSee } from "@/lib/rbac/access";
-import { getModuleGrantsIfEmployee } from "@/lib/rbac/queries";
+import { effectiveCanSee, effectiveCanWrite } from "@/lib/rbac/access";
+import { getInventoryAccessIfEmployee, getModuleGrantsIfEmployee } from "@/lib/rbac/queries";
 import { createClient } from "@/lib/supabase/server";
 import { getPickableProjects } from "@/lib/takeout/queries";
 
@@ -32,11 +31,15 @@ export default async function BulkTakeoutPage() {
   }
 
   const pickableProjects = await getPickableProjects(supabase);
+  const inventoryAccess = user ? await getInventoryAccessIfEmployee(supabase, user.id, role) : null;
 
   return (
     <div className="mx-auto max-w-[960px] px-4 pt-6 pb-24 sm:px-6 sm:pt-7">
       <h1 className="mb-5 text-heading-sm font-normal text-snow">Bulk takeout</h1>
-      <BulkTakeoutScreen pickableProjects={pickableProjects} canWrite={canWrite(role, "bulk_takeout")} />
+      <BulkTakeoutScreen
+        pickableProjects={pickableProjects}
+        canWrite={effectiveCanWrite(role, "bulk_takeout", { inventoryAccess })}
+      />
     </div>
   );
 }

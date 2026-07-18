@@ -15,8 +15,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { TABLES } from "@/types/db";
 import type { Role } from "@/lib/auth/roles";
-import { getModuleGrantsIfEmployee } from "@/lib/rbac/queries";
-import type { Module } from "@/lib/rbac/types";
+import { getInventoryAccessIfEmployee, getModuleGrantsIfEmployee } from "@/lib/rbac/queries";
+import type { InventoryAccess, Module } from "@/lib/rbac/types";
 
 export interface SessionUser {
   id: string;
@@ -36,6 +36,12 @@ export interface SessionUser {
    * consults grants for them anyway. Feeds effectiveCanSee()/nav filtering.
    */
   grantedModules: Module[];
+  /**
+   * (0017) Inventory grant level for an employee: "edit" / "view", or null (no
+   * inventory grant, or role is owner/accountant — who are never grant-gated).
+   * Feeds effectiveCanWrite() for the inventory areas.
+   */
+  inventoryAccess: InventoryAccess | null;
 }
 
 /** Current signed-in + active user, or `null` (no session, or deactivated). */
@@ -57,7 +63,10 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   if (profileError || !profile || !profile.active) return null;
 
   const role = profile.role as Role;
-  const grantedModules = await getModuleGrantsIfEmployee(supabase, profile.id, role);
+  const [grantedModules, inventoryAccess] = await Promise.all([
+    getModuleGrantsIfEmployee(supabase, profile.id, role),
+    getInventoryAccessIfEmployee(supabase, profile.id, role),
+  ]);
 
   return {
     id: profile.id,
@@ -66,5 +75,6 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     role,
     onboardedAt: profile.onboarded_at,
     grantedModules,
+    inventoryAccess,
   };
 }

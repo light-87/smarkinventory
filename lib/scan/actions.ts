@@ -17,7 +17,6 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { canWrite } from "@/lib/auth/roles";
 import { recordMovement, undoMovement, type MovementInput, type MovementResult } from "@/lib/movements";
 import type { MovementRow, StockLocationRow } from "@/types/db";
 
@@ -30,9 +29,10 @@ async function requireScanWriter(): Promise<{ supabase: SupabaseServerClient; ac
   } = await supabase.auth.getUser();
   if (!user) throw new Error("Sign in to record stock movements.");
 
-  const { data: role } = await supabase.rpc("smark_role");
-  if (!role || !canWrite(role, "scan")) {
-    throw new Error("You don't have permission to make changes on Scan.");
+  // (0017) inventory view/edit-aware — RPC twin of the write RLS.
+  const { data: canEdit } = await supabase.rpc("smark_can_edit_inventory");
+  if (!canEdit) {
+    throw new Error("You have view-only access to inventory.");
   }
   return { supabase, actorId: user.id };
 }

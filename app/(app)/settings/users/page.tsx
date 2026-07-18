@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { getSessionUser } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveEmployeeOptions } from "@/lib/employees/queries";
-import { getAllModuleGrants } from "@/lib/rbac/queries";
+import { getAllInventoryAccess, getAllModuleGrants } from "@/lib/rbac/queries";
 import { ModuleGrantsGrid } from "@/components/rbac/module-grants-grid";
 import { AddEmployeeForm } from "@/components/rbac/add-employee-form";
 
@@ -22,7 +22,11 @@ export default async function UsersPage() {
   if (!user || user.role !== "owner") notFound();
 
   const supabase = await createClient();
-  const [employees, grants] = await Promise.all([getActiveEmployeeOptions(supabase), getAllModuleGrants(supabase)]);
+  const [employees, grants, inventoryAccess] = await Promise.all([
+    getActiveEmployeeOptions(supabase),
+    getAllModuleGrants(supabase),
+    getAllInventoryAccess(supabase),
+  ]);
 
   return (
     <div className="mx-auto flex max-w-[900px] flex-col gap-4 px-4 pt-6 pb-24 sm:px-6 sm:pt-7">
@@ -37,6 +41,7 @@ export default async function UsersPage() {
       <ModuleGrantsGrid
         employees={employees.map((e) => ({ id: e.id, username: e.username, displayName: e.display_name }))}
         initialGrants={grants}
+        initialAccess={inventoryAccess}
       />
     </div>
   );

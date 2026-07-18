@@ -15,7 +15,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { canSee, canWrite } from "@/lib/auth/roles";
+import { canSee } from "@/lib/auth/roles";
 import { undoMovement } from "@/lib/movements";
 import * as core from "./core";
 import { findPartForTopUp, type TopUpPreview } from "./queries";
@@ -53,9 +53,10 @@ async function requireReceiveWriter() {
   } = await supabase.auth.getUser();
   if (!user) throw new Error("Not signed in.");
 
-  const { data: role } = await supabase.rpc("smark_role");
-  if (!role || !canWrite(role, "receive")) {
-    throw new Error("You don't have permission to make changes on Receive.");
+  // (0017) inventory view/edit-aware — RPC twin of the write RLS.
+  const { data: canEdit } = await supabase.rpc("smark_can_edit_inventory");
+  if (!canEdit) {
+    throw new Error("You have view-only access to inventory.");
   }
   return { supabase, actorId: user.id };
 }

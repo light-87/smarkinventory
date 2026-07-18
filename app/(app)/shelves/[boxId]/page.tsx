@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionUser } from "@/lib/auth/session";
-import { canWrite } from "@/lib/auth/roles";
+import { effectiveCanWrite } from "@/lib/rbac/access";
 import { getBoxDetail } from "../queries";
 import { BoxDetailCard } from "@/components/shelves/BoxDetailCard";
 import { LiveContentsTable } from "@/components/shelves/LiveContentsTable";
@@ -25,7 +25,9 @@ export default async function BoxDetailPage({ params }: BoxDetailPageProps) {
   // No session (or a role the matrix hides Shelves from) → read-only: the
   // print/audit actions never render. RLS enforces the same rule server-side
   // regardless (FEATURES.md §2: "enforced twice — UI and RLS").
-  const writable = sessionUser != null && canWrite(sessionUser.role, "shelves");
+  const writable =
+    sessionUser != null &&
+    effectiveCanWrite(sessionUser.role, "shelves", { inventoryAccess: sessionUser.inventoryAccess });
 
   return (
     <div className="mx-auto max-w-[1180px] px-4 pt-6 pb-24 sm:px-6 sm:pt-7">

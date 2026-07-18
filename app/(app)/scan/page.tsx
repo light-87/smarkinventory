@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { getSessionUser } from "@/lib/auth/session";
-import { canWrite } from "@/lib/auth/roles";
-import { effectiveCanSee } from "@/lib/rbac/access";
+import { effectiveCanSee, effectiveCanWrite } from "@/lib/rbac/access";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ScanScreen } from "@/components/scan/scan-screen";
 
@@ -22,7 +21,7 @@ export default async function ScanPage() {
       </div>
     );
   }
-  const writable = canWrite(sessionUser.role, "scan");
+  const writable = effectiveCanWrite(sessionUser.role, "scan", { inventoryAccess: sessionUser.inventoryAccess });
 
   return <ScanScreen canWrite={writable} />;
 }

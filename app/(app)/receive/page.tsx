@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
-import { canWrite } from "@/lib/auth/roles";
-import { effectiveCanSee } from "@/lib/rbac/access";
-import { getModuleGrantsIfEmployee } from "@/lib/rbac/queries";
+import { effectiveCanSee, effectiveCanWrite } from "@/lib/rbac/access";
+import { getInventoryAccessIfEmployee, getModuleGrantsIfEmployee } from "@/lib/rbac/queries";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ReceiveScreen, type ReceiveCard } from "@/components/receive/receive-screen";
 import {
@@ -53,6 +52,7 @@ export default async function ReceivePage({
   ]);
 
   const presetBoxId = Array.isArray(params.boxId) ? params.boxId[0] : params.boxId;
+  const inventoryAccess = user ? await getInventoryAccessIfEmployee(supabase, user.id, role) : null;
 
   return (
     <ReceiveScreen
@@ -63,7 +63,7 @@ export default async function ReceivePage({
       queuedLabelCount={queuedLabelCount}
       defaultCard={parseCard(params.card)}
       presetBoxId={presetBoxId ?? null}
-      canWrite={canWrite(role, "receive")}
+      canWrite={effectiveCanWrite(role, "receive", { inventoryAccess })}
     />
   );
 }
