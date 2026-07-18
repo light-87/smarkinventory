@@ -77,6 +77,13 @@ ${JSON.stringify(p?.candidates ?? [], null, 1).slice(0, 6000)}
 
 You are a purchasing agent for an electronics manufacturer in India. Source EVERY line below across these distributors, then write your findings to \`results.json\` in this folder. The distributor order for this run: **${enabled.map((d) => d.name).join(" → ")}**.
 
+## Work unattended until every line is done — do NOT stop to ask
+This is a fully unattended batch of **${config.lines.length} lines**. Work straight through all of them without pausing.
+- NEVER stop to ask "should I continue?", "shall I proceed?", or which approach to take — the answer is always yes, keep going to the next line.
+- Do NOT announce that you are finished, or set \`"complete": true\`, until \`results.json\` has an entry for EVERY one of the ${config.lines.length} lines. Count them before you claim done.
+- If a single line is hard (no results anywhere, a site won't load, a CAPTCHA you can't pass), write \`"candidates": []\` with a short \`"notes"\` and MOVE ON to the next line — one stuck line must never halt the batch.
+- A line whose "VERIFIED API RESULTS" block is empty is normal (e.g. LCSC/Unikey are browse-only) — just source that line in the browser; it is not an error and not a reason to stop.
+
 ## Browser
 You drive a dedicated Brave window through the **browser** MCP tools (Playwright over CDP — the window is already open and attached; the tools just work). Use it for LCSC and Unikey (no APIs), and for any distributor whose API results below are empty or errored. Search URLs: LCSC \`https://www.lcsc.com/search?q=…\`, Unikey \`https://www.unikeyic.com/search?q=…\`, DigiKey \`https://www.digikey.com/en/products/result?keywords=…\`, Mouser \`https://www.mouser.com/c/?q=…\`, element14 \`https://in.element14.com/search?st=…\`. Prefer the text snapshot over screenshots; act directly; a site that won't load after two tries is "unreachable", move on.
 

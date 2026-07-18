@@ -179,21 +179,62 @@ export interface PrefetchLine {
   errors: string[];
 }
 
-export async function prefetchAll(lines: WorkerBomLine[], onProgress?: (done: number, total: number) => void): Promise<PrefetchLine[]> {
+interface RestSource {
+  /** Canonical distributor name — matched case-insensitively against config.distributorSequence[].name. */
+  name: string;
+  fetch: (keyword: string, line: WorkerBomLine) => Promise<RestCandidate[]>;
+}
+
+/**
+ * The only distributors with a REST API to pre-fetch. LCSC and Unikey are
+ * browse-only (no API) and never appear here — for a run enabling only those,
+ * prefetch has nothing to do and is skipped entirely (see run.ts). Public so
+ * the runner can tell "REST distributor" from "browse-only" when it decides
+ * whether to prefetch at all.
+ */
+export const REST_SOURCES: readonly RestSource[] = [
+  { name: "DigiKey", fetch: (keyword) => digikey(keyword) },
+  { name: "Mouser", fetch: (keyword) => mouser(keyword) },
+  { name: "element14", fetch: (keyword, line) => element14(keyword, Boolean(line.mpn)) },
+];
+
+/** True when at least one of the run's enabled distributors is a REST-API one worth pre-fetching. */
+export function hasRestDistributor(enabledNames: Iterable<string>): boolean {
+  const enabled = new Set(Array.from(enabledNames, (n) => n.toLowerCase()));
+  return REST_SOURCES.some((s) => enabled.has(s.name.toLowerCase()));
+}
+
+/**
+ * Pre-fetch REST candidates for every line — but ONLY from the distributors
+ * the run actually enabled (`enabledNames`, matched case-insensitively). This
+ * is the fix for the "I set LCSC only but it prefetches DigiKey/Mouser/
+ * element14 anyway (and reports 0 results)" report: a browse-only run now hits
+ * no APIs at all, and a REST-subset run only hits the ones it asked for.
+ */
+export async function prefetchAll(
+  lines: WorkerBomLine[],
+  enabledNames: Iterable<string>,
+  onProgress?: (done: number, total: number) => void,
+): Promise<PrefetchLine[]> {
+  const enabled = new Set(Array.from(enabledNames, (n) => n.toLowerCase()));
+  const sources = REST_SOURCES.filter((s) => enabled.has(s.name.toLowerCase()));
+
+  // No enabled REST distributor → nothing to fetch. Return empty candidates
+  // immediately instead of sleeping through every line for zero API calls.
+  if (sources.length === 0) {
+    return lines.map((line) => ({ bomLineId: line.bomLineId, keyword: keywordOf(line), candidates: [], errors: [] }));
+  }
+
   const out: PrefetchLine[] = [];
   for (const [i, line] of lines.entries()) {
     const keyword = keywordOf(line);
     const candidates: RestCandidate[] = [];
     const errors: string[] = [];
-    for (const [name, fn] of [
-      ["DigiKey", () => digikey(keyword)],
-      ["Mouser", () => mouser(keyword)],
-      ["element14", () => element14(keyword, Boolean(line.mpn))],
-    ] as const) {
+    for (const source of sources) {
       try {
-        candidates.push(...(await fn()));
+        candidates.push(...(await source.fetch(keyword, line)));
       } catch (e) {
-        errors.push(`${name}: ${e instanceof Error ? e.message : String(e)}`);
+        errors.push(`${source.name}: ${e instanceof Error ? e.message : String(e)}`);
       }
       await sleep(400);
     }

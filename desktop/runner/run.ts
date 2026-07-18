@@ -28,7 +28,7 @@ import path from "node:path";
 import { createClient } from "@supabase/supabase-js";
 import type { WorkerRunConfig } from "../../types/worker";
 import { ensureBrowser, CDP_PORT } from "./brave";
-import { prefetchAll } from "./prefetch";
+import { hasRestDistributor, prefetchAll } from "./prefetch";
 import { generateSession } from "./session";
 import { AgentResultsFileSchema, transformResults } from "./transform";
 
@@ -204,12 +204,25 @@ const reviewPath = ctx.reviewPath ?? "";
 console.log(`✓ run ${ctx.runId} created — ${config.lines.length} line(s)`);
 
 // ── 3. REST prefetch (free, exact — the agent browses only the gaps) ────────
-console.log("REST prefetch (DigiKey / Mouser / element14)…");
-const prefetch = await prefetchAll(config.lines, (done, total) => {
-  if (done % 5 === 0 || done === total) console.log(`  ${done}/${total}`);
-});
-const withApi = prefetch.filter((p) => p.candidates.length > 0).length;
-console.log(`✓ prefetch done — ${withApi}/${config.lines.length} lines have API candidates`);
+// Only the distributors THIS run enabled. A "LCSC only" run (or any browse-only
+// selection) has no REST API to hit, so we skip prefetch entirely instead of
+// pinging DigiKey/Mouser/element14 and reporting a misleading "0 results".
+const enabledNames = config.distributorSequence.filter((d) => d.enabled).map((d) => d.name);
+let prefetch;
+if (hasRestDistributor(enabledNames)) {
+  console.log(`REST prefetch (${enabledNames.join(" / ")})…`);
+  prefetch = await prefetchAll(config.lines, enabledNames, (done, total) => {
+    if (done % 5 === 0 || done === total) console.log(`  ${done}/${total}`);
+  });
+  const withApi = prefetch.filter((p) => p.candidates.length > 0).length;
+  console.log(`✓ prefetch done — ${withApi}/${config.lines.length} lines have API candidates`);
+} else {
+  console.log(
+    `REST prefetch skipped — no REST-API distributor enabled (this run: ${enabledNames.join(", ") || "none"}). ` +
+      "LCSC/Unikey are browse-only; the agent sources them directly in the browser.",
+  );
+  prefetch = await prefetchAll(config.lines, enabledNames); // returns empty candidates instantly
+}
 
 // ── 4. Browser + session folder + the user's own Claude terminal ────────────
 const browserName = await ensureBrowser();
