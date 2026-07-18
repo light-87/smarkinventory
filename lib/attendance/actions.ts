@@ -18,33 +18,39 @@ import { canWrite, isOwner, type Role } from "@/lib/auth/roles";
 import * as dailyCore from "@/lib/daily/core";
 import * as core from "./core";
 import { getCompBalance } from "./queries";
-import { countDaysInclusive } from "./status";
+import { countDaysInclusive, HOURS_PER_DAY } from "./status";
 import {
   notifyCompDecided,
   notifyCompPending,
   notifyLeaveDecided,
   notifyLeavePending,
+  notifyOvertimeDecided,
+  notifyOvertimePending,
 } from "@/lib/notifications/fanout";
 import { TABLES } from "@/types/db";
 import {
   AddHolidayInputSchema,
   DecideCompWorkInputSchema,
   DecideLeaveRequestInputSchema,
+  DecideOvertimeInputSchema,
   MarkPresentInputSchema,
   OwnerCorrectAttendanceInputSchema,
   RemoveHolidayInputSchema,
   SetWeeklyOffInputSchema,
   SubmitCompWorkInputSchema,
   SubmitLeaveRequestInputSchema,
+  SubmitOvertimeInputSchema,
   type AddHolidayInput,
   type DecideCompWorkInput,
   type DecideLeaveRequestInput,
+  type DecideOvertimeInput,
   type MarkPresentInput,
   type OwnerCorrectAttendanceInput,
   type RemoveHolidayInput,
   type SetWeeklyOffInput,
   type SubmitCompWorkInput,
   type SubmitLeaveRequestInput,
+  type SubmitOvertimeInput,
 } from "./types";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
@@ -90,6 +96,49 @@ export async function markPresentAction(input: MarkPresentInput): Promise<Action
   return result;
 }
 
+/** (0018) Self mark-out for today — reuses lib/daily/core.clockOut (stamps check_out on today's row). */
+export async function markOutAction(): Promise<ActionResult> {
+  const { supabase, actorId } = await requireAttendanceWriter();
+  const result = await dailyCore.clockOut(supabase, actorId);
+  if (!result.ok) return result;
+  revalidatePath("/attendance");
+  return { ok: true };
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Overtime (0018) — self-report extra hours → owner approval → hours comp-off.
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+export async function submitOvertimeAction(input: SubmitOvertimeInput): Promise<ActionResultWithId> {
+  const parsed = SubmitOvertimeInputSchema.parse(input);
+  const { supabase, actorId } = await requireAttendanceWriter();
+
+  const { data: userRow } = await supabase.from(TABLES.app_users).select("display_name, username").eq("id", actorId).maybeSingle();
+  const employeeName = userRow?.display_name ?? userRow?.username ?? "An employee";
+
+  const result = await core.submitOvertime(supabase, actorId, parsed);
+  if (result.ok) {
+    await notifyOvertimePending(supabase, { employeeName, workDate: parsed.workDate, hours: parsed.hours });
+    revalidatePath("/attendance");
+  }
+  return result;
+}
+
+export async function decideOvertimeAction(input: DecideOvertimeInput): Promise<ActionResult> {
+  const parsed = DecideOvertimeInputSchema.parse(input);
+  const { supabase, actorId } = await requireOwner();
+  const result = await core.decideOvertime(supabase, actorId, parsed);
+  if (!result.ok) return result;
+  await notifyOvertimeDecided(supabase, {
+    userId: result.userId,
+    workDate: result.workDate,
+    approved: parsed.approve,
+    hoursApproved: result.hoursApproved,
+  });
+  revalidatePath("/attendance");
+  return { ok: true };
+}
+
 /* ────────────────────────────────────────────────────────────────────────────
  * Comp-work claims
  * ──────────────────────────────────────────────────────────────────────────── */
@@ -127,16 +176,14 @@ export async function submitLeaveRequestAction(input: SubmitLeaveRequestInput): 
   const parsed = SubmitLeaveRequestInputSchema.parse(input);
   const { supabase, actorId } = await requireAttendanceWriter();
 
-  // Compensatory reason requires available comp balance — checked here BEFORE
-  // insert (migration 0009 header: balance is derived, not a DB constraint).
+  // (0018) Comp-off is now HOURS-based and the owner picks the debit at
+  // approval — so at submit we only require the employee to have SOME banked
+  // hours (a friendly guard); the real deduction + cap happens in
+  // decideLeaveRequestAction.
   if (parsed.reason === "compensatory") {
     const balance = await getCompBalance(supabase, actorId);
-    const requestedDays = countDaysInclusive(parsed.startDate, parsed.endDate);
-    if (requestedDays > balance) {
-      return {
-        ok: false,
-        error: `Not enough comp balance: requesting ${requestedDays} day(s), only ${Math.max(balance, 0)} available.`,
-      };
+    if (balance <= 0) {
+      return { ok: false, error: "You have no comp-off hours banked yet." };
     }
   }
 
@@ -154,7 +201,31 @@ export async function submitLeaveRequestAction(input: SubmitLeaveRequestInput): 
 export async function decideLeaveRequestAction(input: DecideLeaveRequestInput): Promise<ActionResult> {
   const parsed = DecideLeaveRequestInputSchema.parse(input);
   const { supabase, actorId } = await requireOwner();
-  const result = await core.decideLeaveRequest(supabase, actorId, parsed);
+
+  // (0018) Approving a compensatory leave debits the owner-chosen comp-off
+  // hours. Default = leave days × 8; capped at the employee's live balance
+  // (which excludes this still-pending leave). Non-comp / reject → no debit.
+  let compHours: number | null = null;
+  if (parsed.approve) {
+    const { data: leave } = await supabase
+      .from(TABLES.leave_requests)
+      .select("user_id, start_date, end_date, reason")
+      .eq("id", parsed.id)
+      .maybeSingle();
+    if (leave?.reason === "compensatory") {
+      const requested = parsed.compHours ?? countDaysInclusive(leave.start_date, leave.end_date) * HOURS_PER_DAY;
+      const balance = await getCompBalance(supabase, leave.user_id);
+      if (requested > balance) {
+        return {
+          ok: false,
+          error: `Not enough comp-off: deducting ${requested}h, only ${Math.max(balance, 0)}h banked.`,
+        };
+      }
+      compHours = requested;
+    }
+  }
+
+  const result = await core.decideLeaveRequest(supabase, actorId, { ...parsed, compHours });
   if (!result.ok) return result;
   await notifyLeaveDecided(supabase, {
     userId: result.userId,

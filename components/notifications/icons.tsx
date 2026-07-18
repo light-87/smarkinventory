@@ -193,6 +193,8 @@ export const KIND_ICONS: Record<NotificationKind, (props: IconProps) => ReactNod
   leave_pending: LeavePendingIcon,
   comp_decided: AttendanceDecidedIcon,
   leave_decided: AttendanceDecidedIcon,
+  overtime_pending: CompPendingIcon,
+  overtime_decided: AttendanceDecidedIcon,
   bug_reported: BugReportedIcon,
   change_requested: ChangeRequestedIcon,
   client_input_provided: ClientInputProvidedIcon,

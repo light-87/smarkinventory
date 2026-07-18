@@ -18,8 +18,7 @@ import type { ApprovalStatus, Database, HolidayKind, LeaveReason } from "@/types
 import { TABLES } from "@/types/db";
 import {
   buildCalendar,
-  computeCompBalance,
-  countDaysInclusive,
+  computeCompBalanceHours,
   datesInRange,
   resolveDayStatus,
   type ApprovedLeaveInput,
@@ -86,6 +85,8 @@ export interface LeaveRequestView {
   decidedBy: string | null;
   decidedAt: string | null;
   createdAt: string;
+  /** (0018) Comp-off hours debited when a compensatory leave was approved; null otherwise. */
+  compHours: number | null;
 }
 
 /** `actorFilter: null` = every user's requests (owner/accountant "all"); a user id = that user's own only (employee "self"). */
@@ -96,7 +97,7 @@ export async function getLeaveRequests(
 ): Promise<LeaveRequestView[]> {
   let query = supabase
     .from(TABLES.leave_requests)
-    .select("id, user_id, start_date, end_date, reason, note, status, decided_by, decided_at, created_at")
+    .select("id, user_id, start_date, end_date, reason, note, status, decided_by, decided_at, created_at, comp_hours")
     .order("created_at", { ascending: false });
   if (actorFilter) query = query.eq("user_id", actorFilter);
   if (options.status) query = query.eq("status", options.status);
@@ -115,6 +116,7 @@ export async function getLeaveRequests(
     decidedBy: r.decided_by,
     decidedAt: r.decided_at,
     createdAt: r.created_at,
+    compHours: r.comp_hours,
   }));
 }
 
@@ -128,7 +130,7 @@ export async function getLeaveRequests(
 export async function getApprovedLeaveRequestsOverlapping(supabase: DB, from: string, to: string): Promise<LeaveRequestView[]> {
   const { data, error } = await supabase
     .from(TABLES.leave_requests)
-    .select("id, user_id, start_date, end_date, reason, note, status, decided_by, decided_at, created_at")
+    .select("id, user_id, start_date, end_date, reason, note, status, decided_by, decided_at, created_at, comp_hours")
     .eq("status", "approved")
     .lte("start_date", to)
     .gte("end_date", from)
@@ -146,6 +148,7 @@ export async function getApprovedLeaveRequestsOverlapping(supabase: DB, from: st
     decidedBy: r.decided_by,
     decidedAt: r.decided_at,
     createdAt: r.created_at,
+    compHours: r.comp_hours,
   }));
 }
 
@@ -227,16 +230,74 @@ export async function getCompWork(
   }));
 }
 
-/** Derived comp balance = approved comp-work days − approved compensatory-leave days (never stored, migration 0009 header). */
+/* ────────────────────────────────────────────────────────────────────────────
+ * Overtime claims (0018)
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+export interface OvertimeView {
+  id: string;
+  userId: string;
+  workDate: string;
+  hoursClaimed: number;
+  hoursApproved: number | null;
+  note: string | null;
+  status: ApprovalStatus;
+  decidedBy: string | null;
+  decidedAt: string | null;
+  createdAt: string;
+}
+
+/** `actorFilter: null` = every user's claims (owner/accountant "all"); a user id = that user's own only (employee "self"). */
+export async function getOvertime(
+  supabase: DB,
+  actorFilter: string | null,
+  options: { status?: ApprovalStatus } = {},
+): Promise<OvertimeView[]> {
+  let query = supabase
+    .from(TABLES.overtime)
+    .select("id, user_id, work_date, hours_claimed, hours_approved, note, status, decided_by, decided_at, created_at")
+    .order("created_at", { ascending: false });
+  if (actorFilter) query = query.eq("user_id", actorFilter);
+  if (options.status) query = query.eq("status", options.status);
+
+  const { data, error } = await query;
+  assertNoError(error, "smark_overtime");
+
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    userId: r.user_id,
+    workDate: r.work_date,
+    hoursClaimed: r.hours_claimed,
+    hoursApproved: r.hours_approved,
+    note: r.note,
+    status: r.status as ApprovalStatus,
+    decidedBy: r.decided_by,
+    decidedAt: r.decided_at,
+    createdAt: r.created_at,
+  }));
+}
+
+/**
+ * (0018) Derived comp-off balance in HOURS (never stored) —
+ *   Σ approved overtime hours_approved
+ *   + approved comp-work days × 8 (existing holiday-comp folded in)
+ *   − Σ approved compensatory-leave comp_hours.
+ */
 export async function getCompBalance(supabase: DB, userId: string): Promise<number> {
-  const [compWork, leaves] = await Promise.all([
+  const [overtime, compWork, leaves] = await Promise.all([
+    getOvertime(supabase, userId, { status: "approved" }),
     getCompWork(supabase, userId, { status: "approved" }),
     getLeaveRequests(supabase, userId, { status: "approved" }),
   ]);
-  const compensatoryLeaveDays = leaves
+  const approvedOvertimeHours = overtime.reduce((sum, o) => sum + (o.hoursApproved ?? 0), 0);
+  const approvedCompLeaveDebitHours = leaves
     .filter((l) => l.reason === "compensatory")
-    .reduce((sum, l) => sum + countDaysInclusive(l.startDate, l.endDate), 0);
-  return computeCompBalance(compWork.length, compensatoryLeaveDays);
+    .reduce((sum, l) => sum + (l.compHours ?? 0), 0);
+  return computeCompBalanceHours({
+    approvedOvertimeHours,
+    approvedCompWorkDays: compWork.length,
+    approvedCompLeaveDebitHours,
+  });
 }
 
 /* ────────────────────────────────────────────────────────────────────────────

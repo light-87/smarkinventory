@@ -39,12 +39,34 @@ export const SubmitLeaveRequestInputSchema = z
   .refine((v) => v.endDate >= v.startDate, { message: "End date can't be before start date", path: ["endDate"] });
 export type SubmitLeaveRequestInput = z.infer<typeof SubmitLeaveRequestInputSchema>;
 
-/** Owner approves/rejects a leave request. */
+/**
+ * Owner approves/rejects a leave request. (0018) When APPROVING a
+ * `compensatory` leave, `compHours` is the number of comp-off hours the owner
+ * chooses to deduct from the employee's balance (ignored for reject / non-comp
+ * leaves; the action defaults + caps it against the live balance).
+ */
 export const DecideLeaveRequestInputSchema = z.object({
   id: zUuid,
   approve: z.boolean(),
+  compHours: z.number().min(0).max(999).nullish(),
 });
 export type DecideLeaveRequestInput = z.infer<typeof DecideLeaveRequestInputSchema>;
+
+/** (0018) Employee reports extra hours worked on a date. */
+export const SubmitOvertimeInputSchema = z.object({
+  workDate: zDateOnly,
+  hours: z.number().positive("Enter hours worked").max(24, "At most 24 hours"),
+  note: z.string().trim().max(500).nullish(),
+});
+export type SubmitOvertimeInput = z.infer<typeof SubmitOvertimeInputSchema>;
+
+/** (0018) Owner approves (with optional adjusted hours) / rejects an overtime claim. */
+export const DecideOvertimeInputSchema = z.object({
+  id: zUuid,
+  approve: z.boolean(),
+  hoursApproved: z.number().min(0).max(24).nullish(),
+});
+export type DecideOvertimeInput = z.infer<typeof DecideOvertimeInputSchema>;
 
 /** Owner adds a specific-date holiday. */
 export const AddHolidayInputSchema = z.object({

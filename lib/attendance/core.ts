@@ -18,10 +18,12 @@ import type {
   AddHolidayInput,
   DecideCompWorkInput,
   DecideLeaveRequestInput,
+  DecideOvertimeInput,
   RemoveHolidayInput,
   SetWeeklyOffInput,
   SubmitCompWorkInput,
   SubmitLeaveRequestInput,
+  SubmitOvertimeInput,
 } from "./types";
 
 type DB = SupabaseClient<Database>;
@@ -83,7 +85,12 @@ export async function submitLeaveRequest(supabase: DB, actorId: string, input: S
   return { ok: true, id: data.id as string };
 }
 
-/** Owner approve/reject of a leave request. Returns the request's user_id + date range for the caller to notify with. */
+/**
+ * Owner approve/reject of a leave request. Returns the request's user_id + date
+ * range for the caller to notify with. (0018) `input.compHours` is written to
+ * `comp_hours` when APPROVING (the owner-chosen comp-off debit for a
+ * compensatory leave; the action resolves + caps it first); cleared on reject.
+ */
 export async function decideLeaveRequest(
   supabase: DB,
   deciderId: string,
@@ -95,12 +102,65 @@ export async function decideLeaveRequest(
       status: input.approve ? "approved" : "rejected",
       decided_by: deciderId,
       decided_at: new Date().toISOString(),
+      comp_hours: input.approve ? (input.compHours ?? null) : null,
     })
     .eq("id", input.id)
     .select("user_id, start_date, end_date")
     .single();
   if (error) return { ok: false, error: error.message };
   return { ok: true, userId: data.user_id as string, startDate: data.start_date as string, endDate: data.end_date as string };
+}
+
+/** (0018) Employee reports extra hours for a date. Unique (user_id, work_date) — a second claim for the same day errors. */
+export async function submitOvertime(supabase: DB, actorId: string, input: SubmitOvertimeInput): Promise<ResultWithId> {
+  const { data, error } = await supabase
+    .from(TABLES.overtime)
+    .insert({
+      user_id: actorId,
+      work_date: input.workDate,
+      hours_claimed: input.hours,
+      note: input.note ?? null,
+      status: "pending",
+    })
+    .select("id")
+    .single();
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, id: data.id as string };
+}
+
+/**
+ * (0018) Owner approve/reject of an overtime claim. On approve, `hours_approved`
+ * is `input.hoursApproved` (owner-adjusted) or, if omitted, the claimed hours.
+ * Returns user_id + work_date + the approved hours for the caller to notify with.
+ */
+export async function decideOvertime(
+  supabase: DB,
+  deciderId: string,
+  input: DecideOvertimeInput,
+): Promise<({ ok: true; userId: string; workDate: string; hoursApproved: number | null }) | { ok: false; error: string }> {
+  let hoursApproved: number | null = null;
+  if (input.approve) {
+    if (input.hoursApproved != null) {
+      hoursApproved = input.hoursApproved;
+    } else {
+      const { data: row, error: readError } = await supabase.from(TABLES.overtime).select("hours_claimed").eq("id", input.id).single();
+      if (readError) return { ok: false, error: readError.message };
+      hoursApproved = row.hours_claimed as number;
+    }
+  }
+  const { data, error } = await supabase
+    .from(TABLES.overtime)
+    .update({
+      status: input.approve ? "approved" : "rejected",
+      hours_approved: hoursApproved,
+      decided_by: deciderId,
+      decided_at: new Date().toISOString(),
+    })
+    .eq("id", input.id)
+    .select("user_id, work_date")
+    .single();
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, userId: data.user_id as string, workDate: data.work_date as string, hoursApproved };
 }
 
 /** Owner adds a specific-date holiday. */

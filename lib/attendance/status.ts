@@ -220,3 +220,31 @@ export function buildCalendar(params: BuildCalendarParams): CalendarDay[] {
 export function computeCompBalance(approvedCompWorkDays: number, approvedCompensatoryLeaveDays: number): number {
   return approvedCompWorkDays - approvedCompensatoryLeaveDays;
 }
+
+/** A standard workday in hours — the conversion factor for comp-off (0018). */
+export const HOURS_PER_DAY = 8;
+
+export interface CompBalanceHoursInput {
+  /** Σ hours_approved of approved smark_overtime rows. */
+  approvedOvertimeHours: number;
+  /** Count of approved smark_comp_work rows (whole holidays worked) — each folded in at hoursPerDay. */
+  approvedCompWorkDays: number;
+  /** Σ comp_hours of approved compensatory leave requests (the owner-chosen debits). */
+  approvedCompLeaveDebitHours: number;
+  hoursPerDay?: number;
+}
+
+/**
+ * (0018) The comp-off balance in HOURS — DERIVED, never stored. Overtime hours
+ * plus holiday comp-work (folded at hoursPerDay each) credit the balance;
+ * owner-chosen debits on approved compensatory leaves reduce it. May go
+ * negative only if a debit was recorded above the balance (actions.ts caps it).
+ */
+export function computeCompBalanceHours({
+  approvedOvertimeHours,
+  approvedCompWorkDays,
+  approvedCompLeaveDebitHours,
+  hoursPerDay = HOURS_PER_DAY,
+}: CompBalanceHoursInput): number {
+  return approvedOvertimeHours + approvedCompWorkDays * hoursPerDay - approvedCompLeaveDebitHours;
+}

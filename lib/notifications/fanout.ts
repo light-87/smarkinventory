@@ -243,6 +243,38 @@ export async function notifyLeaveDecided(
   return row;
 }
 
+/** (0018) An employee logged overtime hours (attendance). Audience: every active owner. */
+export async function notifyOvertimePending(
+  client: Client,
+  params: { employeeName: string; workDate: string; hours: number },
+): Promise<NotificationRow[]> {
+  const owners = await activeOwnerIds(client);
+  return notify(client, {
+    userIds: owners,
+    kind: "overtime_pending",
+    title: `${params.employeeName} logged ${params.hours}h overtime`,
+    body: `Worked ${params.workDate} — approve in Attendance`,
+    link: "/attendance",
+  });
+}
+
+/** (0018) Owner decided an overtime claim (attendance). Notifies the employee. */
+export async function notifyOvertimeDecided(
+  client: Client,
+  params: { userId: string; workDate: string; approved: boolean; hoursApproved: number | null },
+): Promise<NotificationRow> {
+  const detail = params.approved && params.hoursApproved != null ? ` (${params.hoursApproved}h)` : "";
+  const [row] = await notify(client, {
+    userIds: [params.userId],
+    kind: "overtime_decided",
+    title: `Overtime ${params.approved ? "approved" : "rejected"}${detail}`,
+    body: params.workDate,
+    link: "/attendance",
+  });
+  if (!row) throw new Error("notifyOvertimeDecided: insert returned no row");
+  return row;
+}
+
 /**
  * A bug/issue was reported against a task (pm). The client-portal path
  * (portal_report_bug, supabase/migrations/0010_pm.sql) inserts this kind
