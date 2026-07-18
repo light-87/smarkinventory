@@ -278,7 +278,17 @@ export class R2Adapter implements StoragePort {
     const url = this.objectUrl(input.key);
     const buffer = await toBuffer(input.body);
     const contentType = input.contentType ?? null;
-    const headers: HeadersInit = contentType ? { "content-type": contentType } : {};
+    // R2 (unlike AWS S3) REQUIRES an explicit Content-Length and rejects a
+    // streaming/chunked PUT with `411 MissingContentLength`. aws4fetch never
+    // adds it (Content-Length is an UNSIGNABLE header, and it signs the body as
+    // UNSIGNED-PAYLOAD), so set it ourselves — the body is already fully
+    // buffered here, so the length is free. Being unsignable, it's excluded
+    // from the SigV4 signature but still forwarded on the wire, so the
+    // signature stays valid.
+    const headers: HeadersInit = {
+      ...(contentType ? { "content-type": contentType } : {}),
+      "content-length": String(buffer.byteLength),
+    };
 
     // Zero-copy view over the same bytes: TS's BodyInit wants Uint8Array<ArrayBuffer>
     // specifically, not Node's Buffer (typed Uint8Array<ArrayBufferLike>) — the cast is

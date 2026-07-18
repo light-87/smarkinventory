@@ -116,6 +116,8 @@ describe("R2Adapter — put", () => {
     expect(request.method).toBe("PUT");
     expect(request.url).toBe(`${TEST_CONFIG.endpoint}/${TEST_CONFIG.bucket}/labels/qr-42.png`);
     expect(request.headers.get("content-type")).toBe("image/png");
+    // R2 rejects a length-less PUT with 411; we set Content-Length explicitly.
+    expect(request.headers.get("content-length")).toBe(String(Buffer.byteLength("hello", "utf8")));
     expect(request.headers.get("authorization")).toContain("AWS4-HMAC-SHA256");
 
     expect(result).toEqual({
