@@ -48,6 +48,8 @@ describe("ROLE_MATRIX — verbatim FEATURES.md §2 / SCHEMA.md RLS matrix", () =
     cart: { owner: "full", employee: "full", accountant: "read" },
     daily_reports: { owner: "full", employee: "self", accountant: "read" },
     attendance: { owner: "full", employee: "self", accountant: "read" },
+    // (0018) Owner-only per-employee dashboard.
+    team: { owner: "full", employee: "hidden", accountant: "hidden" },
     ai_memory: { owner: "full", employee: "hidden", accountant: "hidden" },
     settings: { owner: "full", employee: "hidden", accountant: "hidden" },
     users: { owner: "full", employee: "hidden", accountant: "hidden" },

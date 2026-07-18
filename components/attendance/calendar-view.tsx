@@ -13,14 +13,16 @@ export interface CalendarViewProps {
   /** Extra query params carried on every nav link (e.g. `user` when owner/accountant is viewing someone else's calendar). */
   extraParams?: Record<string, string>;
   title?: string;
+  /** Route the month/day nav links point at (default `/attendance`; the Team dashboard passes `/team/<id>`). */
+  basePath?: string;
 }
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-function hrefFor(month: string, day: string | undefined, extraParams: Record<string, string>): string {
+function hrefFor(basePath: string, month: string, day: string | undefined, extraParams: Record<string, string>): string {
   const params = new URLSearchParams({ month, ...extraParams });
   if (day) params.set("day", day);
-  return `/attendance?${params.toString()}`;
+  return `${basePath}?${params.toString()}`;
 }
 
 function monthLabel(month: string): string {
@@ -36,7 +38,7 @@ function monthLabel(month: string): string {
  * `/attendance` with `?day=` set, which the server page re-reads to render
  * the day-breakdown panel below.
  */
-export function CalendarView({ month, calendar, selectedDay, todayDate, extraParams = {}, title = "Calendar" }: CalendarViewProps) {
+export function CalendarView({ month, calendar, selectedDay, todayDate, extraParams = {}, title = "Calendar", basePath = "/attendance" }: CalendarViewProps) {
   const firstDay = calendar[0]?.date;
   const leadingBlanks = firstDay ? weekdayOf(firstDay) : 0;
 
@@ -47,7 +49,7 @@ export function CalendarView({ month, calendar, selectedDay, todayDate, extraPar
         meta={
           <div className="flex items-center gap-2">
             <Link
-              href={hrefFor(shiftMonth(month, -1), undefined, extraParams)}
+              href={hrefFor(basePath, shiftMonth(month, -1), undefined, extraParams)}
               className="flex size-8 items-center justify-center rounded-full border border-charcoal text-silver-mist transition-colors hover:bg-ash hover:text-snow"
               aria-label="Previous month"
             >
@@ -55,7 +57,7 @@ export function CalendarView({ month, calendar, selectedDay, todayDate, extraPar
             </Link>
             <span className="min-w-[120px] text-center text-[14px] text-snow">{monthLabel(month)}</span>
             <Link
-              href={hrefFor(shiftMonth(month, 1), undefined, extraParams)}
+              href={hrefFor(basePath, shiftMonth(month, 1), undefined, extraParams)}
               className="flex size-8 items-center justify-center rounded-full border border-charcoal text-silver-mist transition-colors hover:bg-ash hover:text-snow"
               aria-label="Next month"
             >
@@ -81,7 +83,7 @@ export function CalendarView({ month, calendar, selectedDay, todayDate, extraPar
             return (
               <Link
                 key={day.date}
-                href={hrefFor(month, day.date, extraParams)}
+                href={hrefFor(basePath, month, day.date, extraParams)}
                 title={statusLabel(day.status, day.holidayName, day.leaveReason)}
                 className={cn(
                   "flex aspect-square min-h-9 flex-col items-center justify-center rounded-lg border text-[14px] transition-[filter] hover:brightness-95",

@@ -42,6 +42,8 @@ export const AREAS = [
   "cart",
   "daily_reports",
   "attendance",
+  /** (0018) Owner-only per-employee dashboard (attendance + comp-off + leaves + tasks). Hidden for employee/accountant. */
+  "team",
   "ai_memory",
   "settings",
   "users",
@@ -76,6 +78,8 @@ export const ROLE_MATRIX: Record<Area, Record<Role, Access>> = {
   cart: { owner: "full", employee: "full", accountant: "read" },
   // Row 3 — Daily Reports: owner all people, employee self only, accountant read all
   daily_reports: { owner: "full", employee: "self", accountant: "read" },
+  // (0018) Owner-only per-employee dashboard — hidden entirely for employee/accountant.
+  team: { owner: "full", employee: "hidden", accountant: "hidden" },
   // Attendance module: owner full (holidays/approvals/anyone's calendar),
   // employee self (mark self, own leave/comp requests, own calendar),
   // accountant read (day/month calendar visibility, no write).
