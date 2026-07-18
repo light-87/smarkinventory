@@ -69,7 +69,7 @@ export function MoreSheet({
                 key={item.id}
                 href={item.href}
                 onClick={onClose}
-                className="flex min-h-11 flex-col items-center justify-center gap-2 rounded-2xl border border-charcoal bg-surface-panel px-2 py-3 text-center text-[13px] text-silver-mist transition-colors active:bg-ash"
+                className="flex min-h-11 flex-col items-center justify-center gap-2 rounded-2xl border border-charcoal bg-surface-panel px-2 py-3 text-center text-[14px] text-silver-mist transition-colors active:bg-ash"
               >
                 <span aria-hidden className="size-5 [&_svg]:size-full">
                   {Icon ? <Icon /> : null}

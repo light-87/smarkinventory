@@ -62,8 +62,8 @@ export function ConfirmDialog({
         aria-label={title}
         className="fixed inset-x-4 top-1/2 z-[71] mx-auto max-w-[420px] -translate-y-1/2 rounded-2xl border border-charcoal bg-surface p-5 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2"
       >
-        <div className="text-[16px] text-snow">{title}</div>
-        <div className="mt-2 text-[14px] text-smoke">{description}</div>
+        <div className="text-[17px] text-snow">{title}</div>
+        <div className="mt-2 text-[15px] text-smoke">{description}</div>
         <div className="mt-5 flex justify-end gap-3">
           <Button variant="outline" onClick={onCancel} disabled={loading}>
             {cancelLabel}

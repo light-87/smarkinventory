@@ -13,11 +13,11 @@ export function ShelfBand({ shelf }: ShelfBandProps) {
   return (
     <div className="overflow-hidden rounded-2xl border border-charcoal bg-surface-panel">
       <div className="flex items-center gap-3.5 border-b border-border-divider bg-surface-raised px-[18px] py-3.5">
-        <span className="flex size-9 flex-none items-center justify-center rounded-lg border-[1.5px] border-graphite text-[17px] text-snow">
+        <span className="flex size-9 flex-none items-center justify-center rounded-lg border-[1.5px] border-graphite text-[18px] text-snow">
           {shelf.code}
         </span>
         <div className="min-w-0 flex-1">
-          <div className="truncate text-[16px] text-snow">{shelf.name ?? `Shelf ${shelf.code}`}</div>
+          <div className="truncate text-[17px] text-snow">{shelf.name ?? `Shelf ${shelf.code}`}</div>
           <div className="mt-0.5 text-caption text-smoke">
             Shelf {shelf.code} · {shelf.boxCount} big box{shelf.boxCount === 1 ? "" : "es"}
           </div>

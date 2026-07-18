@@ -58,7 +58,7 @@ export function InstallPrompt() {
   if (deferred) {
     return (
       <div className="mt-5 flex items-center justify-between gap-3 rounded-xl border border-charcoal bg-surface-panel px-4 py-3">
-        <span className="text-[14px] text-silver-mist">Install SmarkStock on this device</span>
+        <span className="text-[15px] text-silver-mist">Install SmarkStock on this device</span>
         <Button
           variant="accent-outline"
           size="sm"
@@ -76,7 +76,7 @@ export function InstallPrompt() {
 
   if (isIosUserAgent()) {
     return (
-      <div className="mt-5 rounded-xl border border-charcoal bg-surface-panel px-4 py-3 text-[14px] text-silver-mist">
+      <div className="mt-5 rounded-xl border border-charcoal bg-surface-panel px-4 py-3 text-[15px] text-silver-mist">
         Install this app: tap <span className="text-snow">Share</span>, then{" "}
         <span className="text-snow">“Add to Home Screen”</span>.
       </div>

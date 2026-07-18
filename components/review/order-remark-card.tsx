@@ -63,7 +63,7 @@ export function OrderRemarkCard({ projectId, bomId, runId, writable, currentTier
 
   return (
     <Card padding="lg">
-      <div className="mb-1 text-[16px] font-medium text-snow">Remark on the whole order</div>
+      <div className="mb-1 text-[17px] font-medium text-snow">Remark on the whole order</div>
       <div className="mb-3.5 text-caption text-smoke">Saved as a suggested rule, scope: this project</div>
       <textarea
         value={remark}

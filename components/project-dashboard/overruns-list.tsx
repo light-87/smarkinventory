@@ -18,7 +18,7 @@ export function OverrunsList({ rows }: { rows: OverrunRow[] }) {
               <li key={row.taskId} className="flex flex-col gap-2 rounded-xl border border-charcoal bg-surface-panel px-4 py-3">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div>
-                    <div className="text-[14px] font-medium text-snow">{row.title}</div>
+                    <div className="text-[15px] font-medium text-snow">{row.title}</div>
                     <div className="text-caption text-smoke">{row.projectName}</div>
                   </div>
                   <Chip tone="warn" size="sm" mono>

@@ -114,7 +114,7 @@ export function LeaveRequestsCard({ myRequests, compBalance, canWrite }: LeaveRe
             {myRequests.map((r) => (
               <div key={r.id} className="flex items-center justify-between gap-3 rounded-xl border border-charcoal bg-surface-panel px-4 py-3">
                 <div className="min-w-0">
-                  <div className="truncate text-[14px] text-snow">
+                  <div className="truncate text-[15px] text-snow">
                     {formatDate(r.startDate)}
                     {r.endDate !== r.startDate ? ` – ${formatDate(r.endDate)}` : ""} · {r.reason}
                   </div>

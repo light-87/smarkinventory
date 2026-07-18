@@ -82,7 +82,7 @@ export function SearchRulesCard({ rules }: { rules: OrderingRuleItem[] }) {
                 <span className="flex size-[22px] flex-none items-center justify-center rounded-md bg-ash font-mono text-xs text-smoke">
                   {index + 1}
                 </span>
-                <span className="min-w-0 flex-1 truncate text-[14px] text-silver-mist">{label}</span>
+                <span className="min-w-0 flex-1 truncate text-[15px] text-silver-mist">{label}</span>
                 {pinned ? (
                   <span
                     className="flex flex-none items-center gap-1.5"

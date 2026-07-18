@@ -274,7 +274,7 @@ export function CommandPalette({ className, hideTrigger = false }: CommandPalett
                 type="button"
                 aria-label="Close search"
                 onClick={close}
-                className="flex-none text-[12px] text-faint hover:text-smoke"
+                className="flex-none text-[13px] text-faint hover:text-smoke"
               >
                 Esc
               </button>
@@ -282,19 +282,19 @@ export function CommandPalette({ className, hideTrigger = false }: CommandPalett
 
             <div className="max-h-[60vh] overflow-y-auto p-2">
               {showHint && (
-                <p className="px-3 py-6 text-center text-[14px] text-smoke">
+                <p className="px-3 py-6 text-center text-[15px] text-smoke">
                   Type at least 2 characters — or scan/type a full PID or box code to jump straight there.
                 </p>
               )}
               {pending && !showHint && flatItems.length === 0 && (
-                <p className="px-3 py-6 text-center text-[14px] text-smoke">Searching…</p>
+                <p className="px-3 py-6 text-center text-[15px] text-smoke">Searching…</p>
               )}
-              {showEmpty && <p className="px-3 py-6 text-center text-[14px] text-smoke">No matches for “{trimmedQuery}”</p>}
+              {showEmpty && <p className="px-3 py-6 text-center text-[15px] text-smoke">No matches for “{trimmedQuery}”</p>}
 
               {flatItems.map((item, index) => (
                 <Fragment key={item.key}>
                   {item.sectionLabel && (
-                    <div className="px-3 pt-3 pb-1 text-[12px] tracking-[0.06em] text-smoke uppercase">{item.sectionLabel}</div>
+                    <div className="px-3 pt-3 pb-1 text-[13px] tracking-[0.06em] text-smoke uppercase">{item.sectionLabel}</div>
                   )}
                   <button
                     type="button"
@@ -311,7 +311,7 @@ export function CommandPalette({ className, hideTrigger = false }: CommandPalett
               ))}
             </div>
 
-            <div className="border-t border-charcoal px-4 py-2 text-[12px] text-faint">↑↓ Navigate · ↵ Open · Esc Close</div>
+            <div className="border-t border-charcoal px-4 py-2 text-[13px] text-faint">↑↓ Navigate · ↵ Open · Esc Close</div>
           </div>
         </>
       )}
@@ -336,8 +336,8 @@ function ScanMatchRow({ resolution }: { resolution: ScanResolution }) {
         <ScanIcon />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate font-mono text-[14px] text-snow">{label}</span>
-        {meta && <span className="block truncate text-[13px] text-smoke">{meta}</span>}
+        <span className="block truncate font-mono text-[15px] text-snow">{label}</span>
+        {meta && <span className="block truncate text-[14px] text-smoke">{meta}</span>}
       </span>
       <span aria-hidden className="size-4 flex-none text-smoke [&_svg]:size-full">
         <ArrowRightIcon />
@@ -354,8 +354,8 @@ function PartRow({ part }: { part: PalettePartHit }) {
         <PartResultIcon />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate font-mono text-[14px] text-snow">{part.internal_pid}</span>
-        {meta && <span className="block truncate text-[13px] text-smoke">{meta}</span>}
+        <span className="block truncate font-mono text-[15px] text-snow">{part.internal_pid}</span>
+        {meta && <span className="block truncate text-[14px] text-smoke">{meta}</span>}
       </span>
       <Chip tone={part.total_qty > 0 ? "neutral" : "accent"} size="sm" mono className="flex-none">
         {part.total_qty}
@@ -371,8 +371,8 @@ function ProjectRow({ project }: { project: PaletteProjectHit }) {
         <ProjectResultIcon />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[14px] text-snow">{project.name}</span>
-        {project.client && <span className="block truncate text-[13px] text-smoke">{project.client}</span>}
+        <span className="block truncate text-[15px] text-snow">{project.name}</span>
+        {project.client && <span className="block truncate text-[14px] text-smoke">{project.client}</span>}
       </span>
       {project.archived_at && (
         <Chip tone="default" size="sm" className="flex-none">
@@ -390,8 +390,8 @@ function BomRow({ bom }: { bom: PaletteBomHit }) {
         <BomResultIcon />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[14px] text-snow">{bom.name}</span>
-        {bom.project_name && <span className="block truncate text-[13px] text-smoke">in {bom.project_name}</span>}
+        <span className="block truncate text-[15px] text-snow">{bom.name}</span>
+        {bom.project_name && <span className="block truncate text-[14px] text-smoke">in {bom.project_name}</span>}
       </span>
     </>
   );
@@ -404,8 +404,8 @@ function OrderRow({ order }: { order: PaletteOrderHit }) {
         <OrderResultIcon />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate font-mono text-[14px] text-snow">{order.po_number}</span>
-        {order.distributor_name && <span className="block truncate text-[13px] text-smoke">{order.distributor_name}</span>}
+        <span className="block truncate font-mono text-[15px] text-snow">{order.po_number}</span>
+        {order.distributor_name && <span className="block truncate text-[14px] text-smoke">{order.distributor_name}</span>}
       </span>
       <Chip tone="neutral" size="sm" className="flex-none">
         {order.status}

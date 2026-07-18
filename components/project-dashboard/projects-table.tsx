@@ -18,7 +18,7 @@ function ProgressBar({ pct }: { pct: number }) {
       >
         <div className="h-full rounded-full bg-smark-orange transition-[width]" style={{ width: `${pct}%` }} />
       </div>
-      <span className="font-mono text-[13px] text-smoke">{pct}%</span>
+      <span className="font-mono text-[14px] text-smoke">{pct}%</span>
     </div>
   );
 }

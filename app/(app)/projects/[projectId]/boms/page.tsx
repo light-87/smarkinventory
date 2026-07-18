@@ -49,7 +49,7 @@ export default async function BomsPage({ params, searchParams }: BomsPageProps) 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-[14px] text-smoke">
+        <p className="text-[15px] text-smoke">
           {showArchived
             ? `${visible.length} archived ${visible.length === 1 ? "BOM" : "BOMs"} — hidden, no demand.`
             : `${visible.length === 0 ? "No BOMs yet" : `${visible.length} ${visible.length === 1 ? "BOM" : "BOMs"}`} — each named, its own sourcing pipeline.`}
@@ -58,7 +58,7 @@ export default async function BomsPage({ params, searchParams }: BomsPageProps) 
           {(showArchived || archivedCount > 0) && (
             <Link
               href={showArchived ? `/projects/${projectId}/boms` : `/projects/${projectId}/boms?archived=1`}
-              className="text-[14px] text-smoke transition-colors hover:text-snow"
+              className="text-[15px] text-smoke transition-colors hover:text-snow"
             >
               {showArchived ? "← Active BOMs" : `Archived (${archivedCount}) →`}
             </Link>

@@ -38,7 +38,7 @@ export function TaskList({
   return (
     <div className="flex flex-col gap-4">
       <Card className="flex flex-col gap-2">
-        <div className="flex items-center justify-between text-[14px]">
+        <div className="flex items-center justify-between text-[15px]">
           <SectionLabel>Progress</SectionLabel>
           <span className="text-smoke">
             {done}/{tasks.length} done · {progress}%

@@ -88,7 +88,7 @@ export function ToastViewport({
           role="status"
           className="animate-toast-in pointer-events-auto flex max-w-[92vw] items-center gap-4 rounded-full border border-slate bg-surface py-[11px] pr-3 pl-5 shadow-sm"
         >
-          <span className="truncate text-[14px] text-snow">{t.msg}</span>
+          <span className="truncate text-[15px] text-snow">{t.msg}</span>
           {t.undo && (
             <button
               type="button"
@@ -96,7 +96,7 @@ export function ToastViewport({
                 t.onUndo?.();
                 dismiss(t.id);
               }}
-              className="flex-none cursor-pointer rounded-full bg-lime px-4 py-1.5 text-[14px] font-medium text-obsidian hover:bg-lime-hover"
+              className="flex-none cursor-pointer rounded-full bg-lime px-4 py-1.5 text-[15px] font-medium text-obsidian hover:bg-lime-hover"
             >
               Undo
             </button>

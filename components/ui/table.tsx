@@ -60,7 +60,7 @@ export function Th({
   return (
     <th
       className={cn(
-        "border-b border-charcoal bg-canvas px-3.5 py-[11px] text-[12px] font-medium tracking-[0.04em] whitespace-nowrap text-smoke uppercase",
+        "border-b border-charcoal bg-canvas px-3.5 py-[11px] text-[13px] font-medium tracking-[0.04em] whitespace-nowrap text-smoke uppercase",
         sticky && "sticky top-0 z-[2]",
         align === "right" && "text-right",
         align === "center" && "text-center",
@@ -105,7 +105,7 @@ export function Td({
   return (
     <td
       className={cn(
-        "border-b border-border-hairline px-3.5 py-[11px] text-[14px] text-silver-mist",
+        "border-b border-border-hairline px-3.5 py-[11px] text-[15px] text-silver-mist",
         mono && "font-mono",
         align === "right" && "text-right",
         align === "center" && "text-center",

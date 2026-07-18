@@ -52,7 +52,7 @@ export function BoxDetailCard({
   return (
     <div className="w-full flex-none rounded-2xl border border-charcoal p-5 sm:w-80">
       <div className="font-mono text-xl text-snow">Box {boxCode}</div>
-      <div className="mt-1 text-[14px] text-smoke">Shelf {shelfCode}</div>
+      <div className="mt-1 text-[15px] text-smoke">Shelf {shelfCode}</div>
       <div className="mt-1 text-caption text-smoke">
         {lastAuditedAt ? `Last audited ${formatDate(lastAuditedAt)}` : "Not yet audited"}
       </div>

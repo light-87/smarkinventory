@@ -45,7 +45,7 @@ export function Rail({
       <div className="flex items-center gap-[11px] border-b border-border-faint px-5 py-5">
         {/* eslint-disable-next-line @next/next/no-img-element -- static brand asset, no next/image benefit */}
         <img src="/brand/smark-mark.svg" alt="" className="h-[15px] w-auto flex-none" />
-        <span className="text-[16px] font-medium text-snow">SmarkStock</span>
+        <span className="text-[17px] font-medium text-snow">SmarkStock</span>
       </div>
 
       <nav className="flex flex-1 flex-col overflow-y-auto overflow-x-hidden py-3 pr-3 pl-4">
@@ -61,7 +61,7 @@ export function Rail({
             <div key={group} className="mb-1">
               <div
                 className={cn(
-                  "px-2 pt-3.5 pb-1 text-[11px] font-semibold tracking-[0.08em] uppercase",
+                  "px-2 pt-3.5 pb-1 text-[12px] font-semibold tracking-[0.08em] uppercase",
                   NAV_GROUP_ACCENT[group].text,
                 )}
               >

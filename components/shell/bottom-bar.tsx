@@ -44,7 +44,7 @@ export function BottomBar({
             key={item.id}
             href={item.href}
             className={cn(
-              "flex min-w-11 flex-1 flex-col items-center justify-center gap-[3px] text-[11px]",
+              "flex min-w-11 flex-1 flex-col items-center justify-center gap-[3px] text-[12px]",
               active ? NAV_GROUP_ACCENT[item.group].text : "text-smoke",
             )}
           >
@@ -59,7 +59,7 @@ export function BottomBar({
       <button
         type="button"
         onClick={onMore}
-        className="flex min-w-11 flex-1 flex-col items-center justify-center gap-[3px] text-[11px] text-smoke"
+        className="flex min-w-11 flex-1 flex-col items-center justify-center gap-[3px] text-[12px] text-smoke"
       >
         <span aria-hidden className="size-5 [&_svg]:size-full">
           <MoreIcon />

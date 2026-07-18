@@ -53,11 +53,11 @@ export function EmptyState({
           {icon}
         </div>
       )}
-      {title != null && <div className="text-[16px] text-snow">{title}</div>}
+      {title != null && <div className="text-[17px] text-snow">{title}</div>}
       {description != null && (
         <div
           className={cn(
-            "text-[14px] text-smoke",
+            "text-[15px] text-smoke",
             title != null && "mt-1.5",
             actions != null && "mb-6",
           )}

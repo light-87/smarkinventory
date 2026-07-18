@@ -127,7 +127,7 @@ export function TaskDrawer({
       <DrawerHeader>
         <div className="min-w-0">
           <SectionLabel>Manage task</SectionLabel>
-          <div className="mt-1 truncate text-[16px] text-snow">{task.title}</div>
+          <div className="mt-1 truncate text-[17px] text-snow">{task.title}</div>
         </div>
         <DrawerCloseButton onClick={onClose} />
       </DrawerHeader>
@@ -318,7 +318,7 @@ export function TaskDrawer({
             hint="This task is paused waiting on the client. Mark it received, or send an email reminder."
           >
             {openHold && (
-              <p className="text-[14px] text-smoke">Awaiting client input since {formatDate(openHold.startedAt)}.</p>
+              <p className="text-[15px] text-smoke">Awaiting client input since {formatDate(openHold.startedAt)}.</p>
             )}
             <Button
               size="sm"
@@ -349,7 +349,7 @@ export function TaskDrawer({
               </>
             ) : activeReminder ? (
               <>
-                <p className="text-[14px] text-snow">
+                <p className="text-[15px] text-snow">
                   Reminder active — {FREQUENCY_OPTIONS.find((o) => o.value === String(activeReminder.frequencyDays))?.label ??
                     `every ${activeReminder.frequencyDays} days`}
                   .

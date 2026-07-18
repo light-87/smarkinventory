@@ -123,7 +123,7 @@ export function AttendanceSection({
           <Card tone="panel">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <span className="text-[14px] text-snow">{sessionUserName}</span>
+                <span className="text-[15px] text-snow">{sessionUserName}</span>
                 <Chip tone={myAttendance?.checkIn ? "success" : "default"}>
                   {myAttendance?.checkIn ? "Present" : "Not clocked in"}
                 </Chip>
@@ -138,7 +138,7 @@ export function AttendanceSection({
                     <select
                       value={workingOn}
                       onChange={(e) => handleWorkingOnChange(e.target.value)}
-                      className="h-9 rounded-lg border border-charcoal bg-surface-well px-3 text-[14px] text-snow outline-none focus:border-smark-orange"
+                      className="h-9 rounded-lg border border-charcoal bg-surface-well px-3 text-[15px] text-snow outline-none focus:border-smark-orange"
                       aria-label="Working on"
                     >
                       <option value="">No project</option>
@@ -191,7 +191,7 @@ export function AttendanceSection({
 
         {showTeamTable && (
           <div>
-            <div className="mb-2.5 text-[14px] font-medium text-snow">Team — {team.length}</div>
+            <div className="mb-2.5 text-[15px] font-medium text-snow">Team — {team.length}</div>
             {team.length === 0 ? (
               <EmptyState tone="subtle" title="No active users" />
             ) : (

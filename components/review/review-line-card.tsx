@@ -142,13 +142,13 @@ export function ReviewLineCard({ projectId, runId, writable, line }: ReviewLineC
   return (
     <Card padding="lg" className={hasProblem ? "border-warn/60" : inCart ? "border-phosphor-green/60" : undefined}>
       {inCart && (
-        <div className="mb-3.5 flex items-center gap-2 rounded-lg border border-phosphor-green bg-phosphor-green/10 px-3.5 py-2.5 text-[14px] text-phosphor-green">
+        <div className="mb-3.5 flex items-center gap-2 rounded-lg border border-phosphor-green bg-phosphor-green/10 px-3.5 py-2.5 text-[15px] text-phosphor-green">
           <span aria-hidden className="flex-none">✓</span>
           <span>Added to cart — ×{formatNumber(line.inCartQty)}.</span>
         </div>
       )}
       {hasProblem && (
-        <div className="mb-3.5 flex flex-col gap-1 rounded-lg border border-warn bg-warn/10 px-3.5 py-2.5 text-[14px] text-warn">
+        <div className="mb-3.5 flex flex-col gap-1 rounded-lg border border-warn bg-warn/10 px-3.5 py-2.5 text-[15px] text-warn">
           {lowStock && selectedRow && (
             <div className="flex items-start gap-2">
               <span aria-hidden className="mt-0.5 flex-none">⚠</span>
@@ -210,10 +210,10 @@ export function ReviewLineCard({ projectId, runId, writable, line }: ReviewLineC
       {line.aiSkipReason ? (
         <div className="flex items-center gap-2.5 rounded-lg border border-smark-orange bg-surface-accent-hover px-3.5 py-3">
           <span className="text-sm text-smark-orange">✓</span>
-          <span className="text-[14px] text-snow">{line.aiSkipReason}</span>
+          <span className="text-[15px] text-snow">{line.aiSkipReason}</span>
         </div>
       ) : line.rows.length === 0 ? (
-        <div className="rounded-lg border border-charcoal bg-surface-well px-3.5 py-3 text-[14px] text-smoke">
+        <div className="rounded-lg border border-charcoal bg-surface-well px-3.5 py-3 text-[15px] text-smoke">
           No listings found across any site in the sequence.
         </div>
       ) : (
@@ -225,7 +225,7 @@ export function ReviewLineCard({ projectId, runId, writable, line }: ReviewLineC
                   {["", "Site", "Price", "Stock", "MPN", "Pkg", "Link"].map((h, i) => (
                     <th
                       key={h || `col-${i}`}
-                      className={`px-2 py-1 text-[11px] tracking-[0.04em] text-graphite uppercase ${i >= 4 ? "text-center" : i === 2 ? "text-right" : "text-left"}`}
+                      className={`px-2 py-1 text-[12px] tracking-[0.04em] text-graphite uppercase ${i >= 4 ? "text-center" : i === 2 ? "text-right" : "text-left"}`}
                     >
                       {h}
                     </th>
@@ -250,7 +250,7 @@ export function ReviewLineCard({ projectId, runId, writable, line }: ReviewLineC
                           className="size-4 cursor-pointer accent-smark-orange"
                         />
                       </td>
-                      <td className="border-t border-border-hairline px-2 py-1.5 font-mono text-[13px] whitespace-nowrap text-snow">
+                      <td className="border-t border-border-hairline px-2 py-1.5 font-mono text-[14px] whitespace-nowrap text-snow">
                         {row.distributorName}
                         {row.isRecommended && (
                           <Chip tone="accent" size="sm" className="ml-1.5">
@@ -258,17 +258,17 @@ export function ReviewLineCard({ projectId, runId, writable, line }: ReviewLineC
                           </Chip>
                         )}
                       </td>
-                      <td className="border-t border-border-hairline px-2 py-1.5 text-right font-mono text-[13px] text-snow">{formatMoney(row.price, row.currency)}</td>
-                      <td className="border-t border-border-hairline px-2 py-1.5 text-[13px] text-smoke">{formatNumber(row.stockQty)}</td>
-                      <td className={`border-t border-border-hairline px-2 py-1.5 text-center text-[14px] ${mpn.className}`}>{mpn.glyph}</td>
-                      <td className={`border-t border-border-hairline px-2 py-1.5 text-center text-[14px] ${pkg.className}`}>{pkg.glyph}</td>
+                      <td className="border-t border-border-hairline px-2 py-1.5 text-right font-mono text-[14px] text-snow">{formatMoney(row.price, row.currency)}</td>
+                      <td className="border-t border-border-hairline px-2 py-1.5 text-[14px] text-smoke">{formatNumber(row.stockQty)}</td>
+                      <td className={`border-t border-border-hairline px-2 py-1.5 text-center text-[15px] ${mpn.className}`}>{mpn.glyph}</td>
+                      <td className={`border-t border-border-hairline px-2 py-1.5 text-center text-[15px] ${pkg.className}`}>{pkg.glyph}</td>
                       <td className="border-t border-border-hairline px-2 py-1.5 text-right">
                         {row.orderLink ? (
-                          <a href={row.orderLink} target="_blank" rel="noreferrer" className="text-[13px] text-smark-orange-hover hover:underline">
+                          <a href={row.orderLink} target="_blank" rel="noreferrer" className="text-[14px] text-smark-orange-hover hover:underline">
                             Open ↗
                           </a>
                         ) : (
-                          <span className="text-[13px] text-graphite">—</span>
+                          <span className="text-[14px] text-graphite">—</span>
                         )}
                       </td>
                     </tr>
@@ -291,14 +291,14 @@ export function ReviewLineCard({ projectId, runId, writable, line }: ReviewLineC
           </div>
 
           {selectedRow && (
-            <div className="mt-2 text-[14px] leading-[1.5] text-silver-mist">
+            <div className="mt-2 text-[15px] leading-[1.5] text-silver-mist">
               <span className="text-smark-orange">AI ·</span> {selectedRow.why}
             </div>
           )}
 
           <div className="mt-4 flex flex-wrap items-end gap-3 border-t border-border-hairline pt-4">
             <div className="flex flex-col gap-1.5">
-              <label className="text-[14px] text-silver-mist">Qty needed</label>
+              <label className="text-[15px] text-silver-mist">Qty needed</label>
               <Input uiSize="sm" mono type="number" inputMode="numeric" value={qty} onChange={(e) => setQty(e.target.value)} disabled={!writable} className="w-24" />
             </div>
             {writable && (

@@ -60,9 +60,9 @@ export function AddEmployeeForm() {
       <CardHeader title="Add employee" />
       <CardBody className="flex flex-col gap-3">
         {error && (
-          <div className="rounded-lg border border-smark-orange-soft bg-smark-orange-soft/10 px-3.5 py-2.5 text-[14px] text-smark-orange-soft">{error}</div>
+          <div className="rounded-lg border border-smark-orange-soft bg-smark-orange-soft/10 px-3.5 py-2.5 text-[15px] text-smark-orange-soft">{error}</div>
         )}
-        <label className="flex flex-col gap-1.5 text-[14px] text-smoke">
+        <label className="flex flex-col gap-1.5 text-[15px] text-smoke">
           Username
           <Input
             value={username}
@@ -72,7 +72,7 @@ export function AddEmployeeForm() {
             autoComplete="off"
           />
         </label>
-        <label className="flex flex-col gap-1.5 text-[14px] text-smoke">
+        <label className="flex flex-col gap-1.5 text-[15px] text-smoke">
           Temporary password
           <Input
             type="text"
@@ -83,7 +83,7 @@ export function AddEmployeeForm() {
             autoComplete="off"
           />
         </label>
-        <label className="flex flex-col gap-1.5 text-[14px] text-smoke">
+        <label className="flex flex-col gap-1.5 text-[15px] text-smoke">
           Display name
           <Input
             value={displayName}
@@ -96,7 +96,7 @@ export function AddEmployeeForm() {
           {(["employee", "accountant"] as const).map((r) => (
             <label
               key={r}
-              className="flex min-h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border border-charcoal px-3 py-2 text-[14px] capitalize text-snow has-[:checked]:border-smark-orange has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50"
+              className="flex min-h-11 flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border border-charcoal px-3 py-2 text-[15px] capitalize text-snow has-[:checked]:border-smark-orange has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50"
             >
               <input
                 type="radio"
@@ -129,7 +129,7 @@ export function AddEmployeeForm() {
             Cancel
           </Button>
         </div>
-        <p className="text-[13px] text-faint">
+        <p className="text-[14px] text-faint">
           Share the username and temporary password with them directly — there&apos;s no invite email.
         </p>
       </CardBody>

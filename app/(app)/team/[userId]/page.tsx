@@ -120,7 +120,7 @@ export default async function TeamMemberPage({
             ) : (
               overtime.map((o) => (
                 <div key={o.id} className="flex items-center justify-between gap-3 rounded-lg border border-charcoal px-3.5 py-2.5">
-                  <div className="min-w-0 text-[14px] text-snow">
+                  <div className="min-w-0 text-[15px] text-snow">
                     {formatDate(o.workDate)} ·{" "}
                     <span className="font-mono">
                       {o.status === "approved" && o.hoursApproved != null ? `${o.hoursApproved}h` : `${o.hoursClaimed}h`}
@@ -144,7 +144,7 @@ export default async function TeamMemberPage({
             ) : (
               leaves.map((l) => (
                 <div key={l.id} className="flex items-center justify-between gap-3 rounded-lg border border-charcoal px-3.5 py-2.5">
-                  <div className="min-w-0 text-[14px] text-snow">
+                  <div className="min-w-0 text-[15px] text-snow">
                     {formatDate(l.startDate)}
                     {l.endDate !== l.startDate ? ` – ${formatDate(l.endDate)}` : ""} ·{" "}
                     <span className="text-smoke">{l.reason}</span>
@@ -174,7 +174,7 @@ export default async function TeamMemberPage({
                 href={`/projects/${t.projectId}`}
                 className="flex items-center justify-between gap-3 rounded-lg border border-charcoal px-3.5 py-2.5 transition-colors hover:bg-surface-hover"
               >
-                <span className="min-w-0 truncate text-[14px] text-snow">{t.title}</span>
+                <span className="min-w-0 truncate text-[15px] text-snow">{t.title}</span>
                 <Chip tone={TASK_TONE[t.status] ?? "neutral"} size="sm">
                   {t.status.replace(/_/g, " ")}
                 </Chip>

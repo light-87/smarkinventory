@@ -68,7 +68,7 @@ export function OwnerCorrectionDrawer({
     <Drawer open={open} onClose={onClose} width={380} aria-label="Correct attendance">
       <DrawerHeader>
         <div>
-          <div className="text-[16px] text-snow">{targetUserName}</div>
+          <div className="text-[17px] text-snow">{targetUserName}</div>
           <div className="text-caption text-smoke">{formatDate(workDate)}</div>
         </div>
         <DrawerCloseButton onClick={onClose} />

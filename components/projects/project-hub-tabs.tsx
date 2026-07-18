@@ -39,7 +39,7 @@ export function ProjectHubTabs({ projectId, showManage = false }: ProjectHubTabs
             role="tab"
             aria-selected={active}
             className={cn(
-              "flex flex-none items-center gap-1.5 border-b-2 px-3.5 py-2.5 text-[14px] whitespace-nowrap transition-colors",
+              "flex flex-none items-center gap-1.5 border-b-2 px-3.5 py-2.5 text-[15px] whitespace-nowrap transition-colors",
               active ? "border-smark-orange text-snow" : "border-transparent text-smoke hover:text-snow",
             )}
           >

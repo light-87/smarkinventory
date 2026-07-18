@@ -26,7 +26,7 @@ export default async function TeamPage() {
     <div className="mx-auto flex max-w-[1000px] flex-col gap-4 px-4 pt-6 pb-24 sm:px-6 sm:pt-7">
       <div>
         <h1 className="text-heading-sm font-normal text-snow">Employees</h1>
-        <p className="text-[14px] text-smoke">Click a person to see their attendance, comp-off, leaves and tasks.</p>
+        <p className="text-[15px] text-smoke">Click a person to see their attendance, comp-off, leaves and tasks.</p>
       </div>
 
       {employees.length === 0 ? (
@@ -39,7 +39,7 @@ export default async function TeamPage() {
               href={`/team/${e.id}`}
               className="flex flex-col gap-1 rounded-2xl border border-charcoal border-l-4 border-l-nav-team bg-surface px-5 py-4 transition-colors hover:bg-surface-hover"
             >
-              <span className="text-[16px] font-medium text-snow">{e.display_name ?? e.username}</span>
+              <span className="text-[17px] font-medium text-snow">{e.display_name ?? e.username}</span>
               <span className="text-caption text-smoke">@{e.username}</span>
             </Link>
           ))}

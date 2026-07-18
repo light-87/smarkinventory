@@ -14,7 +14,7 @@ const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
 function BarRow({ label, count, max }: { label: string; count: number; max: number }) {
   return (
     <div>
-      <div className="mb-1.5 flex items-baseline justify-between gap-2 text-[13px]">
+      <div className="mb-1.5 flex items-baseline justify-between gap-2 text-[14px]">
         <span className="truncate text-silver-mist">{label}</span>
         <span className="flex-none font-mono text-smoke">{count}</span>
       </div>

@@ -82,7 +82,7 @@ export function TopUpForm({ presetPid }: TopUpFormProps) {
 
   return (
     <Card padding="lg">
-      <div className="mb-4 text-[14px] text-smoke">
+      <div className="mb-4 text-[15px] text-smoke">
         Already in the system — scan its ESD label and add the new quantity. Its QR stays, no reprint.
       </div>
 
@@ -115,7 +115,7 @@ export function TopUpForm({ presetPid }: TopUpFormProps) {
 
       <CameraScanner open={cameraOpen} onClose={() => setCameraOpen(false)} onDetect={handleCameraDetect} title="Scan a PID" />
 
-      {notFound && <div className="mt-3 text-[14px] text-smark-orange-soft">No part found for &ldquo;{code}&rdquo;.</div>}
+      {notFound && <div className="mt-3 text-[15px] text-smark-orange-soft">No part found for &ldquo;{code}&rdquo;.</div>}
 
       {found && (
         <div className="mt-4 rounded-xl border border-charcoal p-4">
@@ -123,18 +123,18 @@ export function TopUpForm({ presetPid }: TopUpFormProps) {
             <div>
               <div className="font-mono text-lg text-snow">{found.internalPid}</div>
               {found.mpn && <div className="mt-0.5 font-mono text-xs text-silver-mist">{found.mpn}</div>}
-              <div className="mt-1 text-[14px] text-smoke">
+              <div className="mt-1 text-[15px] text-smoke">
                 {[found.value, found.package].filter(Boolean).join(" · ")}
                 {found.boxName && ` · Box ${found.boxName}${found.shelfCode ? ` · Shelf ${found.shelfCode}` : ""}`}
               </div>
             </div>
             <div className="text-right">
               <div className="font-mono text-2xl text-snow">{found.currentQty.toLocaleString("en-IN")}</div>
-              <div className="text-[12px] text-smoke">in stock now</div>
+              <div className="text-[13px] text-smoke">in stock now</div>
             </div>
           </div>
           <div className="mt-4 flex flex-wrap items-center gap-3">
-            <span className="text-[14px] text-smoke">Add quantity</span>
+            <span className="text-[15px] text-smoke">Add quantity</span>
             <Input
               value={qty}
               onChange={(e) => setQty(e.target.value)}

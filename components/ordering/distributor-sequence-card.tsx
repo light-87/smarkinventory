@@ -62,7 +62,7 @@ export function DistributorSequenceCard({ bomId, initialSequence, writable }: Di
 
   return (
     <Card padding="lg">
-      <div className="mb-1 text-[16px] font-medium text-snow">Distributor sequence</div>
+      <div className="mb-1 text-[17px] font-medium text-snow">Distributor sequence</div>
       <div className="mb-4 text-caption text-smoke">
         Check the sites to use — agents try them top to bottom · single per BOM
       </div>

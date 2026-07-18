@@ -80,7 +80,7 @@ export function HolidayAdminCard({ holidays }: HolidayAdminCardProps) {
       <CardHeader title="Holidays" />
       <div className="flex flex-col gap-5 px-5 py-[18px]">
         <div>
-          <div className="mb-2 text-[14px] font-medium text-snow">Weekly off</div>
+          <div className="mb-2 text-[15px] font-medium text-snow">Weekly off</div>
           <div className="flex flex-wrap gap-2">
             {WEEKDAY_NAMES.map((label, weekday) => (
               <button
@@ -88,7 +88,7 @@ export function HolidayAdminCard({ holidays }: HolidayAdminCardProps) {
                 type="button"
                 disabled={pending}
                 onClick={() => toggleWeekday(weekday)}
-                className={`h-9 min-w-11 cursor-pointer rounded-full border px-3 text-[14px] transition-colors disabled:opacity-50 ${
+                className={`h-9 min-w-11 cursor-pointer rounded-full border px-3 text-[15px] transition-colors disabled:opacity-50 ${
                   weeklyOffDays.has(weekday)
                     ? "border-smark-orange bg-surface-accent text-smark-orange"
                     : "border-charcoal text-smoke hover:bg-ash hover:text-snow"
@@ -101,7 +101,7 @@ export function HolidayAdminCard({ holidays }: HolidayAdminCardProps) {
         </div>
 
         <div className="border-t border-border-faint pt-4">
-          <div className="mb-2 text-[14px] font-medium text-snow">Add a specific date</div>
+          <div className="mb-2 text-[15px] font-medium text-snow">Add a specific date</div>
           <div className="flex flex-wrap items-end gap-3">
             <Field label="Date">
               <Input type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)} />
@@ -116,7 +116,7 @@ export function HolidayAdminCard({ holidays }: HolidayAdminCardProps) {
         </div>
 
         <div className="border-t border-border-faint pt-4">
-          <div className="mb-2 text-[14px] font-medium text-snow">Upcoming / all specific dates</div>
+          <div className="mb-2 text-[15px] font-medium text-snow">Upcoming / all specific dates</div>
           {specific.length === 0 ? (
             <EmptyState tone="subtle" title="No specific holidays yet" />
           ) : (
@@ -127,7 +127,7 @@ export function HolidayAdminCard({ holidays }: HolidayAdminCardProps) {
                     <Chip tone="neutral" mono>
                       {h.holidayDate ? formatDate(h.holidayDate) : "—"}
                     </Chip>
-                    <span className="text-[14px] text-snow">{h.name}</span>
+                    <span className="text-[15px] text-snow">{h.name}</span>
                   </div>
                   <Button size="sm" variant="ghost" onClick={() => remove(h.id)} loading={pending}>
                     Remove

@@ -34,7 +34,7 @@ export function ReviewView({ projectId, data, writable }: ReviewViewProps) {
       <ReviewAutoRefresh />
       {newerRunId && (
         <Card padding="lg" className="border-smark-orange/50 bg-surface-accent">
-          <div className="flex flex-wrap items-center gap-2.5 text-[14px] text-snow">
+          <div className="flex flex-wrap items-center gap-2.5 text-[15px] text-snow">
             <Chip tone="accent">newer run</Chip>
             <span>A more recent run exists for this BOM — you may be viewing an old one.</span>
             <Link href={`/projects/${projectId}/runs/${newerRunId}/review`} className="text-smark-orange hover:underline">
@@ -64,20 +64,20 @@ export function ReviewView({ projectId, data, writable }: ReviewViewProps) {
         <Card padding="lg" className="border-smark-orange/50">
           <div className="flex items-center gap-2.5">
             <Chip tone="warn">stale</Chip>
-            <span className="text-[14px] text-snow">Build quantity changed since this run — consider re-running the whole order.</span>
+            <span className="text-[15px] text-snow">Build quantity changed since this run — consider re-running the whole order.</span>
           </div>
         </Card>
       )}
 
       {data.inStockLanes.length > 0 && (
         <Card padding="lg">
-          <div className="mb-3 text-[16px] font-medium text-snow">Already in stock — skipped</div>
+          <div className="mb-3 text-[17px] font-medium text-snow">Already in stock — skipped</div>
           <div className="flex flex-col gap-2">
             {data.inStockLanes.map((lane) => (
               <div key={lane.bomLineId} className="flex items-center gap-3 rounded-full border border-charcoal bg-surface px-3.5 py-2">
                 {lane.lineNo != null && <span className="w-6 flex-none font-mono text-caption text-graphite">#{lane.lineNo}</span>}
-                <span className="w-20 flex-none font-mono text-[14px] text-snow">{lane.ref}</span>
-                <span className="flex-1 truncate text-[14px] text-smoke">{lane.value}</span>
+                <span className="w-20 flex-none font-mono text-[15px] text-snow">{lane.ref}</span>
+                <span className="flex-1 truncate text-[15px] text-smoke">{lane.value}</span>
                 <span className="flex-none text-caption text-phosphor-green">✓ {lane.flag}</span>
               </div>
             ))}
@@ -106,7 +106,7 @@ export function ReviewView({ projectId, data, writable }: ReviewViewProps) {
 
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-charcoal bg-surface/95 backdrop-blur">
         <div className="mx-auto flex w-full max-w-4xl flex-wrap items-center justify-between gap-3 px-4 py-3.5 sm:px-6">
-          <div className="text-[14px] text-snow">
+          <div className="text-[15px] text-snow">
             Added to cart: <span className="font-mono">{formatNumber(data.cartAddedCount)}</span> item{data.cartAddedCount === 1 ? "" : "s"} ·{" "}
             <Link href="/cart" className="text-smark-orange hover:underline">
               Go to cart →

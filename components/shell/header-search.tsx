@@ -134,21 +134,21 @@ export function HeaderCameraScan() {
             className="fixed inset-x-4 top-[10vh] z-[71] mx-auto max-w-[480px] overflow-hidden rounded-2xl border border-charcoal bg-surface-raised shadow-2xl"
           >
             <div className="flex items-center justify-between gap-3 border-b border-charcoal px-4 py-3">
-              <span className="min-w-0 flex-1 truncate text-[14px] text-smoke">
+              <span className="min-w-0 flex-1 truncate text-[15px] text-smoke">
                 Results for <span className="font-mono text-snow">{query}</span>
               </span>
               <button
                 type="button"
                 aria-label="Close results"
                 onClick={closeResults}
-                className="flex-none text-[12px] text-faint hover:text-smoke"
+                className="flex-none text-[13px] text-faint hover:text-smoke"
               >
                 Close
               </button>
             </div>
             <div className="max-h-[60vh] overflow-y-auto p-2">
               {isEmptyPaletteResults(results) ? (
-                <p className="px-3 py-6 text-center text-[14px] text-smoke">No matches for &ldquo;{query}&rdquo;</p>
+                <p className="px-3 py-6 text-center text-[15px] text-smoke">No matches for &ldquo;{query}&rdquo;</p>
               ) : (
                 rows.map((row) => (
                   <button
@@ -164,8 +164,8 @@ export function HeaderCameraScan() {
                       {row.type}
                     </Chip>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[14px] text-snow">{row.label}</span>
-                      {row.meta && <span className="block truncate text-[13px] text-smoke">{row.meta}</span>}
+                      <span className="block truncate text-[15px] text-snow">{row.label}</span>
+                      {row.meta && <span className="block truncate text-[14px] text-smoke">{row.meta}</span>}
                     </span>
                   </button>
                 ))

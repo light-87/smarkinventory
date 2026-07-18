@@ -71,7 +71,7 @@ export function AdjustQtyDialog({ open, onClose, part, locations, onAdjusted }: 
         className="relative w-full max-w-sm rounded-2xl border border-charcoal bg-surface p-5"
       >
         <div className="mb-4 flex items-center justify-between gap-3">
-          <span className="text-[16px] font-medium text-snow">
+          <span className="text-[17px] font-medium text-snow">
             Adjust qty · <span className="font-mono">{part.internal_pid}</span>
           </span>
           <DrawerCloseButton onClick={onClose} />

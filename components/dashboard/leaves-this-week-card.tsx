@@ -20,7 +20,7 @@ export interface LeavesThisWeekCardProps {
 export function LeavesThisWeekCard({ leaves, error, nameById }: LeavesThisWeekCardProps) {
   return (
     <Card>
-      <div className="mb-4 text-[16px] font-medium text-snow">Leaves this week</div>
+      <div className="mb-4 text-[17px] font-medium text-snow">Leaves this week</div>
       {error || !leaves ? (
         <div className="text-body-sm text-smoke">{error ?? "Leave data unavailable."}</div>
       ) : leaves.length === 0 ? (
@@ -28,7 +28,7 @@ export function LeavesThisWeekCard({ leaves, error, nameById }: LeavesThisWeekCa
       ) : (
         <ul className="flex flex-col gap-2.5">
           {leaves.map((leave) => (
-            <li key={leave.id} className="flex flex-wrap items-center justify-between gap-2 text-[14px]">
+            <li key={leave.id} className="flex flex-wrap items-center justify-between gap-2 text-[15px]">
               <span className="text-snow">{nameById.get(leave.userId) ?? "Unknown"}</span>
               <span className="flex items-center gap-2 text-smoke">
                 {formatDate(leave.startDate)} – {formatDate(leave.endDate)}

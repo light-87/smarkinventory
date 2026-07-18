@@ -77,9 +77,9 @@ export function ReceiveScreen({
                   onClick={() => setActive(card.id)}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <div className="text-[16px] text-snow">{card.title}</div>
+                    <div className="text-[17px] text-snow">{card.title}</div>
                     {badge !== null && (
-                      <span className="flex-none rounded-full bg-smark-orange px-2 py-0.5 font-mono text-[12px] text-white">
+                      <span className="flex-none rounded-full bg-smark-orange px-2 py-0.5 font-mono text-[13px] text-white">
                         {badge}
                       </span>
                     )}

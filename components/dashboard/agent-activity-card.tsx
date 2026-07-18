@@ -40,7 +40,7 @@ export function AgentActivityCard({
 }) {
   return (
     <Card>
-      <div className="mb-4 text-[16px] font-medium text-snow">Agent activity</div>
+      <div className="mb-4 text-[17px] font-medium text-snow">Agent activity</div>
       {error || !initialRuns ? (
         <div className="text-body-sm text-smoke">{error ?? "Agent activity unavailable."}</div>
       ) : (
@@ -109,10 +109,10 @@ function ActiveRunRow({ run }: { run: AgentRunFeedRow }) {
       className="border border-smark-orange bg-surface-accent p-3.5 transition-colors hover:bg-surface-accent-hover"
     >
       <div className="mb-1 flex items-baseline justify-between gap-2">
-        <span className="truncate font-mono text-[14px] text-snow">{run.bomName}</span>
+        <span className="truncate font-mono text-[15px] text-snow">{run.bomName}</span>
         <Chip tone={runStatusTone(run.status)}>{runStatusLabel(run.status)}</Chip>
       </div>
-      <div className="mb-2.5 truncate text-[13px] text-smoke">
+      <div className="mb-2.5 truncate text-[14px] text-smoke">
         {run.projectName} · {formatLaneProgress(run.laneProgress)} · {run.cost.text}
         {run.cost.isEstimate ? " est." : ""}
       </div>
@@ -125,7 +125,7 @@ function ActiveRunRow({ run }: { run: AgentRunFeedRow }) {
           style={pct !== null ? { width: `${pct}%` } : undefined}
         />
       </div>
-      <div className="flex items-center justify-between text-[12px] text-faint">
+      <div className="flex items-center justify-between text-[13px] text-faint">
         <span className="truncate">{run.startedByName ?? "—"}</span>
         {/* `formatElapsed`'s default `reference: Date = new Date()` is evaluated once at SSR time and again at hydration — a real gap under any latency (and this suite's own shared-`next dev`-process contention docs elsewhere confirm it's not always sub-second). The text is meant to read "as of right now" and this row already re-renders every poll tick (use-agent-runs-feed.ts) with a fresh client clock, so freezing it to the server's instant isn't right either — suppress rather than fight the intentionally-live value. */}
         <span className="flex-none" suppressHydrationWarning>
@@ -143,14 +143,14 @@ function RecentRunRow({ run }: { run: AgentRunFeedRow }) {
       className="border border-charcoal p-3.5 transition-colors hover:border-graphite hover:bg-surface-hover"
     >
       <div className="mb-1 flex items-baseline justify-between gap-2">
-        <span className="truncate font-mono text-[14px] text-snow">{run.bomName}</span>
+        <span className="truncate font-mono text-[15px] text-snow">{run.bomName}</span>
         <Chip tone={runStatusTone(run.status)}>{runStatusLabel(run.status)}</Chip>
       </div>
-      <div className="truncate text-[13px] text-smoke">
+      <div className="truncate text-[14px] text-smoke">
         {run.projectName} · {formatLaneProgress(run.laneProgress)} · {run.cost.text}
         {run.cost.isEstimate ? " est." : ""}
       </div>
-      <div className="mt-1.5 flex items-center justify-between text-[12px] text-faint">
+      <div className="mt-1.5 flex items-center justify-between text-[13px] text-faint">
         <span className="truncate">{run.startedByName ?? "—"}</span>
         {/* Same intentionally-live "as of right now" value as ActiveRunRow's formatElapsed above — see that comment. */}
         <span className="flex-none" suppressHydrationWarning>

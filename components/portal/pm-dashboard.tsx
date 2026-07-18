@@ -49,7 +49,7 @@ export function PmDashboard({ token, progress, tasks }: PmDashboardProps) {
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <span className="text-body-sm text-silver-mist">Tasks complete</span>
-          <span className="font-mono text-[16px] text-snow">{progress}%</span>
+          <span className="font-mono text-[17px] text-snow">{progress}%</span>
         </div>
         <div
           className="h-2 w-full overflow-hidden rounded-full bg-surface-well"
@@ -72,7 +72,7 @@ export function PmDashboard({ token, progress, tasks }: PmDashboardProps) {
             className={`flex flex-col gap-2 rounded-xl border border-l-[3px] border-charcoal bg-surface-panel px-4 py-3 ${TASK_STATUS_ACCENT[task.status]}`}
           >
             <div className="flex flex-wrap items-start justify-between gap-2">
-              <span className="min-w-0 flex-1 text-[14px] font-medium break-words text-snow">{task.title}</span>
+              <span className="min-w-0 flex-1 text-[15px] font-medium break-words text-snow">{task.title}</span>
               <Chip tone={TASK_STATUS_TONE[task.status]} size="sm">
                 {STATUS_LABEL[task.status]}
               </Chip>

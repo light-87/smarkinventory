@@ -4,7 +4,7 @@ import { cn } from "@/lib/cn";
 export type InputSize = "sm" | "md" | "lg";
 
 const SIZE_CLASSES: Record<InputSize, string> = {
-  sm: "h-[34px] px-3 text-[14px]",
+  sm: "h-[34px] px-3 text-[15px]",
   md: "h-10 px-3.5 text-sm",
   lg: "h-11 px-3.5 text-sm",
 };
@@ -46,7 +46,7 @@ export function Input({
         "disabled:cursor-not-allowed disabled:opacity-50",
         invalid ? "border-smark-orange-soft" : "border-charcoal",
         SIZE_CLASSES[uiSize],
-        mono && "font-mono text-[14px]",
+        mono && "font-mono text-[15px]",
         leading && "pl-9",
         className,
       )}
@@ -90,7 +90,7 @@ export function Field({
   return (
     <div className={cn("flex flex-col gap-1.5", className)}>
       {label != null && (
-        <label htmlFor={htmlFor} className="text-[14px] text-silver-mist">
+        <label htmlFor={htmlFor} className="text-[15px] text-silver-mist">
           {label}
         </label>
       )}

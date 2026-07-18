@@ -101,10 +101,10 @@ export function PmGuide() {
         onClick={toggle}
         className="flex w-full cursor-pointer items-center gap-2 px-4 py-3 text-left"
       >
-        <span aria-hidden className={cn("text-[11px] text-faint transition-transform", open ? "rotate-90" : "rotate-0")}>
+        <span aria-hidden className={cn("text-[12px] text-faint transition-transform", open ? "rotate-90" : "rotate-0")}>
           ▶
         </span>
-        <span className="text-[14px] font-medium text-snow">How Project Management works</span>
+        <span className="text-[15px] font-medium text-snow">How Project Management works</span>
         <span className="ml-auto text-caption text-faint">{open ? "Hide" : "Show"}</span>
       </button>
 
@@ -117,7 +117,7 @@ export function PmGuide() {
                   {i + 1}
                 </span>
                 <div className="min-w-0">
-                  <div className="text-[14px] text-snow">{step.title}</div>
+                  <div className="text-[15px] text-snow">{step.title}</div>
                   <p className="mt-0.5 text-caption text-faint">{step.body}</p>
                   <p className="mt-1 text-caption text-smoke">
                     <span className="text-smark-orange">What happens: </span>
@@ -129,7 +129,7 @@ export function PmGuide() {
           </ol>
 
           <div className="mt-5 border-t border-border-divider pt-4">
-            <div className="mb-2 text-[14px] font-medium text-snow">Common “what if…” questions</div>
+            <div className="mb-2 text-[15px] font-medium text-snow">Common “what if…” questions</div>
             <ul className="flex flex-col gap-2.5 sm:grid sm:grid-cols-2 sm:gap-x-6 sm:gap-y-2.5">
               {SCENARIOS.map((s) => (
                 <li key={s.q} className="min-w-0">

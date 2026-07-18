@@ -30,7 +30,7 @@ export default async function BomDetailPage({ params }: BomDetailPageProps) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-2 text-[14px] text-smoke">
+      <div className="flex items-center gap-2 text-[15px] text-smoke">
         <Link href={`/projects/${projectId}/boms`} className="transition-colors hover:text-snow">
           ← All BOMs
         </Link>

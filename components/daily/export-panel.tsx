@@ -18,7 +18,7 @@ export function ExportPanel({ defaultDate, personParam }: ExportPanelProps) {
       <CardHeader title="Export" />
       <form method="get" action="/daily/export" className="flex flex-wrap items-end gap-3 px-5 py-[18px]">
         <input type="hidden" name="person" value={personParam} />
-        <label className="flex flex-col gap-1.5 text-[14px] text-silver-mist">
+        <label className="flex flex-col gap-1.5 text-[15px] text-silver-mist">
           From
           <input
             type="date"
@@ -27,7 +27,7 @@ export function ExportPanel({ defaultDate, personParam }: ExportPanelProps) {
             className="h-10 rounded-lg border border-charcoal bg-surface-well px-3.5 text-sm text-snow outline-none focus:border-smark-orange"
           />
         </label>
-        <label className="flex flex-col gap-1.5 text-[14px] text-silver-mist">
+        <label className="flex flex-col gap-1.5 text-[15px] text-silver-mist">
           To
           <input
             type="date"
@@ -36,7 +36,7 @@ export function ExportPanel({ defaultDate, personParam }: ExportPanelProps) {
             className="h-10 rounded-lg border border-charcoal bg-surface-well px-3.5 text-sm text-snow outline-none focus:border-smark-orange"
           />
         </label>
-        <label className="flex flex-col gap-1.5 text-[14px] text-silver-mist">
+        <label className="flex flex-col gap-1.5 text-[15px] text-silver-mist">
           Format
           <select
             name="format"

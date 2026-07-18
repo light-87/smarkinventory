@@ -145,7 +145,7 @@ export function BulkTakeoutScreen({ pickableProjects, canWrite }: BulkTakeoutScr
           <UploadPasteCard onResolved={handleLoaded} onError={setLoadError} loading={loading} onLoadingChange={setManualLoading} />
           <ProjectBomCard projects={pickableProjects} onPick={handleLoadProjectBom} loading={loading} />
         </div>
-        {loadError && <div className="text-[14px] text-smark-orange-soft">{loadError}</div>}
+        {loadError && <div className="text-[15px] text-smark-orange-soft">{loadError}</div>}
       </div>
     );
   }
@@ -154,7 +154,7 @@ export function BulkTakeoutScreen({ pickableProjects, canWrite }: BulkTakeoutScr
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <div className="text-[16px] text-snow">{session.sourceLabel}</div>
+          <div className="text-[17px] text-snow">{session.sourceLabel}</div>
           <div className="mt-0.5 text-caption text-smoke">{lines.length} pickable line{lines.length === 1 ? "" : "s"}</div>
         </div>
         <Button variant="ghost" size="sm" onClick={handleReset}>

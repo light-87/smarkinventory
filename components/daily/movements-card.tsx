@@ -29,7 +29,7 @@ export function MovementsCard({ rows, error, nameById }: MovementsCardProps) {
             {groupMovementsByActor(rows, nameById).map((group) => (
               <div key={group.actorId} className="border-b border-border-faint px-5 py-3 last:border-b-0">
                 <div className="mb-2 flex items-center gap-2">
-                  <span className="text-[14px] font-medium text-snow">{group.actorName}</span>
+                  <span className="text-[15px] font-medium text-snow">{group.actorName}</span>
                   <Chip tone="default" size="sm">
                     {group.rows.length}
                   </Chip>
@@ -37,7 +37,7 @@ export function MovementsCard({ rows, error, nameById }: MovementsCardProps) {
                 <div className="flex flex-col gap-1.5">
                   {group.rows.map((row) => (
                     <div key={row.id} className="flex items-baseline gap-2.5 text-body-sm text-silver-mist">
-                      <span className="w-11 flex-none font-mono text-[13px] text-smoke">{formatTime(row.occurredAt)}</span>
+                      <span className="w-11 flex-none font-mono text-[14px] text-smoke">{formatTime(row.occurredAt)}</span>
                       <span className="min-w-0">{formatMovementLine(row)}</span>
                     </div>
                   ))}

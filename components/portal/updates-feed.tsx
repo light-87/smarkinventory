@@ -32,7 +32,7 @@ export function UpdatesFeed({ activities }: { activities: PortalActivity[] }) {
                 {activity.from_portal ? "You" : TYPE_LABEL[activity.type]}
               </Chip>
               {activity.title && (
-                <span className="text-[14px] font-medium text-snow">{activity.title}</span>
+                <span className="text-[15px] font-medium text-snow">{activity.title}</span>
               )}
             </div>
             <span className="flex-none text-caption text-smoke">{formatRelativeTime(activity.created_at)}</span>

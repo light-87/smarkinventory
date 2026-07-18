@@ -337,7 +337,7 @@ export function CameraScanner({
         className="absolute inset-x-0 top-0 z-[3] flex items-center justify-between gap-2 bg-gradient-to-b from-black/60 to-transparent px-3.5 pb-2.5"
         style={{ paddingTop: "calc(14px + env(safe-area-inset-top))" }}
       >
-        <div className="truncate text-[16px] font-medium text-white">{title ?? "Scan a code"}</div>
+        <div className="truncate text-[17px] font-medium text-white">{title ?? "Scan a code"}</div>
         <div className="flex flex-none gap-2">
           {hasTorch && (
             <button
@@ -386,7 +386,7 @@ export function CameraScanner({
       {errKind && (
         <div className="absolute inset-0 z-[2] flex flex-col items-center justify-center px-7 text-center">
           <CameraIcon className="mb-3.5 size-12 text-white/60" />
-          <div className="max-w-[300px] text-[16px] leading-relaxed font-medium text-white">{errMsg}</div>
+          <div className="max-w-[300px] text-[17px] leading-relaxed font-medium text-white">{errMsg}</div>
         </div>
       )}
 
@@ -406,7 +406,7 @@ export function CameraScanner({
               onKeyDown={(e) => e.key === "Enter" && submitManual()}
               placeholder="Type the code…"
               aria-label="Manual code entry"
-              className="flex-1 border-white/25 bg-white/12 text-[16px] text-white placeholder:text-white/50 focus:border-smark-orange"
+              className="flex-1 border-white/25 bg-white/12 text-[17px] text-white placeholder:text-white/50 focus:border-smark-orange"
             />
             <Button size="lg" onClick={submitManual}>
               Use

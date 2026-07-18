@@ -18,7 +18,7 @@ export interface BirthdaysThisWeekCardProps {
 export function BirthdaysThisWeekCard({ birthdays, error }: BirthdaysThisWeekCardProps) {
   return (
     <Card>
-      <div className="mb-4 text-[16px] font-medium text-snow">Birthdays this week</div>
+      <div className="mb-4 text-[17px] font-medium text-snow">Birthdays this week</div>
       {error || !birthdays ? (
         <div className="text-body-sm text-smoke">{error ?? "Birthday data unavailable."}</div>
       ) : birthdays.length === 0 ? (
@@ -26,7 +26,7 @@ export function BirthdaysThisWeekCard({ birthdays, error }: BirthdaysThisWeekCar
       ) : (
         <ul className="flex flex-col gap-2.5">
           {birthdays.map((b) => (
-            <li key={b.id} className="flex items-center justify-between gap-2 text-[14px]">
+            <li key={b.id} className="flex items-center justify-between gap-2 text-[15px]">
               <span className="text-snow">{b.displayName ?? b.username}</span>
               <span className="font-mono text-smoke">{formatMonthDay(b.birthDate)}</span>
             </li>

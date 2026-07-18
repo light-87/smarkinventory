@@ -233,7 +233,7 @@ export default async function AttendancePage({
         <input type="hidden" name="month" value={month} />
         <input type="hidden" name="day" value={selectedDay} />
         <input type="hidden" name="view" value={view} />
-        <label className="text-[14px] text-smoke" htmlFor="attendance-user-select">
+        <label className="text-[15px] text-smoke" htmlFor="attendance-user-select">
           Viewing calendar for
         </label>
         <NativeSelect
@@ -254,7 +254,7 @@ export default async function AttendancePage({
     <div className="mx-auto flex max-w-[1180px] flex-col gap-4 px-4 pt-6 pb-24 sm:px-6 sm:pt-7">
       <div className="mb-1">
         <h1 className="text-heading-sm font-normal text-snow">Attendance</h1>
-        <p className="text-[14px] text-smoke">Presence, holidays, leave and comp-work — nothing here is ever stored as &quot;absent&quot;.</p>
+        <p className="text-[15px] text-smoke">Presence, holidays, leave and comp-work — nothing here is ever stored as &quot;absent&quot;.</p>
       </div>
 
       <MarkPresentCard

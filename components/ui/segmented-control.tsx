@@ -56,7 +56,7 @@ export function SegmentedControl<T extends string>({
               "cursor-pointer rounded-full border border-transparent transition-colors select-none",
               "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-smark-orange",
               "disabled:pointer-events-none disabled:opacity-40",
-              size === "sm" ? "h-[30px] px-3.5 text-xs" : "h-9 px-4 text-[14px]",
+              size === "sm" ? "h-[30px] px-3.5 text-xs" : "h-9 px-4 text-[15px]",
               variant === "neutral" &&
                 (active
                   ? "border-slate bg-ash text-snow"

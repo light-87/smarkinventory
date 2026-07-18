@@ -38,7 +38,7 @@ export function DocumentsList({ documents }: { documents: PortalDocument[] }) {
             download={doc.display_name}
             className="flex items-center justify-between gap-3 rounded-xl border border-charcoal bg-surface-panel px-4 py-3 transition-colors hover:border-graphite hover:bg-surface-hover"
           >
-            <span className="truncate text-[14px] text-snow">{doc.display_name}</span>
+            <span className="truncate text-[15px] text-snow">{doc.display_name}</span>
             <span className="flex-none text-caption text-smoke">{formatBytes(doc.size_bytes)}</span>
           </a>
         </li>

@@ -60,7 +60,7 @@ export function HoursBreakdownChart({ buckets, groupBy, baseParams }: HoursBreak
           <div className="flex flex-col gap-3">
             {buckets.map((bucket) => (
               <div key={bucket.key}>
-                <div className="mb-1.5 flex items-baseline justify-between gap-2 text-[13px]">
+                <div className="mb-1.5 flex items-baseline justify-between gap-2 text-[14px]">
                   <span className="truncate text-silver-mist">{bucket.label}</span>
                   <span className="flex-none font-mono text-smoke">{formatNumber(bucket.hours, { decimals: 1 })}h</span>
                 </div>

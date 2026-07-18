@@ -111,7 +111,7 @@ export function ReceiptExtractDialog({ open, onClose, orderId, poNumber, extract
     <Drawer open={open} onClose={onClose} width={520} aria-label="Confirm extracted receipt prices">
       <DrawerHeader>
         <div>
-          <div className="text-[16px] text-snow">Confirm extracted prices</div>
+          <div className="text-[17px] text-snow">Confirm extracted prices</div>
           <div className="text-caption text-smoke">PO {poNumber} — nothing is saved until you confirm.</div>
         </div>
         <DrawerCloseButton onClick={onClose} />
@@ -124,7 +124,7 @@ export function ReceiptExtractDialog({ open, onClose, orderId, poNumber, extract
             return (
               <div key={index} className="rounded-xl border border-charcoal p-3">
                 <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0 text-[14px]">
+                  <div className="min-w-0 text-[15px]">
                     <div className="truncate text-snow">{mapping.desc}</div>
                     <div className="text-caption text-smoke">
                       extracted ×{mapping.qty.toLocaleString("en-IN")} @ {formatINR(mapping.unitPrice)}

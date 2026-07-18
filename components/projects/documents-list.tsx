@@ -60,12 +60,12 @@ export function DocumentsList({ projectId, documents, currentUserId, isOwner }: 
           return (
             <li key={doc.id} className="flex items-center justify-between gap-3 px-5 py-3">
               <div className="min-w-0">
-                <div className="truncate text-[14px] text-snow">{doc.display_name}</div>
+                <div className="truncate text-[15px] text-snow">{doc.display_name}</div>
                 <div className="mt-0.5 text-caption text-smoke">
                   {formatBytes(doc.size_bytes)} · {formatDate(doc.created_at)}
                 </div>
               </div>
-              <div className="flex flex-none items-center gap-3 text-[14px]">
+              <div className="flex flex-none items-center gap-3 text-[15px]">
                 <a href={doc.file_url} target="_blank" rel="noreferrer" className="text-smark-orange hover:underline">
                   Download
                 </a>

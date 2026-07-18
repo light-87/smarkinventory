@@ -81,7 +81,7 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
         <h1 className="text-heading-sm font-normal text-snow">Projects</h1>
         <Link
           href={showArchived ? "/projects" : "/projects?archived=1"}
-          className="text-[14px] text-smoke transition-colors hover:text-snow"
+          className="text-[15px] text-smoke transition-colors hover:text-snow"
         >
           {showArchived ? "← Active projects" : `Archived${archivedCount > 0 ? ` (${archivedCount})` : ""} →`}
         </Link>

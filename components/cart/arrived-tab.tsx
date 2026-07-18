@@ -8,7 +8,7 @@ function ArrivedLineRow({ line }: { line: OrderGroupView["lines"][number] }) {
   const putAway = line.arrivedAt !== null;
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-charcoal px-3 py-2">
-      <div className="min-w-0 text-[14px]">
+      <div className="min-w-0 text-[15px]">
         {line.internalPid && <span className="font-mono text-snow">{line.internalPid} </span>}
         <span className="text-silver-mist">{line.mpn ?? line.value ?? "—"}</span>
         <span className="ml-1.5 font-mono text-smoke">×{line.qtyOrdered.toLocaleString("en-IN")}</span>
@@ -35,7 +35,7 @@ export function ArrivedTab({ groups, canWrite }: { groups: readonly OrderGroupVi
       {pendingPutAway && (
         <Link
           href="/receive?card=put-away"
-          className="rounded-xl border border-smark-orange bg-surface-accent px-4 py-3 text-[14px] text-snow no-underline transition-colors hover:bg-surface-accent-hover"
+          className="rounded-xl border border-smark-orange bg-surface-accent px-4 py-3 text-[15px] text-snow no-underline transition-colors hover:bg-surface-accent-hover"
         >
           Put away arrivals in Receive →
         </Link>

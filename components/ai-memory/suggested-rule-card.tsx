@@ -20,13 +20,13 @@ export function SuggestedRuleCard({ rule, pending, onApprove, onReject }: Sugges
     <Card className="border-smark-orange bg-[#161210]" padding="md">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-[220px] flex-1">
-          <div className="text-[14px] text-snow">
+          <div className="text-[15px] text-snow">
             <Chip tone="default" size="sm" className="mr-2">
               {scopeLabel(rule.scope)}
             </Chip>
             {rule.subject ?? "All"}
           </div>
-          <div className="mt-2 text-[14px] text-snow">{rule.ruleText}</div>
+          <div className="mt-2 text-[15px] text-snow">{rule.ruleText}</div>
           {source && <div className="mt-1.5 text-xs text-smoke">from &ldquo;{source}&rdquo;</div>}
         </div>
         <div className="flex flex-none items-start gap-2">

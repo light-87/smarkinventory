@@ -55,7 +55,7 @@ export function CalendarView({ month, calendar, selectedDay, todayDate, extraPar
             >
               ‹
             </Link>
-            <span className="min-w-[120px] text-center text-[14px] text-snow">{monthLabel(month)}</span>
+            <span className="min-w-[120px] text-center text-[15px] text-snow">{monthLabel(month)}</span>
             <Link
               href={hrefFor(basePath, shiftMonth(month, 1), undefined, extraParams)}
               className="flex size-8 items-center justify-center rounded-full border border-charcoal text-silver-mist transition-colors hover:bg-ash hover:text-snow"
@@ -69,7 +69,7 @@ export function CalendarView({ month, calendar, selectedDay, todayDate, extraPar
       <div className="px-5 py-[18px]">
         <div className="grid grid-cols-7 gap-1.5 text-center">
           {WEEKDAY_LABELS.map((w) => (
-            <div key={w} className="pb-1 text-[12px] tracking-[0.04em] text-smoke uppercase">
+            <div key={w} className="pb-1 text-[13px] tracking-[0.04em] text-smoke uppercase">
               {w}
             </div>
           ))}
@@ -86,7 +86,7 @@ export function CalendarView({ month, calendar, selectedDay, todayDate, extraPar
                 href={hrefFor(basePath, month, day.date, extraParams)}
                 title={statusLabel(day.status, day.holidayName, day.leaveReason)}
                 className={cn(
-                  "flex aspect-square min-h-9 flex-col items-center justify-center rounded-lg border text-[14px] transition-[filter] hover:brightness-95",
+                  "flex aspect-square min-h-9 flex-col items-center justify-center rounded-lg border text-[15px] transition-[filter] hover:brightness-95",
                   statusCellClasses(day.status),
                   isSelected && "ring-2 ring-smark-orange ring-offset-2 ring-offset-surface",
                   isToday && !isSelected && "border-2",

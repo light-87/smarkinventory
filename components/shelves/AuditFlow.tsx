@@ -105,7 +105,7 @@ export function AuditFlow({ boxId, boxCode, items, onClose, onFinished }: AuditF
     <Drawer open onClose={handlePause} width={440} aria-label={`Audit box ${boxCode}`}>
       <DrawerHeader>
         <div>
-          <div className="text-[16px] text-snow">Audit · Box {boxCode}</div>
+          <div className="text-[17px] text-snow">Audit · Box {boxCode}</div>
           <div className="mt-1 text-caption text-smoke">
             {completion.done} of {completion.total} counted
           </div>
@@ -124,8 +124,8 @@ export function AuditFlow({ boxId, boxCode, items, onClose, onFinished }: AuditF
         {current ? (
           <div className="rounded-2xl border border-charcoal p-5">
             <div className="font-mono text-lg text-snow">{current.pid}</div>
-            <div className="mt-1 font-mono text-[14px] text-silver-mist">{current.mpn ?? "—"}</div>
-            {current.value && <div className="mt-1 text-[14px] text-smoke">{current.value}</div>}
+            <div className="mt-1 font-mono text-[15px] text-silver-mist">{current.mpn ?? "—"}</div>
+            {current.value && <div className="mt-1 text-[15px] text-smoke">{current.value}</div>}
 
             <div className="mt-4 text-caption text-smoke">
               On shelf: <span className="font-mono text-snow">{current.recordedQty}</span>
@@ -146,7 +146,7 @@ export function AuditFlow({ boxId, boxCode, items, onClose, onFinished }: AuditF
             </Field>
           </div>
         ) : (
-          <div className="rounded-2xl border border-dashed border-slate bg-surface-panel py-10 text-center text-[14px] text-smoke">
+          <div className="rounded-2xl border border-dashed border-slate bg-surface-panel py-10 text-center text-[15px] text-smoke">
             Nothing left to count — box fully audited.
           </div>
         )}

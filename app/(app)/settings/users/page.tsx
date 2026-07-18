@@ -32,7 +32,7 @@ export default async function UsersPage() {
     <div className="mx-auto flex max-w-[900px] flex-col gap-4 px-4 pt-6 pb-24 sm:px-6 sm:pt-7">
       <div>
         <h1 className="text-[24px] font-normal text-snow">Users & roles</h1>
-        <p className="mt-1 text-[14px] text-smoke">
+        <p className="mt-1 text-[15px] text-smoke">
           Grant or revoke module access per employee. Owner and accountant accounts are unaffected — they always keep
           full access.
         </p>

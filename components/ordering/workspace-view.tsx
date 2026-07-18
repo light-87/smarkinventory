@@ -53,7 +53,7 @@ export function WorkspaceView({ projectId, data, writable }: WorkspaceViewProps)
         <Card padding="lg" tone="panel">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <div className="text-[16px] font-medium text-snow">Saved run</div>
+              <div className="text-[17px] font-medium text-snow">Saved run</div>
               <div className="text-caption text-smoke">
                 Status <span className="font-mono text-silver-mist">{data.savedRun.status}</span>
                 {data.savedRun.isStale && " · build quantity changed since this run"}
@@ -64,7 +64,7 @@ export function WorkspaceView({ projectId, data, writable }: WorkspaceViewProps)
               {reviewRunId && (
                 <Link
                   href={`/projects/${projectId}/runs/${reviewRunId}/review`}
-                  className="inline-flex h-8 items-center rounded-full bg-smark-orange/15 px-3 text-[14px] font-medium text-smark-orange transition-colors hover:bg-smark-orange/25"
+                  className="inline-flex h-8 items-center rounded-full bg-smark-orange/15 px-3 text-[15px] font-medium text-smark-orange transition-colors hover:bg-smark-orange/25"
                 >
                   Review results →
                 </Link>
@@ -78,7 +78,7 @@ export function WorkspaceView({ projectId, data, writable }: WorkspaceViewProps)
       <Card padding="lg">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <div className="text-[16px] font-medium text-snow">Builds required</div>
+            <div className="text-[17px] font-medium text-snow">Builds required</div>
             <div className="text-caption text-smoke">Line quantities are multiplied by this — change it on the BOM page</div>
           </div>
           <Chip mono>×{formatNumber(data.bom.buildQty)}</Chip>
@@ -92,11 +92,11 @@ export function WorkspaceView({ projectId, data, writable }: WorkspaceViewProps)
 
       {/* How sourcing runs (desktop app) */}
       <Card padding="lg" tone="panel">
-        <div className="mb-1 text-[16px] font-medium text-snow">How sourcing runs</div>
+        <div className="mb-1 text-[17px] font-medium text-snow">How sourcing runs</div>
         {nothingToOrder ? (
-          <div className="text-[14px] text-smoke">Every line is already in stock — nothing to order.</div>
+          <div className="text-[15px] text-smoke">Every line is already in stock — nothing to order.</div>
         ) : (
-          <div className="text-[14px] text-silver-mist">
+          <div className="text-[15px] text-silver-mist">
             Source this BOM from the SmarkStock Desktop app on your computer. When the agent finishes, the results come back
             here for review.
           </div>

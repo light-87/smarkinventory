@@ -13,7 +13,7 @@ export function UsageByProjectCard({
 }) {
   return (
     <Card>
-      <div className="mb-4 text-[16px] font-medium text-snow">Usage by project</div>
+      <div className="mb-4 text-[17px] font-medium text-snow">Usage by project</div>
       {error || !bars ? (
         <div className="text-body-sm text-smoke">{error ?? "Usage data unavailable."}</div>
       ) : bars.length === 0 ? (
@@ -26,7 +26,7 @@ export function UsageByProjectCard({
         <div className="flex flex-col gap-3.5">
           {bars.map((bar) => (
             <div key={bar.projectId}>
-              <div className="mb-1.5 flex items-baseline justify-between gap-2 text-[13px]">
+              <div className="mb-1.5 flex items-baseline justify-between gap-2 text-[14px]">
                 <span className="truncate text-silver-mist">{bar.name}</span>
                 <span className="flex-none font-mono text-smoke">
                   {formatNumber(bar.count)}

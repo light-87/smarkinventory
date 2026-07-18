@@ -123,7 +123,7 @@ export default async function DailyReportsPage({
     <div className="mx-auto flex max-w-[1180px] flex-col gap-4 px-4 pt-6 pb-24 sm:px-6 sm:pt-7">
       <div className="mb-1">
         <h1 className="text-heading-sm font-normal text-snow">Daily Reports</h1>
-        <p className="text-[14px] text-smoke">Who was in, what moved, and what happened on any given day.</p>
+        <p className="text-[15px] text-smoke">Who was in, what moved, and what happened on any given day.</p>
       </div>
 
       <DayHeader viewedDate={viewedDate} personParam={personParam} showPersonFilter={scope === "all"} people={people} />

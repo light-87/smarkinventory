@@ -124,7 +124,7 @@ export function ProfileForm({ profile, privateFields }: { profile: OwnProfile; p
         </Field>
 
         <div className="flex flex-col gap-3 rounded-lg border border-charcoal p-3.5">
-          <span className="text-[14px] text-silver-mist">Bank details</span>
+          <span className="text-[15px] text-silver-mist">Bank details</span>
           <Field htmlFor="profile-bank-name" label="Account holder name">
             <Input
               id="profile-bank-name"

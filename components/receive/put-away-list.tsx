@@ -83,7 +83,7 @@ export function PutAwayList({ groups }: PutAwayListProps) {
       {groups.map((group) => (
         <div key={group.orderId} className="border-b border-border-divider last:border-b-0">
           <div className="flex items-center justify-between gap-3 bg-canvas px-5 py-2.5">
-            <span className="font-mono text-[14px] text-snow">PO {group.poNumber}</span>
+            <span className="font-mono text-[15px] text-snow">PO {group.poNumber}</span>
             <span className="text-caption text-smoke">{group.distributorName}</span>
           </div>
           {group.lines.map((line) => {
@@ -102,7 +102,7 @@ export function PutAwayList({ groups }: PutAwayListProps) {
                 >
                   {active && <span className="absolute inset-[3px] rounded-full bg-smark-orange" />}
                 </span>
-                <span className="min-w-0 flex-1 truncate font-mono text-[14px] text-snow">
+                <span className="min-w-0 flex-1 truncate font-mono text-[15px] text-snow">
                   {line.internalPid ?? line.mpn ?? "New part"}
                 </span>
                 <Chip tone={line.existing ? "neutral" : "accent"} size="sm">
@@ -123,7 +123,7 @@ export function PutAwayList({ groups }: PutAwayListProps) {
 
       {selected && (
         <div className="bg-surface-panel border-t border-border-divider p-5">
-          <div className="mb-3 text-[14px] leading-relaxed text-snow">
+          <div className="mb-3 text-[15px] leading-relaxed text-snow">
             {selected.existing
               ? `Top up ${selected.internalPid ?? "the part"} — no reprint.`
               : `New part — 1 ESD label will be queued.`}

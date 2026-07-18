@@ -94,7 +94,7 @@ export function ApprovalsInboxCard({
             {pendingCompWork.map((c) => (
               <div key={c.id} className={ROW}>
                 <div className="min-w-0">
-                  <div className="truncate text-[14px] text-snow">
+                  <div className="truncate text-[15px] text-snow">
                     {nameById.get(c.userId) ?? "Unknown"} — worked {formatDate(c.workDate)}
                   </div>
                   {c.note && <div className="truncate text-caption text-smoke">{c.note}</div>}
@@ -143,7 +143,7 @@ function LeaveApprovalRow({
   return (
     <div className={ROW}>
       <div className="min-w-0">
-        <div className="truncate text-[14px] text-snow">
+        <div className="truncate text-[15px] text-snow">
           {name} — leave ({leave.reason})
         </div>
         <div className="truncate text-caption text-smoke">
@@ -165,7 +165,7 @@ function LeaveApprovalRow({
               step="0.5"
               value={hours}
               onChange={(e) => setHours(e.target.value)}
-              className="h-9 w-20 rounded-lg border border-charcoal bg-surface-well px-2 font-mono text-[13px] text-snow outline-none focus:border-smark-orange"
+              className="h-9 w-20 rounded-lg border border-charcoal bg-surface-well px-2 font-mono text-[14px] text-snow outline-none focus:border-smark-orange"
             />
             h
           </span>
@@ -203,7 +203,7 @@ function OvertimeApprovalRow({
   return (
     <div className={ROW}>
       <div className="min-w-0">
-        <div className="truncate text-[14px] text-snow">
+        <div className="truncate text-[15px] text-snow">
           {name} — overtime {overtime.hoursClaimed}h on {formatDate(overtime.workDate)}
         </div>
         {overtime.note && <div className="truncate text-caption text-smoke">{overtime.note}</div>}
@@ -218,7 +218,7 @@ function OvertimeApprovalRow({
             step="0.5"
             value={hours}
             onChange={(e) => setHours(e.target.value)}
-            className="h-9 w-20 rounded-lg border border-charcoal bg-surface-well px-2 font-mono text-[13px] text-snow outline-none focus:border-smark-orange"
+            className="h-9 w-20 rounded-lg border border-charcoal bg-surface-well px-2 font-mono text-[14px] text-snow outline-none focus:border-smark-orange"
           />
           h
         </span>

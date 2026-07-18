@@ -65,7 +65,7 @@ export function EmployeesDirectory({
             }
           />
           <CardBody className="flex flex-col gap-4">
-            <div className="grid grid-cols-2 gap-3 text-[14px] sm:grid-cols-3">
+            <div className="grid grid-cols-2 gap-3 text-[15px] sm:grid-cols-3">
               <div>
                 <div className="text-caption text-smoke">Date of birth</div>
                 <div className="text-snow">{profile.birth_date ? formatDate(profile.birth_date) : "—"}</div>
@@ -95,7 +95,7 @@ export function EmployeesDirectory({
             </div>
 
             {canSeeBank && (
-              <div className="rounded-lg border border-charcoal p-3.5 text-[14px]">
+              <div className="rounded-lg border border-charcoal p-3.5 text-[15px]">
                 <div className="mb-2 text-caption text-smoke uppercase">Bank details</div>
                 {privateFields?.bank_account_name ||
                 privateFields?.bank_account_number ||
@@ -135,7 +135,7 @@ export function EmployeesDirectory({
                     <Chip tone="accent" size="sm">
                       {DOC_TYPE_LABELS[doc.doc_type]}
                     </Chip>
-                    <span className="min-w-0 flex-1 truncate text-[14px] text-snow">
+                    <span className="min-w-0 flex-1 truncate text-[15px] text-snow">
                       {doc.client_label ? `${doc.client_label} — ${doc.display_name}` : doc.display_name}
                     </span>
                     <span className="flex-none text-caption text-smoke">{formatDate(doc.created_at)}</span>

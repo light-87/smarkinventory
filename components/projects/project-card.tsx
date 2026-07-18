@@ -14,7 +14,7 @@ export function ProjectCard({ project }: { project: PmProjectView }) {
         }`}
       >
         <div className="min-w-0">
-          <div className="truncate text-[16px] text-snow">{project.name}</div>
+          <div className="truncate text-[17px] text-snow">{project.name}</div>
           <div className="mt-0.5 truncate text-caption text-smoke">{project.client || "No client set"}</div>
         </div>
         <div className="mt-auto flex flex-wrap items-center gap-2">

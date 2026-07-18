@@ -99,14 +99,14 @@ export function CheckoutDrawer({ open, onClose, lines, distributors, onPlaced }:
     <Drawer open={open} onClose={onClose} width={480} aria-label="Checkout">
       <DrawerHeader>
         <div>
-          <div className="text-[16px] text-snow">Checkout</div>
+          <div className="text-[17px] text-snow">Checkout</div>
           <div className="text-caption text-smoke">Grouped by distributor — a group without an order number stays in the cart.</div>
         </div>
         <DrawerCloseButton onClick={onClose} />
       </DrawerHeader>
       <DrawerBody>
         {groups.length === 0 ? (
-          <div className="text-[14px] text-smoke">
+          <div className="text-[15px] text-smoke">
             Select cart lines with a distributor chosen, then come back here.
           </div>
         ) : (
@@ -114,7 +114,7 @@ export function CheckoutDrawer({ open, onClose, lines, distributors, onPlaced }:
             {groups.map((group) => (
               <div key={group.distributorId} className="rounded-xl border border-charcoal p-4">
                 <div className="flex items-center justify-between gap-2">
-                  <div className="text-[14px] text-snow">{group.distributorName}</div>
+                  <div className="text-[15px] text-snow">{group.distributorName}</div>
                   <Chip tone="neutral" mono>
                     {group.lines.length} line{group.lines.length === 1 ? "" : "s"}
                   </Chip>

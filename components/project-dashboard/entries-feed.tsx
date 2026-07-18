@@ -53,7 +53,7 @@ export function EntriesFeed({ page, currentPage, pageSize, baseParams }: Entries
             </TableShell>
 
             {totalPages > 1 && (
-              <div className="mt-4 flex items-center justify-between gap-3 text-[14px] text-smoke">
+              <div className="mt-4 flex items-center justify-between gap-3 text-[15px] text-smoke">
                 <span>
                   Page {currentPage} of {totalPages}
                 </span>

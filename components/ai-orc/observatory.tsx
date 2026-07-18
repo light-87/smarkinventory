@@ -97,11 +97,11 @@ function MemoryBar({ usedMb, totalMb, label }: { usedMb: number; totalMb: number
 function PromptBlock({ title, text }: { title: string; text: string }) {
   return (
     <details className="group rounded-xl border border-charcoal bg-surface-well">
-      <summary className="cursor-pointer select-none px-4 py-3 text-[14px] text-silver-mist transition-colors hover:text-snow">
+      <summary className="cursor-pointer select-none px-4 py-3 text-[15px] text-silver-mist transition-colors hover:text-snow">
         {title}
         <span className="ml-2 text-caption text-graphite">({formatNumber(text.length)} chars)</span>
       </summary>
-      <pre className="max-h-96 overflow-auto whitespace-pre-wrap border-t border-charcoal px-4 py-3 font-mono text-[13px] leading-relaxed text-smoke">
+      <pre className="max-h-96 overflow-auto whitespace-pre-wrap border-t border-charcoal px-4 py-3 font-mono text-[14px] leading-relaxed text-smoke">
         {text}
       </pre>
     </details>
@@ -119,7 +119,7 @@ function WorkerPanel({ worker, nowIso }: { worker: WorkerCard; nowIso: string })
   return (
     <Card padding="lg" className={online ? "" : "opacity-50"}>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="font-mono text-[14px] text-snow">{worker.workerId}</div>
+        <div className="font-mono text-[15px] text-snow">{worker.workerId}</div>
         <div className="flex items-center gap-2">
           <Chip tone={online ? "success" : "default"}>{online ? "online" : `stale · ${timeAgo(worker.lastSeenAt, nowIso)}`}</Chip>
           <Chip tone={mode === "live-claude" ? "accent" : "default"}>{mode}</Chip>
@@ -168,7 +168,7 @@ function WorkerPanel({ worker, nowIso }: { worker: WorkerCard; nowIso: string })
 function CapacityCard() {
   return (
     <Card padding="lg">
-      <div className="text-[16px] font-medium text-snow">Capacity math — why 99 parallel agents can’t happen</div>
+      <div className="text-[17px] font-medium text-snow">Capacity math — why 99 parallel agents can’t happen</div>
       <div className="mt-2 grid gap-3 text-caption text-smoke sm:grid-cols-3">
         <div>
           <div className="text-silver-mist">Concurrent item agents (per run)</div>
@@ -209,8 +209,8 @@ function LaneCard({ lane }: { lane: RunLane }) {
     <Card padding="lg">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
-          <span className="font-mono text-[14px] text-snow">{lane.line.refDesignators ?? `Line ${lane.line.lineNo ?? "?"}`}</span>
-          <span className="ml-2 text-[14px] text-smoke">
+          <span className="font-mono text-[15px] text-snow">{lane.line.refDesignators ?? `Line ${lane.line.lineNo ?? "?"}`}</span>
+          <span className="ml-2 text-[15px] text-smoke">
             {lane.line.value ?? "—"} · {lane.line.mpn ?? "no MPN"} · need {lane.line.qty}
           </span>
           {lane.line.dnp && <Chip tone="accent">DNP</Chip>}
@@ -358,7 +358,7 @@ export function Observatory() {
         <div className="text-caption font-medium uppercase tracking-wide text-graphite">Workers</div>
         {(data?.workers ?? []).length === 0 ? (
           <Card padding="lg">
-            <p className="text-[14px] text-smoke">
+            <p className="text-[15px] text-smoke">
               No worker heartbeats yet — start one with{" "}
               <span className="font-mono text-silver-mist">cd worker; bun run start</span> (cloud env loaded). It
               reports RAM/CPU every ~10s once running.
@@ -375,7 +375,7 @@ export function Observatory() {
         <div className="text-caption font-medium uppercase tracking-wide text-graphite">Runs</div>
         {(data?.runs ?? []).length === 0 ? (
           <Card padding="lg">
-            <p className="text-[14px] text-smoke">No runs yet — start one from a BOM’s “Set up ordering →”.</p>
+            <p className="text-[15px] text-smoke">No runs yet — start one from a BOM’s “Set up ordering →”.</p>
           </Card>
         ) : (
           <div className="flex flex-col gap-2">
@@ -393,7 +393,7 @@ export function Observatory() {
                   }`}
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="min-w-0 text-[14px] text-snow">
+                    <div className="min-w-0 text-[15px] text-snow">
                       {r.bomName ?? r.id.slice(0, 8)}
                       <span className="ml-2 text-smoke">{r.projectName ?? ""}</span>
                     </div>
@@ -435,7 +435,7 @@ export function Observatory() {
               <Chip mono>{run.actualCost !== null ? `${formatINR(run.actualCost)} spent` : "₹0 spent"}</Chip>
               {run.rupeeCeiling !== null && <Chip mono>ceiling {formatINR(run.rupeeCeiling)}</Chip>}
             </div>
-            {run.narration && <p className="mt-2 text-[14px] text-silver-mist">{run.narration}</p>}
+            {run.narration && <p className="mt-2 text-[15px] text-silver-mist">{run.narration}</p>}
             <p className="mt-1 text-caption text-smoke">
               Distributor sequence:{" "}
               <span className="font-mono">
