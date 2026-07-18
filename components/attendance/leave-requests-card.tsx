@@ -40,7 +40,9 @@ export function LeaveRequestsCard({ myRequests, compBalance, canWrite }: LeaveRe
   const [note, setNote] = useState("");
 
   const requestedDays = startDate && endDate && endDate >= startDate ? countDaysInclusive(startDate, endDate) : 0;
-  const exceedsBalance = reason === "compensatory" && requestedDays > compBalance;
+  // (0018) comp-off is HOURS and the owner picks the deduction at approval — so
+  // here we only guard against requesting a comp leave with nothing banked.
+  const noCompBalance = reason === "compensatory" && compBalance <= 0;
 
   function submit() {
     if (!startDate || !endDate) {
@@ -51,8 +53,8 @@ export function LeaveRequestsCard({ myRequests, compBalance, canWrite }: LeaveRe
       push({ msg: "End date can't be before start date." });
       return;
     }
-    if (exceedsBalance) {
-      push({ msg: `Not enough comp balance: requesting ${requestedDays}, only ${Math.max(compBalance, 0)} available.` });
+    if (noCompBalance) {
+      push({ msg: "You have no comp-off hours banked yet." });
       return;
     }
     startTransition(async () => {
@@ -71,7 +73,7 @@ export function LeaveRequestsCard({ myRequests, compBalance, canWrite }: LeaveRe
 
   return (
     <Card padding="none">
-      <CardHeader title="My leave requests" meta={<span className="font-mono">{compBalance >= 0 ? `+${compBalance}` : compBalance} comp bal.</span>} />
+      <CardHeader title="My leave requests" meta={<span className="font-mono">{compBalance > 0 ? "+" : ""}{compBalance}h comp-off</span>} />
       <div className="flex flex-col gap-4 px-5 py-[18px]">
         {canWrite && (
           <div className="flex flex-col gap-3 rounded-xl border border-charcoal bg-surface-panel p-4">
@@ -83,7 +85,7 @@ export function LeaveRequestsCard({ myRequests, compBalance, canWrite }: LeaveRe
                 <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
               </Field>
             </div>
-            <Field label="Reason" hint="Compensatory uses a comp day you earned by working a holiday.">
+            <Field label="Reason" hint="Compensatory draws on the comp-off hours you earned from overtime / holiday work.">
               <NativeSelect
                 value={reason}
                 onChange={(e) => setReason(e.target.value as LeaveReason)}
@@ -93,13 +95,13 @@ export function LeaveRequestsCard({ myRequests, compBalance, canWrite }: LeaveRe
             <Field label="Note (optional)">
               <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Reason / details" />
             </Field>
-            {reason === "compensatory" && requestedDays > 0 && (
-              <p className={exceedsBalance ? "text-caption text-smark-orange-soft" : "text-caption text-smoke"}>
-                {requestedDays} day(s) requested · {compBalance} comp day(s) available
-                {exceedsBalance ? " — exceeds balance" : ""}
+            {reason === "compensatory" && (
+              <p className={noCompBalance ? "text-caption text-smark-orange-soft" : "text-caption text-smoke"}>
+                {compBalance}h comp-off banked
+                {noCompBalance ? " — nothing to draw on yet" : " · the owner sets the hours to deduct when approving"}
               </p>
             )}
-            <Button size="sm" onClick={submit} loading={pending} disabled={exceedsBalance}>
+            <Button size="sm" onClick={submit} loading={pending} disabled={noCompBalance}>
               Submit request
             </Button>
           </div>

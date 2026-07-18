@@ -11,6 +11,7 @@ import {
   getLeaveRequests,
   getMonthBreakdown,
   getMonthCalendar,
+  getOvertime,
   type AppUserBasic,
   type DayBreakdownEntry,
 } from "@/lib/attendance/queries";
@@ -121,6 +122,14 @@ export default async function AttendancePage({
     .map((l) => ({ startDate: l.startDate, endDate: l.endDate, reason: l.reason }));
   const myTodayAttendanceSection = await loadSection(getAttendanceForUserDay(supabase, user.id, todayDate));
   const iAmPresentToday = myTodayAttendanceSection.data !== null && myTodayAttendanceSection.data?.checkIn != null;
+  const hasCheckedOutToday = myTodayAttendanceSection.data?.checkOut != null;
+
+  // (0018) My overtime — today's claim drives the mark-out card's status chip.
+  const myOvertime = await loadSection(getOvertime(supabase, user.id)).then((s) => s.data ?? []);
+  const myOvertimeToday = myOvertime.find((o) => o.workDate === todayDate) ?? null;
+  const overtimeToday = myOvertimeToday
+    ? { hours: myOvertimeToday.hoursApproved ?? myOvertimeToday.hoursClaimed, status: myOvertimeToday.status }
+    : null;
   const todayStatusResult = resolveDayStatus({
     date: todayDate,
     todayDate,
@@ -155,13 +164,28 @@ export default async function AttendancePage({
 
   let ownerPendingLeaves: Awaited<ReturnType<typeof getLeaveRequests>> = [];
   let ownerPendingComp: Awaited<ReturnType<typeof getCompWork>> = [];
+  let ownerPendingOvertime: Awaited<ReturnType<typeof getOvertime>> = [];
+  const ownerCompBalanceByUser = new Map<string, number>();
   if (ownerRole) {
-    const [allLeaves, allComp] = await Promise.all([
+    const [allLeaves, allComp, allOvertime] = await Promise.all([
       loadSection(getLeaveRequests(supabase, null, { status: "pending" })),
       loadSection(getCompWork(supabase, null, { status: "pending" })),
+      loadSection(getOvertime(supabase, null, { status: "pending" })),
     ]);
     ownerPendingLeaves = allLeaves.data ?? [];
     ownerPendingComp = allComp.data ?? [];
+    ownerPendingOvertime = allOvertime.data ?? [];
+    // Live comp-off balance (hours) for each employee with a pending comp-leave
+    // request — so the owner sees how much they can deduct at approval.
+    const compLeaveUserIds = Array.from(
+      new Set(ownerPendingLeaves.filter((l) => l.reason === "compensatory").map((l) => l.userId)),
+    );
+    await Promise.all(
+      compLeaveUserIds.map(async (uid) => {
+        const bal = await loadSection(getCompBalance(supabase, uid)).then((s) => s.data ?? 0);
+        ownerCompBalanceByUser.set(uid, bal);
+      }),
+    );
   }
 
   // Owner/accountant get a view switch (Team calendar · Approvals · Holidays · My leave)
@@ -241,6 +265,9 @@ export default async function AttendancePage({
         isTodayHoliday={isTodayHoliday}
         hasPendingOrApprovedCompClaimToday={hasPendingOrApprovedCompClaimToday}
         compBalance={compBalance}
+        iAmPresentToday={iAmPresentToday}
+        hasCheckedOutToday={hasCheckedOutToday}
+        overtimeToday={overtimeToday}
         myProjectOptions={myProjectOptions}
       />
 
@@ -256,7 +283,13 @@ export default async function AttendancePage({
           )}
 
           {view === "approvals" && ownerRole && (
-            <ApprovalsInboxCard pendingLeaves={ownerPendingLeaves} pendingCompWork={ownerPendingComp} nameById={nameById} />
+            <ApprovalsInboxCard
+              pendingLeaves={ownerPendingLeaves}
+              pendingCompWork={ownerPendingComp}
+              pendingOvertime={ownerPendingOvertime}
+              compBalanceByUser={ownerCompBalanceByUser}
+              nameById={nameById}
+            />
           )}
 
           {view === "holidays" && ownerRole && <HolidayAdminCard holidays={holidays} />}

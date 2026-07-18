@@ -1,32 +1,45 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Chip } from "@/components/ui/chip";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useToast } from "@/components/ui/toast";
 import { formatDate } from "@/lib/format";
-import { decideCompWorkAction, decideLeaveRequestAction } from "@/lib/attendance/actions";
-import type { CompWorkView, LeaveRequestView } from "@/lib/attendance/queries";
+import { decideCompWorkAction, decideLeaveRequestAction, decideOvertimeAction } from "@/lib/attendance/actions";
+import { countDaysInclusive, HOURS_PER_DAY } from "@/lib/attendance/status";
+import type { CompWorkView, LeaveRequestView, OvertimeView } from "@/lib/attendance/queries";
 
 export interface ApprovalsInboxCardProps {
   pendingLeaves: readonly LeaveRequestView[];
   pendingCompWork: readonly CompWorkView[];
+  pendingOvertime: readonly OvertimeView[];
+  /** (0018) live comp-off HOURS balance per employee with a pending comp leave. */
+  compBalanceByUser: ReadonlyMap<string, number>;
   nameById: ReadonlyMap<string, string>;
 }
 
-/** Owner's pending comp-work + leave-request inbox — approve/reject inline (prompt: Owner bullet). */
-export function ApprovalsInboxCard({ pendingLeaves, pendingCompWork, nameById }: ApprovalsInboxCardProps) {
+const ROW = "flex flex-wrap items-center justify-between gap-3 rounded-xl border border-charcoal bg-surface-panel px-4 py-3";
+
+/** Owner's pending inbox — leave (with comp-off hours deduction), comp-work, and overtime. */
+export function ApprovalsInboxCard({
+  pendingLeaves,
+  pendingCompWork,
+  pendingOvertime,
+  compBalanceByUser,
+  nameById,
+}: ApprovalsInboxCardProps) {
   const router = useRouter();
   const { push } = useToast();
   const [pending, startTransition] = useTransition();
 
-  function decideLeave(id: string, approve: boolean) {
+  function run(promise: Promise<{ ok: true } | { ok: false; error: string }>, okMsg: string) {
     startTransition(async () => {
-      const result = await decideLeaveRequestAction({ id, approve });
+      const result = await promise;
       if (result.ok) {
-        push({ msg: approve ? "Leave approved." : "Leave rejected." });
+        push({ msg: okMsg });
         router.refresh();
       } else {
         push({ msg: result.error });
@@ -34,53 +47,52 @@ export function ApprovalsInboxCard({ pendingLeaves, pendingCompWork, nameById }:
     });
   }
 
-  function decideComp(id: string, approve: boolean) {
-    startTransition(async () => {
-      const result = await decideCompWorkAction({ id, approve });
-      if (result.ok) {
-        push({ msg: approve ? "Comp work approved." : "Comp work rejected." });
-        router.refresh();
-      } else {
-        push({ msg: result.error });
-      }
-    });
-  }
+  const decideComp = (id: string, approve: boolean) =>
+    run(decideCompWorkAction({ id, approve }), approve ? "Comp work approved." : "Comp work rejected.");
 
-  const totalPending = pendingLeaves.length + pendingCompWork.length;
+  const total = pendingLeaves.length + pendingCompWork.length + pendingOvertime.length;
 
   return (
     <Card padding="none">
-      <CardHeader title="Approvals" meta={totalPending > 0 ? `${totalPending} pending` : "All clear"} />
+      <CardHeader title="Approvals" meta={total > 0 ? `${total} pending` : "All clear"} />
       <div className="flex flex-col gap-4 px-5 py-[18px]">
-        {totalPending === 0 ? (
+        {total === 0 ? (
           <EmptyState tone="subtle" title="Nothing waiting on you" />
         ) : (
           <>
             {pendingLeaves.map((r) => (
-              <div key={r.id} className="flex items-center justify-between gap-3 rounded-xl border border-charcoal bg-surface-panel px-4 py-3">
-                <div className="min-w-0">
-                  <div className="truncate text-[14px] text-snow">
-                    {nameById.get(r.userId) ?? "Unknown"} — leave ({r.reason})
-                  </div>
-                  <div className="truncate text-caption text-smoke">
-                    {formatDate(r.startDate)}
-                    {r.endDate !== r.startDate ? ` – ${formatDate(r.endDate)}` : ""}
-                    {r.note ? ` · ${r.note}` : ""}
-                  </div>
-                </div>
-                <div className="flex flex-none gap-2">
-                  <Button size="sm" onClick={() => decideLeave(r.id, true)} loading={pending}>
-                    Approve
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => decideLeave(r.id, false)} loading={pending}>
-                    Reject
-                  </Button>
-                </div>
-              </div>
+              <LeaveApprovalRow
+                key={r.id}
+                leave={r}
+                name={nameById.get(r.userId) ?? "Unknown"}
+                balance={compBalanceByUser.get(r.userId) ?? 0}
+                pending={pending}
+                onDecide={(approve, compHours) =>
+                  run(
+                    decideLeaveRequestAction({ id: r.id, approve, compHours }),
+                    approve ? "Leave approved." : "Leave rejected.",
+                  )
+                }
+              />
+            ))}
+
+            {pendingOvertime.map((o) => (
+              <OvertimeApprovalRow
+                key={o.id}
+                overtime={o}
+                name={nameById.get(o.userId) ?? "Unknown"}
+                pending={pending}
+                onDecide={(approve, hoursApproved) =>
+                  run(
+                    decideOvertimeAction({ id: o.id, approve, hoursApproved }),
+                    approve ? "Overtime approved." : "Overtime rejected.",
+                  )
+                }
+              />
             ))}
 
             {pendingCompWork.map((c) => (
-              <div key={c.id} className="flex items-center justify-between gap-3 rounded-xl border border-charcoal bg-surface-panel px-4 py-3">
+              <div key={c.id} className={ROW}>
                 <div className="min-w-0">
                   <div className="truncate text-[14px] text-snow">
                     {nameById.get(c.userId) ?? "Unknown"} — worked {formatDate(c.workDate)}
@@ -88,7 +100,7 @@ export function ApprovalsInboxCard({ pendingLeaves, pendingCompWork, nameById }:
                   {c.note && <div className="truncate text-caption text-smoke">{c.note}</div>}
                 </div>
                 <div className="flex flex-none gap-2">
-                  <Button size="sm" onClick={() => decideComp(c.id, true)} loading={pending}>
+                  <Button size="sm" variant="success" onClick={() => decideComp(c.id, true)} loading={pending}>
                     Approve
                   </Button>
                   <Button size="sm" variant="outline" onClick={() => decideComp(c.id, false)} loading={pending}>
@@ -101,5 +113,122 @@ export function ApprovalsInboxCard({ pendingLeaves, pendingCompWork, nameById }:
         )}
       </div>
     </Card>
+  );
+}
+
+function LeaveApprovalRow({
+  leave,
+  name,
+  balance,
+  pending,
+  onDecide,
+}: {
+  leave: LeaveRequestView;
+  name: string;
+  balance: number;
+  pending: boolean;
+  onDecide: (approve: boolean, compHours: number | null) => void;
+}) {
+  const isComp = leave.reason === "compensatory";
+  const defaultHours = Math.min(countDaysInclusive(leave.startDate, leave.endDate) * HOURS_PER_DAY, Math.max(balance, 0));
+  const [hours, setHours] = useState(String(defaultHours));
+
+  function approve() {
+    if (!isComp) return onDecide(true, null);
+    const h = Number.parseFloat(hours);
+    if (!Number.isFinite(h) || h < 0) return;
+    onDecide(true, h);
+  }
+
+  return (
+    <div className={ROW}>
+      <div className="min-w-0">
+        <div className="truncate text-[14px] text-snow">
+          {name} — leave ({leave.reason})
+        </div>
+        <div className="truncate text-caption text-smoke">
+          {formatDate(leave.startDate)}
+          {leave.endDate !== leave.startDate ? ` – ${formatDate(leave.endDate)}` : ""}
+          {leave.note ? ` · ${leave.note}` : ""}
+        </div>
+      </div>
+      <div className="flex flex-none flex-wrap items-center gap-2">
+        {isComp && (
+          <span className="flex items-center gap-1.5 text-caption text-smoke">
+            <Chip tone={balance > 0 ? "success" : "warn"} mono>
+              {balance}h banked
+            </Chip>
+            deduct
+            <input
+              type="number"
+              min="0"
+              step="0.5"
+              value={hours}
+              onChange={(e) => setHours(e.target.value)}
+              className="h-9 w-20 rounded-lg border border-charcoal bg-surface-well px-2 font-mono text-[13px] text-snow outline-none focus:border-smark-orange"
+            />
+            h
+          </span>
+        )}
+        <Button size="sm" variant="success" onClick={approve} loading={pending}>
+          Approve
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => onDecide(false, null)} loading={pending}>
+          Reject
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function OvertimeApprovalRow({
+  overtime,
+  name,
+  pending,
+  onDecide,
+}: {
+  overtime: OvertimeView;
+  name: string;
+  pending: boolean;
+  onDecide: (approve: boolean, hoursApproved: number | null) => void;
+}) {
+  const [hours, setHours] = useState(String(overtime.hoursClaimed));
+
+  function approve() {
+    const h = Number.parseFloat(hours);
+    if (!Number.isFinite(h) || h < 0) return;
+    onDecide(true, h);
+  }
+
+  return (
+    <div className={ROW}>
+      <div className="min-w-0">
+        <div className="truncate text-[14px] text-snow">
+          {name} — overtime {overtime.hoursClaimed}h on {formatDate(overtime.workDate)}
+        </div>
+        {overtime.note && <div className="truncate text-caption text-smoke">{overtime.note}</div>}
+      </div>
+      <div className="flex flex-none flex-wrap items-center gap-2">
+        <span className="flex items-center gap-1.5 text-caption text-smoke">
+          approve
+          <input
+            type="number"
+            min="0"
+            max="24"
+            step="0.5"
+            value={hours}
+            onChange={(e) => setHours(e.target.value)}
+            className="h-9 w-20 rounded-lg border border-charcoal bg-surface-well px-2 font-mono text-[13px] text-snow outline-none focus:border-smark-orange"
+          />
+          h
+        </span>
+        <Button size="sm" variant="success" onClick={approve} loading={pending}>
+          Approve
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => onDecide(false, null)} loading={pending}>
+          Reject
+        </Button>
+      </div>
+    </div>
   );
 }
