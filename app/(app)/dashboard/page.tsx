@@ -101,7 +101,7 @@ export default async function DashboardPage() {
   const visibleItems = user ? effectiveVisibleNavItems(user.role, user.grantedModules) : [];
   const launcherBoxes: LauncherBox[] = RAIL_GROUP_ORDER.map((group) => {
     const first = visibleItems.find((item) => item.group === group);
-    return first ? { iconId: first.id, label: NAV_GROUP_LABELS[group], href: first.href } : null;
+    return first ? { iconId: first.id, label: NAV_GROUP_LABELS[group], href: first.href, group } : null;
   }).filter((box): box is LauncherBox => box !== null);
 
   return (

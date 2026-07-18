@@ -5,11 +5,23 @@ import { useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import { cn } from "@/lib/cn";
 
-export type ButtonVariant = "primary" | "outline" | "accent-outline" | "ghost";
+export type ButtonVariant =
+  | "primary"
+  | "accent"
+  | "success"
+  | "danger"
+  | "outline"
+  | "accent-outline"
+  | "ghost";
 export type ButtonSize = "sm" | "md" | "lg" | "xl";
 
 export interface ButtonProps extends ComponentPropsWithRef<"button"> {
-  /** primary = lime pill · outline = hairline pill · accent-outline = cobalt border · ghost = quiet text */
+  /**
+   * Colour carries intent: primary = lime pill (the one main CTA) · accent =
+   * filled cobalt (a strong app action) · success = green (confirm/enable) ·
+   * danger = red (delete/remove/archive/reset) · outline = hairline pill ·
+   * accent-outline = cobalt border · ghost = quiet text.
+   */
   variant?: ButtonVariant;
   size?: ButtonSize;
   /** Shows a spinner and disables the button. */
@@ -20,8 +32,10 @@ export interface ButtonProps extends ComponentPropsWithRef<"button"> {
 }
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
-  primary:
-    "bg-lime font-medium text-obsidian hover:bg-lime-hover",
+  primary: "bg-lime font-medium text-obsidian hover:bg-lime-hover",
+  accent: "bg-smark-orange font-medium text-white hover:bg-smark-orange-hover",
+  success: "bg-phosphor-green font-medium text-white hover:bg-midnight-emerald",
+  danger: "bg-smark-orange-soft font-medium text-white hover:brightness-95",
   outline: "border border-charcoal text-snow hover:bg-ash",
   "accent-outline":
     "border border-smark-orange text-snow hover:bg-surface-accent-hover",

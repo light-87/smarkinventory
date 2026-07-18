@@ -1,11 +1,15 @@
 import Link from "next/link";
 import { NAV_ICONS } from "@/components/shell/icons";
+import { NAV_GROUP_ACCENT, type NavGroupId } from "@/lib/nav";
 
 export interface LauncherBox {
   /** NAV_ICONS key of the first accessible item in this category — the box's icon. */
   iconId: string;
   label: string;
   href: string;
+  /** Which nav category this box represents — drives its wayfinding hue. Always
+   *  one of the 4 rail categories (never overview/footer). */
+  group: Exclude<NavGroupId, "overview" | "footer">;
 }
 
 /**
@@ -30,7 +34,7 @@ export function NavLauncher({ boxes }: { boxes: LauncherBox[] }) {
             href={box.href}
             className="flex min-h-11 flex-col items-center justify-center gap-2 rounded-2xl border border-charcoal bg-surface-panel px-3 py-4 text-center text-[14px] text-snow transition-colors hover:bg-surface-hover"
           >
-            <span aria-hidden className="size-6 flex-none text-smark-orange [&_svg]:size-full">
+            <span aria-hidden className={`size-6 flex-none ${NAV_GROUP_ACCENT[box.group].text} [&_svg]:size-full`}>
               {Icon ? <Icon /> : null}
             </span>
             {box.label}

@@ -65,6 +65,24 @@
   --color-surface-hover: #f5f7fb; /* interactive card hover */
   --color-surface-accent: #eef3ff; /* cobalt-tinted highlight surface */
   --color-surface-accent-hover: #e3ecff; /* hover on cobalt-outline actions */
+  /* Tinted status panels — complete the semantic set that only had cobalt.
+     Same ~lightness as surface-accent so tinted chips/cards read as quiet
+     status colour, not alarms. Pair with the matching text/border token
+     (phosphor-green / warn / smark-orange-soft). */
+  --color-surface-success: #e9f7ef; /* green-tinted panel (in-stock / done) */
+  --color-surface-warn: #fdf3e7; /* amber-tinted panel (caution) */
+  --color-surface-danger: #fdecec; /* red-tinted panel (danger) */
+
+  /* ---- Nav-group wayfinding accents (one hue per left-rail section) ---- */
+  /* Purpose: each rail section carries a stable identity colour so the eye
+     locates a group by hue, not just by reading labels. Deliberately distinct
+     from the status trio (green/amber/red) so wayfinding never reads as a
+     status signal. */
+  --color-nav-overview: #1a67fd; /* cobalt — home / dashboard */
+  --color-nav-inventory: #0d9488; /* teal */
+  --color-nav-ordering: #7c3aed; /* violet */
+  --color-nav-team: #c026d3; /* magenta */
+  --color-nav-projects: #d97706; /* amber-gold */
 
   /* ---- Border micro-scale (light hairline) ---- */
   /* main component border = charcoal #e6e9f2 · strong border = slate #d5d9e8 */
@@ -77,25 +95,29 @@
   --color-faint: #6c6f79; /* was #9aa0ad (~2.6:1, failed AA) → ~4.6:1 on white */
 
   /* ---- Type scale — size + line-height + letter-spacing per role ---- */
-  --text-caption: 13px;
+  /* Bumped one step up across the board (owner: "bigger fonts, easier to
+     read") — this is the central lever for every `text-caption/body/heading`
+     utility (~240 uses). Line-heights nudged down slightly at the larger
+     sizes to keep vertical rhythm tight. */
+  --text-caption: 14px;
   --text-caption--line-height: 1.5;
   --text-caption--letter-spacing: -0.084px;
-  --text-body-sm: 15px;
-  --text-body-sm--line-height: 1.47;
+  --text-body-sm: 16px;
+  --text-body-sm--line-height: 1.45;
   --text-body-sm--letter-spacing: -0.098px;
-  --text-body: 16px;
+  --text-body: 17px;
   --text-body--line-height: 1.5;
   --text-body--letter-spacing: -0.112px;
-  --text-subheading: 19px;
-  --text-subheading--line-height: 1.4;
+  --text-subheading: 21px;
+  --text-subheading--line-height: 1.38;
   --text-subheading--letter-spacing: -0.126px;
-  --text-heading-sm: 26px;
-  --text-heading-sm--line-height: 1.3;
+  --text-heading-sm: 28px;
+  --text-heading-sm--line-height: 1.28;
   --text-heading-sm--letter-spacing: -0.168px;
-  --text-heading: 36px;
-  --text-heading--line-height: 1.2;
-  --text-heading--letter-spacing: -0.252px;
-  --text-display: 72px;
+  --text-heading: 40px;
+  --text-heading--line-height: 1.15;
+  --text-heading--letter-spacing: -0.28px;
+  --text-display: 76px;
   --text-display--line-height: 1;
   --text-display--letter-spacing: -0.504px;
 

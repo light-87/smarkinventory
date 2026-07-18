@@ -43,8 +43,8 @@ export function StatGrid({
   const tiles: Tile[] = [
     { key: "units", label: "Units in stock", value: formatNumber(stats.unitsInStock) },
     { key: "skus", label: "Distinct SKUs", value: formatNumber(stats.distinctSkus) },
-    { key: "low", label: "Low stock", value: formatNumber(stats.lowStock), tone: "accent" },
-    { key: "out", label: "Out of stock", value: formatNumber(stats.outOfStock), tone: "accent" },
+    { key: "low", label: "Low stock", value: formatNumber(stats.lowStock), tone: "warn" },
+    { key: "out", label: "Out of stock", value: formatNumber(stats.outOfStock), tone: "danger" },
     { key: "onorder", label: "On order", value: formatNumber(stats.onOrder) },
     { key: "movements", label: "Movements today", value: formatNumber(stats.movementsToday) },
     { key: "value", label: inventoryLabel, value: formatINRCompact(stats.inventoryValue) },

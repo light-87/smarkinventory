@@ -42,6 +42,23 @@ export const RAIL_GROUP_ORDER: readonly Exclude<NavGroupId, "overview" | "footer
   "projects",
 ];
 
+/**
+ * Per-group wayfinding accent (tokens defined in app/globals.css `--color-nav-*`).
+ * Consumed by the desktop rail (active mark + icon), the mobile bottom bar, and
+ * the dashboard launcher so each section reads by a stable hue. Full class
+ * strings (not built dynamically) so Tailwind's scanner emits the utilities.
+ * `footer` (AI Memory · Settings) stays a neutral grey — utility chrome, not a
+ * category.
+ */
+export const NAV_GROUP_ACCENT: Record<NavGroupId, { text: string; bg: string; border: string }> = {
+  overview: { text: "text-nav-overview", bg: "bg-nav-overview", border: "border-nav-overview" },
+  inventory: { text: "text-nav-inventory", bg: "bg-nav-inventory", border: "border-nav-inventory" },
+  ordering: { text: "text-nav-ordering", bg: "bg-nav-ordering", border: "border-nav-ordering" },
+  team: { text: "text-nav-team", bg: "bg-nav-team", border: "border-nav-team" },
+  projects: { text: "text-nav-projects", bg: "bg-nav-projects", border: "border-nav-projects" },
+  footer: { text: "text-smoke", bg: "bg-smoke", border: "border-smoke" },
+};
+
 export interface NavItem {
   /** Stable id — also the key into components/shell/icons.tsx's NAV_ICONS map. */
   id: string;

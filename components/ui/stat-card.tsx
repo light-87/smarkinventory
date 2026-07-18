@@ -12,6 +12,20 @@ const TONE_CLASSES: Record<StatTone, string> = {
   danger: "text-smark-orange-soft",
 };
 
+/**
+ * A 4px left accent bar in the tone colour turns each tile into a directional,
+ * scannable status card (owner: "reason for every colour"). Neutral tones keep
+ * a charcoal bar so the whole grid stays visually aligned.
+ */
+const ACCENT_BAR: Record<StatTone, string> = {
+  default: "border-l-charcoal",
+  accent: "border-l-smark-orange",
+  muted: "border-l-charcoal",
+  success: "border-l-phosphor-green",
+  warn: "border-l-warn",
+  danger: "border-l-smark-orange-soft",
+};
+
 export interface StatCardProps extends ComponentPropsWithRef<"div"> {
   value: ReactNode;
   label: ReactNode;
@@ -35,7 +49,8 @@ export function StatCard({
   return (
     <div
       className={cn(
-        "rounded-2xl border border-charcoal bg-surface px-5 py-[18px]",
+        "rounded-2xl border border-charcoal border-l-4 bg-surface px-5 py-[18px]",
+        ACCENT_BAR[tone],
         className,
       )}
       {...props}

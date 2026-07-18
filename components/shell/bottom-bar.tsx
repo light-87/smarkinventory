@@ -4,7 +4,7 @@ import Link from "next/link";
 import { cn } from "@/lib/cn";
 import { type Role } from "@/lib/auth/roles";
 import type { Module } from "@/lib/rbac/types";
-import { effectiveVisibleMobilePrimaryItems, isNavItemActive } from "@/lib/nav";
+import { NAV_GROUP_ACCENT, effectiveVisibleMobilePrimaryItems, isNavItemActive } from "@/lib/nav";
 import { MoreIcon, NAV_ICONS } from "./icons";
 import { NavLinkPending } from "./nav-link-pending";
 
@@ -45,7 +45,7 @@ export function BottomBar({
             href={item.href}
             className={cn(
               "flex min-w-11 flex-1 flex-col items-center justify-center gap-[3px] text-[11px]",
-              active ? "text-smark-orange" : "text-smoke",
+              active ? NAV_GROUP_ACCENT[item.group].text : "text-smoke",
             )}
           >
             <span aria-hidden className="size-5 [&_svg]:size-full">

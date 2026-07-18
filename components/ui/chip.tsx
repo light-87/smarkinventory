@@ -5,20 +5,28 @@ export type ChipTone =
   | "default" /* charcoal border · smoke text — locations, quiet meta   */
   | "neutral" /* charcoal border · silver text — counts, mid emphasis   */
   | "bright" /* charcoal border · snow text — emphasized values         */
-  | "accent" /* cobalt border + text — interactive / info emphasis      */
-  | "warn" /* amber border + text — caution: low stock, contested, offline */
-  | "success" /* rationed green — in-stock / passed                     */
+  | "accent" /* cobalt tint — interactive / info emphasis               */
+  | "warn" /* amber tint — caution: low stock, contested, offline       */
+  | "success" /* green tint — in-stock / passed                         */
+  | "danger" /* red tint — out of stock / error                         */
   | "soft"; /* ash fill + slate border — active filter chips            */
 
 export type ChipSize = "sm" | "md";
 
+/**
+ * Status tones now carry a matching tinted FILL (surface-accent/warn/success/
+ * danger), not just a hairline border+text — so a chip's colour reads at a
+ * glance instead of whispering. The non-status tones (default/neutral/bright)
+ * stay hairline so meta chips don't compete with real status.
+ */
 const TONE_CLASSES: Record<ChipTone, string> = {
   default: "border-charcoal text-smoke",
   neutral: "border-charcoal text-silver-mist",
   bright: "border-charcoal text-snow",
-  accent: "border-smark-orange text-smark-orange",
-  warn: "border-warn text-warn",
-  success: "border-forest-depth text-phosphor-green",
+  accent: "border-smark-orange bg-surface-accent text-smark-orange",
+  warn: "border-warn bg-surface-warn text-warn",
+  success: "border-forest-depth bg-surface-success text-phosphor-green",
+  danger: "border-smark-orange-soft bg-surface-danger text-smark-orange-soft",
   soft: "border-slate bg-ash text-snow",
 };
 
