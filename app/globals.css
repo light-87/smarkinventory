@@ -33,11 +33,11 @@
   --color-forest-depth: #1f4b37;
   --color-midnight-emerald: #006239;
 
-  /* ---- Ink tiers (dark text on white) — darkened for WCAG-AA contrast on white ---- */
-  --color-snow: #171a26; /* primary text */
-  --color-silver-mist: #3f424b; /* secondary text (~9:1) */
-  --color-smoke: #565961; /* tertiary text (~6:1) */
-  --color-graphite: #a4abbb; /* empty-state icon grey, visible on white */
+  /* ---- Ink tiers (dark text on white) — darkened again (owner: muted text read too grey) ---- */
+  --color-snow: #12141d; /* primary text — near-black (owner: "text not grey") */
+  --color-silver-mist: #2f323a; /* secondary text — darker (was #3f424b) */
+  --color-smoke: #45484f; /* tertiary text — darker (was #565961) */
+  --color-graphite: #8b93a5; /* empty-state icon grey — a touch darker, visible on the tinted canvas */
   --color-slate: #d5d9e8; /* strong border */
   --color-charcoal: #e6e9f2; /* default component border */
   --color-ash: #f0f2f7; /* hover fills, toast/chip bg */
@@ -56,22 +56,26 @@
   --color-lime: #bfff5a;
   --color-lime-hover: #b0f53f;
 
-  /* ---- Surface micro-scale (white/paper) ---- */
-  --color-canvas: #fcfcfd; /* page background */
-  --color-surface: #ffffff; /* cards, drawers, dialogs */
+  /* ---- Surface micro-scale (paper on a soft sky-blue canvas) ---- */
+  /* Owner ask (2026-07-18): the pure-white page read too flat — "every box"
+     blended into the background. The page canvas is now a soft sky-blue tint
+     so the WHITE cards/surfaces below lift off it and read as distinct boxes.
+     Kept low-saturation so it stays calm/professional, not "baby blue". */
+  --color-canvas: #dfe9fc; /* page background — vivid soft sky blue (owner picked the "more vivid" direction) */
+  --color-surface: #ffffff; /* cards, drawers, dialogs — stay white to pop off the canvas */
   --color-surface-panel: #fafbfc; /* quiet inline panels, drop zones */
   --color-surface-well: #f4f6fa; /* inputs, inset wells, segmented tracks */
   --color-surface-raised: #f0f2f7; /* menus, avatar button, nav hover */
   --color-surface-hover: #f5f7fb; /* interactive card hover */
-  --color-surface-accent: #eef3ff; /* cobalt-tinted highlight surface */
-  --color-surface-accent-hover: #e3ecff; /* hover on cobalt-outline actions */
-  /* Tinted status panels — complete the semantic set that only had cobalt.
-     Same ~lightness as surface-accent so tinted chips/cards read as quiet
-     status colour, not alarms. Pair with the matching text/border token
-     (phosphor-green / warn / smark-orange-soft). */
-  --color-surface-success: #e9f7ef; /* green-tinted panel (in-stock / done) */
-  --color-surface-warn: #fdf3e7; /* amber-tinted panel (caution) */
-  --color-surface-danger: #fdecec; /* red-tinted panel (danger) */
+  --color-surface-accent: #e7f0ff; /* cobalt-tinted highlight surface — deepened (vivid) */
+  --color-surface-accent-hover: #d9e6ff; /* hover on cobalt-outline actions */
+  /* Tinted status panels — the "meaningful pod" fills. Deepened for the vivid
+     direction so a tinted card/chip reads as clear status colour, while still
+     light enough to keep its text (phosphor-green / warn / smark-orange-soft /
+     cobalt) at WCAG-AA. */
+  --color-surface-success: #e5f5ec; /* green-tinted panel (in-stock / done) */
+  --color-surface-warn: #fbecd0; /* amber-tinted panel (caution / low) */
+  --color-surface-danger: #fcdede; /* red-tinted panel (out / error) */
 
   /* ---- Nav-group wayfinding accents (one hue per left-rail section) ---- */
   /* Purpose: each rail section carries a stable identity colour so the eye
@@ -92,23 +96,25 @@
 
   /* ---- Text ---- */
   /* primary snow · secondary silver-mist · tertiary smoke · faintest: */
-  --color-faint: #6c6f79; /* was #9aa0ad (~2.6:1, failed AA) → ~4.6:1 on white */
+  --color-faint: #585b64; /* faintest tier — darkened again (was #6c6f79) so captions read clearly */
 
   /* ---- Type scale — size + line-height + letter-spacing per role ---- */
   /* Bumped one step up across the board (owner: "bigger fonts, easier to
      read") — this is the central lever for every `text-caption/body/heading`
      utility (~240 uses). Line-heights nudged down slightly at the larger
      sizes to keep vertical rhythm tight. */
-  --text-caption: 14px;
+  /* Bumped one more notch on the reading tiers (owner: "increase font size a
+     bit") — caption/body-sm/body/subheading each +1px on top of the prior pass. */
+  --text-caption: 15px;
   --text-caption--line-height: 1.5;
   --text-caption--letter-spacing: -0.084px;
-  --text-body-sm: 16px;
+  --text-body-sm: 17px;
   --text-body-sm--line-height: 1.45;
   --text-body-sm--letter-spacing: -0.098px;
-  --text-body: 17px;
+  --text-body: 18px;
   --text-body--line-height: 1.5;
   --text-body--letter-spacing: -0.112px;
-  --text-subheading: 21px;
+  --text-subheading: 22px;
   --text-subheading--line-height: 1.38;
   --text-subheading--letter-spacing: -0.126px;
   --text-heading-sm: 28px;

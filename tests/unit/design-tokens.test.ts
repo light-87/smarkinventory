@@ -18,8 +18,8 @@ describe("design tokens (app/globals.css)", () => {
     ["cobalt accent (legacy orange name)", "--color-smark-orange: #1a67fd"],
     ["lime CTA", "--color-lime: #bfff5a"],
     ["obsidian ink", "--color-obsidian: #0a0d16"],
-    ["canvas page background", "--color-canvas: #fcfcfd"],
-    ["snow primary ink", "--color-snow: #171a26"],
+    ["canvas page background", "--color-canvas: #dfe9fc"],
+    ["snow primary ink", "--color-snow: #12141d"],
   ])("%s stays locked (%s)", (_name, declaration) => {
     expect(globalsCss).toContain(declaration);
   });

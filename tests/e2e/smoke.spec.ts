@@ -32,11 +32,11 @@ if (typeof process.versions.bun === "undefined") {
       await page.goto("/");
 
       // app/globals.css: body { background-color: var(--color-canvas) },
-      // --color-canvas is #fcfcfd in the new_design white theme.
+      // --color-canvas is #dfe9fc (vivid soft sky-blue canvas — white cards pop off it).
       const bodyBackground = await page.evaluate(
         () => getComputedStyle(document.body).backgroundColor,
       );
-      expect(bodyBackground).toBe("rgb(252, 252, 253)");
+      expect(bodyBackground).toBe("rgb(223, 233, 252)");
 
       // app/globals.css: html { color-scheme: light } — native controls,
       // scrollbars etc. render light without extra per-component work.

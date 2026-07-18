@@ -26,6 +26,20 @@ const ACCENT_BAR: Record<StatTone, string> = {
   danger: "border-l-smark-orange-soft",
 };
 
+/**
+ * State tones also fill the tile with their tinted "pod" surface so a metric
+ * that means something (low stock, out) reads as colour at a glance, while a
+ * plain count (default/muted) stays white — colour only where it's meaningful.
+ */
+const TONE_BG: Record<StatTone, string> = {
+  default: "bg-surface",
+  muted: "bg-surface",
+  accent: "bg-surface-accent",
+  success: "bg-surface-success",
+  warn: "bg-surface-warn",
+  danger: "bg-surface-danger",
+};
+
 export interface StatCardProps extends ComponentPropsWithRef<"div"> {
   value: ReactNode;
   label: ReactNode;
@@ -49,7 +63,8 @@ export function StatCard({
   return (
     <div
       className={cn(
-        "rounded-2xl border border-charcoal border-l-4 bg-surface px-5 py-[18px]",
+        "rounded-2xl border border-charcoal border-l-4 px-5 py-[18px]",
+        TONE_BG[tone],
         ACCENT_BAR[tone],
         className,
       )}
