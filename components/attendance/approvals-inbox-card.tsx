@@ -21,7 +21,9 @@ export interface ApprovalsInboxCardProps {
   nameById: ReadonlyMap<string, string>;
 }
 
-const ROW = "flex flex-wrap items-center justify-between gap-3 rounded-xl border border-charcoal bg-surface-panel px-4 py-3";
+// Pending approvals are "waiting on you" — an amber pod (tint + left accent) so
+// the whole row reads as needs-attention, not just the buttons.
+const ROW = "flex flex-wrap items-center justify-between gap-3 rounded-xl border border-charcoal border-l-4 border-l-warn bg-surface-warn px-4 py-3";
 
 /** Owner's pending inbox — leave (with comp-off hours deduction), comp-work, and overtime. */
 export function ApprovalsInboxCard({

@@ -74,7 +74,7 @@ export function ApprovalsInbox({ bugs, changeRequests, taskTitleById, engineers 
   return (
     <div className="flex flex-col gap-4">
       {openBugs.length > 0 && (
-        <Card padding="none" className="border-l-[3px] border-l-warn">
+        <Card padding="none" tone="warn">
           <div className="border-b border-border-divider px-5 py-4">
             <SectionLabel className="text-warn">Bugs pending triage</SectionLabel>
             <p className="mt-1 text-caption text-faint">
@@ -110,7 +110,7 @@ export function ApprovalsInbox({ bugs, changeRequests, taskTitleById, engineers 
       )}
 
       {pendingCrs.length > 0 && (
-        <Card padding="none" className="border-l-[3px] border-l-smark-orange">
+        <Card padding="none" tone="accent">
           <div className="border-b border-border-divider px-5 py-4">
             <SectionLabel className="text-smark-orange">Change requests pending</SectionLabel>
             <p className="mt-1 text-caption text-faint">

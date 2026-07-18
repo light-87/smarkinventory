@@ -17,6 +17,7 @@
 
 import type { TaskStatus } from "@/types/db";
 import type { ChipTone } from "@/components/ui/chip";
+import type { CardTone } from "@/components/ui/card";
 
 export const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
   open: "Open",
@@ -38,4 +39,17 @@ export const TASK_STATUS_ACCENT: Record<TaskStatus, string> = {
   awaiting_client_input: "border-l-warn",
   submitted: "border-l-smark-orange",
   done: "border-l-phosphor-green",
+};
+
+/**
+ * Full "pod" tone per status for the <Card> primitive — tinted fill + accent
+ * bar in one prop (the vivid direction). Same four voices as the chip tone, so
+ * a task card's status reads from its whole surface, not just a corner chip.
+ * `open` stays neutral (white + grey rail) so a busy board isn't all colour.
+ */
+export const TASK_STATUS_CARD_TONE: Record<TaskStatus, CardTone> = {
+  open: "neutral",
+  awaiting_client_input: "warn",
+  submitted: "accent",
+  done: "success",
 };

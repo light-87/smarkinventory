@@ -10,7 +10,7 @@ import { formatDate } from "@/lib/format";
 import type { EngineerOption, TaskHoldView, TaskView } from "@/lib/pm/queries";
 import type { TaskReminderView } from "@/lib/reminders/queries";
 import { markTaskDoneAction, submitTaskAction } from "@/lib/pm/actions";
-import { TASK_STATUS_ACCENT, TASK_STATUS_LABEL, TASK_STATUS_TONE } from "@/lib/pm/task-status-ui";
+import { TASK_STATUS_CARD_TONE, TASK_STATUS_LABEL, TASK_STATUS_TONE } from "@/lib/pm/task-status-ui";
 import { TaskDrawer } from "./task-drawer";
 
 export interface TaskCardProps {
@@ -71,7 +71,7 @@ export function TaskCard({
   const hasManage = canWrite || isOwner;
 
   return (
-    <Card className={`flex flex-col gap-3 border-l-[3px] ${TASK_STATUS_ACCENT[task.status]}`}>
+    <Card tone={TASK_STATUS_CARD_TONE[task.status]} className="flex flex-col gap-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           {projectName && <div className="text-caption text-smoke">{projectName}</div>}
