@@ -18,14 +18,25 @@ export const metadata: Metadata = { title: "Employees" };
 export default async function EmployeesPage() {
   const user = await getSessionUser();
   if (!user || (user.role !== "owner" && user.role !== "accountant")) notFound();
+  const canEdit = user.role === "owner";
 
   const supabase = await createClient();
-  const entries = await getEmployeeDirectory(supabase);
+  const [active, archived] = await Promise.all([
+    getEmployeeDirectory(supabase, { active: true }),
+    getEmployeeDirectory(supabase, { active: false }),
+  ]);
 
   return (
     <div className="mx-auto flex max-w-[900px] flex-col gap-4 px-4 pt-6 pb-24 sm:px-6 sm:pt-7">
       <h1 className="text-[24px] font-normal text-snow">Employees</h1>
-      <EmployeesDirectory entries={entries} canSeeBank />
+      <EmployeesDirectory entries={active} canSeeBank canEdit={canEdit} />
+
+      {archived.length > 0 && (
+        <>
+          <h2 className="mt-4 text-subheading font-medium text-smoke">Archived</h2>
+          <EmployeesDirectory entries={archived} canSeeBank canEdit={canEdit} archived />
+        </>
+      )}
     </div>
   );
 }

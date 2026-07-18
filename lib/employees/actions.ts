@@ -22,7 +22,42 @@ import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { getStorageAdapter } from "@/lib/storage";
 import { usernameToEmail } from "@/lib/auth/roles";
 import { TABLES } from "@/types/db";
-import { CreateEmployeeInputSchema, ProfileFormSchema, type CreateEmployeeInput, type ProfileFormInput, type ActionResult } from "./types";
+import {
+  ChangeOwnPasswordSchema,
+  CreateEmployeeInputSchema,
+  OwnerUpdateEmployeeSchema,
+  ProfileFormSchema,
+  ResetEmployeePasswordSchema,
+  SetEmployeeActiveSchema,
+  type ActionResult,
+  type ChangeOwnPasswordInput,
+  type CreateEmployeeInput,
+  type OwnerUpdateEmployeeInput,
+  type ProfileFormInput,
+  type ResetEmployeePasswordInput,
+  type SetEmployeeActiveInput,
+} from "./types";
+
+type SessionClient = Awaited<ReturnType<typeof createClient>>;
+
+/**
+ * Owner gate for actions that touch ANOTHER user (edit/reset/archive). Returns
+ * the RLS-bound session client (the real DB-side enforcement is still RLS + the
+ * `smark_app_users` guard trigger; this is the friendly pre-check) plus the
+ * caller's id. Mirrors createEmployeeAction's inline owner check.
+ */
+async function requireOwnerClient(): Promise<
+  { ok: true; supabase: SessionClient; callerId: string } | { ok: false; error: string }
+> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Not signed in." };
+  const { data: role, error } = await supabase.rpc("smark_role");
+  if (error || role !== "owner") return { ok: false, error: "Only the owner can do that." };
+  return { ok: true, supabase, callerId: user.id };
+}
 
 function blankToNull(value: string | null | undefined): string | null {
   if (value == null) return null;
@@ -72,6 +107,8 @@ export async function updateOwnProfileAction(input: ProfileFormInput): Promise<A
         bank_account_number: blankToNull(parsed.bank_account_number ?? null),
         bank_ifsc: blankToNull(parsed.bank_ifsc ?? null),
         bank_name: blankToNull(parsed.bank_name ?? null),
+        email: blankToNull(parsed.email ?? null),
+        phone: blankToNull(parsed.phone ?? null),
       },
       { onConflict: "user_id" },
     );
@@ -79,6 +116,120 @@ export async function updateOwnProfileAction(input: ProfileFormInput): Promise<A
 
   revalidatePath("/settings/profile");
   revalidatePath("/settings/employees");
+  return { ok: true };
+}
+
+/**
+ * Owner edits ANOTHER employee's profile (Settings → Employees). Writes the
+ * non-sensitive fields (display name/DOB/DOJ) to `smark_app_users` and the
+ * private fields (PAN/bank/email/phone) to `smark_employee_private`, both keyed
+ * by the target user id. Uses the owner's own RLS-bound client — the owner
+ * clause on both tables' policies (0011) already permits this, so no service
+ * role and no migration are needed. Sensitive values are never logged.
+ */
+export async function updateEmployeeAsOwnerAction(input: OwnerUpdateEmployeeInput): Promise<ActionResult> {
+  const parsed = OwnerUpdateEmployeeSchema.parse(input);
+  const gate = await requireOwnerClient();
+  if (!gate.ok) return gate;
+  const { supabase } = gate;
+
+  const { error: profileError } = await supabase
+    .from(TABLES.app_users)
+    .update({
+      display_name: parsed.display_name,
+      birth_date: blankToNull(parsed.birth_date ?? null),
+      date_of_joining: blankToNull(parsed.date_of_joining ?? null),
+    })
+    .eq("id", parsed.targetUserId);
+  if (profileError) return { ok: false, error: profileError.message };
+
+  const { error: privateError } = await supabase
+    .from(TABLES.employee_private)
+    .upsert(
+      {
+        user_id: parsed.targetUserId,
+        pan_number: blankToNull(parsed.pan_number ?? null),
+        bank_account_name: blankToNull(parsed.bank_account_name ?? null),
+        bank_account_number: blankToNull(parsed.bank_account_number ?? null),
+        bank_ifsc: blankToNull(parsed.bank_ifsc ?? null),
+        bank_name: blankToNull(parsed.bank_name ?? null),
+        email: blankToNull(parsed.email ?? null),
+        phone: blankToNull(parsed.phone ?? null),
+      },
+      { onConflict: "user_id" },
+    );
+  if (privateError) return { ok: false, error: privateError.message };
+
+  revalidatePath("/settings/employees");
+  return { ok: true };
+}
+
+/**
+ * Owner resets any employee's password. Setting another user's password can
+ * only be done with the Supabase Auth admin API (service role), so this is
+ * gated on the owner's `smark_role()` BEFORE the service client is created —
+ * the same belt-and-suspenders as createEmployeeAction. The password value is
+ * handed straight to Supabase and never logged.
+ */
+export async function resetEmployeePasswordAction(input: ResetEmployeePasswordInput): Promise<ActionResult> {
+  const parsed = ResetEmployeePasswordSchema.parse(input);
+  const gate = await requireOwnerClient();
+  if (!gate.ok) return gate;
+
+  const service = createServiceClient();
+  const { error } = await service.auth.admin.updateUserById(parsed.targetUserId, { password: parsed.password });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/** Any signed-in user changes THEIR OWN password (no service role needed). */
+export async function changeOwnPasswordAction(input: ChangeOwnPasswordInput): Promise<ActionResult> {
+  const parsed = ChangeOwnPasswordSchema.parse(input);
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Not signed in." };
+
+  const { error } = await supabase.auth.updateUser({ password: parsed.password });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/**
+ * Owner archives ("employee left") or reactivates an employee — NEVER deletes.
+ * Two effects: (1) flip `smark_app_users.active` (owner UPDATE policy + guard
+ * trigger allow owners to change `active`), which nulls `smark_role()` for the
+ * user and blocks all app access; (2) ban/unban the auth user via the admin API
+ * so they can't even sign in. All history (documents, movements, attendance,
+ * runs) is keyed by user_id and is left untouched, so it stays viewable under
+ * "Archived" and reactivation fully restores access.
+ */
+export async function setEmployeeActiveAction(input: SetEmployeeActiveInput): Promise<ActionResult> {
+  const parsed = SetEmployeeActiveSchema.parse(input);
+  const gate = await requireOwnerClient();
+  if (!gate.ok) return gate;
+  if (parsed.targetUserId === gate.callerId) return { ok: false, error: "You can't archive your own account." };
+
+  const { error: profileError } = await gate.supabase
+    .from(TABLES.app_users)
+    .update({ active: parsed.active })
+    .eq("id", parsed.targetUserId);
+  if (profileError) return { ok: false, error: profileError.message };
+
+  const service = createServiceClient();
+  const { error: banError } = await service.auth.admin.updateUserById(parsed.targetUserId, {
+    ban_duration: parsed.active ? "none" : "876000h",
+  });
+  if (banError) {
+    return {
+      ok: false,
+      error: `Access flag updated but sign-in ${parsed.active ? "unblock" : "block"} failed: ${banError.message}`,
+    };
+  }
+
+  revalidatePath("/settings/employees");
+  revalidatePath("/settings/users");
   return { ok: true };
 }
 

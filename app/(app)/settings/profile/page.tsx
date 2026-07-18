@@ -4,6 +4,7 @@ import { getSessionUser } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { getOwnDocuments, getOwnPrivateFields, getOwnProfile } from "@/lib/employees/queries";
 import { ProfileForm } from "@/components/employees/profile-form";
+import { ChangePasswordCard } from "@/components/employees/change-password-card";
 import { DocumentsCard } from "@/components/employees/documents-card";
 
 export const metadata: Metadata = { title: "My Profile" };
@@ -32,6 +33,7 @@ export default async function ProfilePage() {
     <div className="mx-auto flex max-w-[640px] flex-col gap-4 px-4 pt-6 pb-24 sm:px-6 sm:pt-7">
       <h1 className="text-[24px] font-normal text-snow">My Profile</h1>
       <ProfileForm profile={profile} privateFields={privateFields} />
+      <ChangePasswordCard />
       <DocumentsCard documents={documents} />
     </div>
   );

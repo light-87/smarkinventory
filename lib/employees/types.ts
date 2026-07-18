@@ -20,6 +20,16 @@ import { zDateOnly, type AppUserRow, type EmployeeDocumentRow, type EmployeePriv
 export const ProfileFormSchema = z.object({
   birth_date: zDateOnly.nullable().optional(),
   date_of_joining: zDateOnly.nullable().optional(),
+  // (0016) Personal contact — email + Indian-ish phone. Both optional/lenient
+  // (re-saving the profile must not force re-entering untouched fields).
+  email: z.string().trim().toLowerCase().email("Enter a valid email").nullable().optional().or(z.literal("")),
+  phone: z
+    .string()
+    .trim()
+    .regex(/^[+0-9][0-9\s-]{6,19}$/, "Enter a valid phone number")
+    .nullable()
+    .optional()
+    .or(z.literal("")),
   pan_number: z
     .string()
     .trim()
@@ -42,21 +52,53 @@ export const ProfileFormSchema = z.object({
 });
 export type ProfileFormInput = z.infer<typeof ProfileFormSchema>;
 
+/**
+ * Owner-only edit of ANOTHER employee's profile (Settings → Employees). Same
+ * field set as the self form, plus the target user's id and their display name
+ * (which lives on `smark_app_users`, not the private table). The DB already
+ * permits the owner clause on both tables — no migration needed.
+ */
+export const OwnerUpdateEmployeeSchema = ProfileFormSchema.extend({
+  targetUserId: z.uuid(),
+  display_name: z.string().trim().min(1, "Enter a name.").max(200),
+});
+export type OwnerUpdateEmployeeInput = z.infer<typeof OwnerUpdateEmployeeSchema>;
+
+/** Owner resets any employee's password (Supabase Auth admin). */
+export const ResetEmployeePasswordSchema = z.object({
+  targetUserId: z.uuid(),
+  password: z.string().min(8, "At least 8 characters."),
+});
+export type ResetEmployeePasswordInput = z.infer<typeof ResetEmployeePasswordSchema>;
+
+/** Any user changes their own password. */
+export const ChangeOwnPasswordSchema = z.object({
+  password: z.string().min(8, "At least 8 characters."),
+});
+export type ChangeOwnPasswordInput = z.infer<typeof ChangeOwnPasswordSchema>;
+
+/** Owner archives ("employee left") or reactivates an employee — never delete. */
+export const SetEmployeeActiveSchema = z.object({
+  targetUserId: z.uuid(),
+  active: z.boolean(),
+});
+export type SetEmployeeActiveInput = z.infer<typeof SetEmployeeActiveSchema>;
+
 /** Non-sensitive profile view — the subset of `smark_app_users` the screens render. */
 export type OwnProfile = Pick<
   AppUserRow,
-  "id" | "username" | "display_name" | "role" | "birth_date" | "date_of_joining" | "onboarded_at"
+  "id" | "username" | "display_name" | "role" | "active" | "birth_date" | "date_of_joining" | "onboarded_at"
 >;
 
 /**
- * The five sensitive fields as edited/rendered — sourced from
+ * The sensitive/private fields as edited/rendered — sourced from
  * `smark_employee_private`, NEVER from `smark_app_users`. All nullable
  * (a fresh employee has no private row yet). This is the shape read into the
  * profile form and rendered (owner/accountant only) in the directory.
  */
 export type PrivateFields = Pick<
   EmployeePrivateRow,
-  "pan_number" | "bank_account_name" | "bank_account_number" | "bank_ifsc" | "bank_name"
+  "pan_number" | "bank_account_name" | "bank_account_number" | "bank_ifsc" | "bank_name" | "email" | "phone"
 >;
 
 /** One row of the owner/accountant "Employees" directory: profile + private PII + their documents. */

@@ -12,6 +12,8 @@ import type { OwnProfile, PrivateFields } from "@/lib/employees/types";
 interface DraftState {
   birth_date: string;
   date_of_joining: string;
+  email: string;
+  phone: string;
   pan_number: string;
   bank_account_name: string;
   bank_account_number: string;
@@ -23,6 +25,8 @@ function draftFromProfile(profile: OwnProfile, privateFields: PrivateFields | nu
   return {
     birth_date: profile.birth_date ?? "",
     date_of_joining: profile.date_of_joining ?? "",
+    email: privateFields?.email ?? "",
+    phone: privateFields?.phone ?? "",
     pan_number: privateFields?.pan_number ?? "",
     bank_account_name: privateFields?.bank_account_name ?? "",
     bank_account_number: privateFields?.bank_account_number ?? "",
@@ -54,6 +58,8 @@ export function ProfileForm({ profile, privateFields }: { profile: OwnProfile; p
       const result = await updateOwnProfileAction({
         birth_date: draft.birth_date || null,
         date_of_joining: draft.date_of_joining || null,
+        email: draft.email.trim() || null,
+        phone: draft.phone.trim() || null,
         pan_number: draft.pan_number.trim() ? draft.pan_number.trim().toUpperCase() : null,
         bank_account_name: draft.bank_account_name || null,
         bank_account_number: draft.bank_account_number || null,
@@ -79,6 +85,30 @@ export function ProfileForm({ profile, privateFields }: { profile: OwnProfile; p
           </Field>
           <Field htmlFor="profile-doj" label="Date of joining">
             <Input id="profile-doj" type="date" mono value={draft.date_of_joining} onChange={(e) => set("date_of_joining", e.target.value)} />
+          </Field>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Field htmlFor="profile-email" label="Email">
+            <Input
+              id="profile-email"
+              type="email"
+              value={draft.email}
+              onChange={(e) => set("email", e.target.value)}
+              placeholder="you@example.com"
+              autoComplete="off"
+            />
+          </Field>
+          <Field htmlFor="profile-phone" label="Phone">
+            <Input
+              id="profile-phone"
+              type="tel"
+              inputMode="tel"
+              value={draft.phone}
+              onChange={(e) => set("phone", e.target.value)}
+              placeholder="+91 98765 43210"
+              autoComplete="off"
+            />
           </Field>
         </div>
 

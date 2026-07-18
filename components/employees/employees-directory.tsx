@@ -4,6 +4,7 @@ import { formatDate } from "@/lib/format";
 import type { EmployeeDirectoryEntry } from "@/lib/employees/types";
 import type { EmployeeDocType } from "@/types/db";
 import { DownloadDocumentButton } from "./download-document-button";
+import { EmployeeAdminControls } from "./employee-admin-controls";
 
 const DOC_TYPE_LABELS: Record<EmployeeDocType, string> = {
   nda: "Signed NDA",
@@ -21,25 +22,50 @@ const DOC_TYPE_LABELS: Record<EmployeeDocType, string> = {
  * both that table's RLS and the page-level role gate (migration 0011 +
  * app/(app)/settings/employees/page.tsx).
  */
-export function EmployeesDirectory({ entries, canSeeBank }: { entries: EmployeeDirectoryEntry[]; canSeeBank: boolean }) {
+export function EmployeesDirectory({
+  entries,
+  canSeeBank,
+  canEdit = false,
+  archived = false,
+}: {
+  entries: EmployeeDirectoryEntry[];
+  canSeeBank: boolean;
+  /** Owner-only: render the edit / reset-password / archive controls. */
+  canEdit?: boolean;
+  /** These entries are archived (inactive) employees — show Reactivate + a dimmed card. */
+  archived?: boolean;
+}) {
   if (entries.length === 0) {
     return (
       <Card>
-        <CardBody className="p-0 text-body-sm text-smoke">No active employees yet.</CardBody>
+        <CardBody className="p-0 text-body-sm text-smoke">
+          {archived ? "No archived employees." : "No active employees yet."}
+        </CardBody>
       </Card>
     );
   }
 
   return (
     <div className="flex flex-col gap-4">
-      {entries.map(({ profile, privateFields, documents }) => (
-        <Card key={profile.id} padding="none">
+      {entries.map((entry) => {
+        const { profile, privateFields, documents } = entry;
+        return (
+        <Card key={profile.id} padding="none" className={archived ? "opacity-70" : undefined}>
           <CardHeader
             title={profile.display_name || profile.username}
-            meta={<span className="text-smoke">@{profile.username}</span>}
+            meta={
+              <span className="flex items-center gap-2 text-smoke">
+                @{profile.username}
+                {archived && (
+                  <Chip tone="warn" size="sm">
+                    Archived
+                  </Chip>
+                )}
+              </span>
+            }
           />
           <CardBody className="flex flex-col gap-4">
-            <div className="grid grid-cols-2 gap-3 text-[14px] sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 text-[14px] sm:grid-cols-3">
               <div>
                 <div className="text-caption text-smoke">Date of birth</div>
                 <div className="text-snow">{profile.birth_date ? formatDate(profile.birth_date) : "—"}</div>
@@ -49,14 +75,22 @@ export function EmployeesDirectory({ entries, canSeeBank }: { entries: EmployeeD
                 <div className="text-snow">{profile.date_of_joining ? formatDate(profile.date_of_joining) : "—"}</div>
               </div>
               <div>
-                <div className="text-caption text-smoke">PAN number</div>
-                <div className="font-mono text-snow">{privateFields?.pan_number ?? "—"}</div>
-              </div>
-              <div>
                 <div className="text-caption text-smoke">Onboarding</div>
-                <Chip tone={profile.onboarded_at ? "success" : "accent"} size="sm">
+                <Chip tone={profile.onboarded_at ? "success" : "warn"} size="sm">
                   {profile.onboarded_at ? "Complete" : "Pending"}
                 </Chip>
+              </div>
+              <div>
+                <div className="text-caption text-smoke">Email</div>
+                <div className="truncate text-snow">{privateFields?.email ?? "—"}</div>
+              </div>
+              <div>
+                <div className="text-caption text-smoke">Phone</div>
+                <div className="font-mono text-snow">{privateFields?.phone ?? "—"}</div>
+              </div>
+              <div>
+                <div className="text-caption text-smoke">PAN number</div>
+                <div className="font-mono text-snow">{privateFields?.pan_number ?? "—"}</div>
               </div>
             </div>
 
@@ -110,9 +144,12 @@ export function EmployeesDirectory({ entries, canSeeBank }: { entries: EmployeeD
                 ))
               )}
             </div>
+
+            {canEdit && <EmployeeAdminControls entry={entry} archived={archived} />}
           </CardBody>
         </Card>
-      ))}
+        );
+      })}
     </div>
   );
 }

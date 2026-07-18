@@ -263,6 +263,8 @@ export const NotificationKindSchema = z.enum([
   "leave_pending",
   "comp_decided",
   "leave_decided",
+  "overtime_pending",
+  "overtime_decided",
   "bug_reported",
   "change_requested",
   "client_input_provided",
@@ -421,6 +423,9 @@ export const EmployeePrivateRowSchema = z.object({
   bank_account_number: z.string().nullable(),
   bank_ifsc: z.string().nullable(),
   bank_name: z.string().nullable(),
+  /** (0016) Personal contact — owner/self/accountant-visible only (this table's RLS), never on world-readable smark_app_users. */
+  email: z.string().nullable(),
+  phone: z.string().nullable(),
   created_at: zTimestamptz,
   updated_at: zTimestamptz.nullable(),
 });
@@ -453,11 +458,17 @@ export type EmployeeDocumentRow = z.infer<typeof EmployeeDocumentRowSchema>;
 export const ModuleSchema = z.enum(["inventory", "project_management", "attendance"]);
 export type Module = z.infer<typeof ModuleSchema>;
 
+/** (0017) Inventory grant access level — view-only vs edit. */
+export const InventoryAccessSchema = z.enum(["view", "edit"]);
+export type InventoryAccess = z.infer<typeof InventoryAccessSchema>;
+
 /** `smark_user_module_grants` — one row per (user, module) grant. */
 export const ModuleGrantRowSchema = z.object({
   id: zUuid,
   user_id: zUuid,
   module: ModuleSchema,
+  /** (0017) view/edit — only meaningful for module = 'inventory'. Default 'edit'. */
+  access: InventoryAccessSchema,
   granted_by: zUuid.nullable(),
   created_at: zTimestamptz,
 });
@@ -984,6 +995,8 @@ export const LeaveRequestRowSchema = z.object({
   status: ApprovalStatusSchema,
   decided_by: zUuid.nullable(),
   decided_at: zTimestamptz.nullable(),
+  /** (0018) Hours debited from the comp-off balance when a compensatory leave is approved (owner-chosen). Null otherwise. */
+  comp_hours: z.number().nullable(),
 });
 export type LeaveRequestRow = z.infer<typeof LeaveRequestRowSchema>;
 
@@ -1002,6 +1015,24 @@ export const CompWorkRowSchema = z.object({
   decided_at: zTimestamptz.nullable(),
 });
 export type CompWorkRow = z.infer<typeof CompWorkRowSchema>;
+
+/**
+ * (0018) `smark_overtime` — employee's self-reported extra-hours claim,
+ * owner-decided (owner may set `hours_approved` ≠ `hours_claimed`). Approved
+ * rows are the HOURS credit side of the derived comp-off balance.
+ */
+export const OvertimeRowSchema = z.object({
+  ...baseRow,
+  user_id: zUuid,
+  work_date: zDateOnly,
+  hours_claimed: z.number(),
+  hours_approved: z.number().nullable(),
+  note: z.string().nullable(),
+  status: ApprovalStatusSchema,
+  decided_by: zUuid.nullable(),
+  decided_at: zTimestamptz.nullable(),
+});
+export type OvertimeRow = z.infer<typeof OvertimeRowSchema>;
 
 /** `smark_project_members` [R2-04] — `UNIQUE(project_id, user_id)`. */
 export const ProjectMemberRowSchema = z.object({
@@ -1351,6 +1382,7 @@ export const TABLES = {
   holidays: "smark_holidays",
   leave_requests: "smark_leave_requests",
   comp_work: "smark_comp_work",
+  overtime: "smark_overtime",
   project_members: "smark_project_members",
   time_entries: "smark_time_entries",
   tasks: "smark_tasks",
@@ -1430,6 +1462,7 @@ export type Database = {
       smark_holidays: TableOf<HolidayRow>;
       smark_leave_requests: TableOf<LeaveRequestRow>;
       smark_comp_work: TableOf<CompWorkRow>;
+      smark_overtime: TableOf<OvertimeRow>;
       smark_project_members: TableOf<ProjectMemberRow>;
       smark_time_entries: TableOf<TimeEntryRow>;
       smark_tasks: TableOf<TaskRow>;
@@ -1468,6 +1501,15 @@ export type Database = {
       smark_role: {
         Args: Record<PropertyKey, never>;
         Returns: AppRole | null;
+      };
+      /**
+       * (0017) True if the caller may EDIT inventory: owner, or an employee
+       * whose inventory module grant is `access = 'edit'`. The RLS twin of
+       * lib/rbac/access.ts effectiveCanWrite for inventory areas.
+       */
+      smark_can_edit_inventory: {
+        Args: Record<PropertyKey, never>;
+        Returns: boolean;
       };
       /**
        * Atomic worker job-claim (migration 0007). `UPDATE ... WHERE id IN

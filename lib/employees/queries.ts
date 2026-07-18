@@ -16,8 +16,8 @@ import type { Database } from "@/types/db";
 import { TABLES } from "@/types/db";
 import type { EmployeeDirectoryEntry, OwnProfile, PrivateFields } from "./types";
 
-const PROFILE_COLUMNS = "id, username, display_name, role, birth_date, date_of_joining, onboarded_at";
-const PRIVATE_COLUMNS = "user_id, pan_number, bank_account_name, bank_account_number, bank_ifsc, bank_name";
+const PROFILE_COLUMNS = "id, username, display_name, role, active, birth_date, date_of_joining, onboarded_at";
+const PRIVATE_COLUMNS = "user_id, pan_number, bank_account_name, bank_account_number, bank_ifsc, bank_name, email, phone";
 
 export async function getOwnProfile(
   supabase: SupabaseClient<Database>,
@@ -43,8 +43,8 @@ export async function getOwnPrivateFields(
     .eq("user_id", userId)
     .maybeSingle();
   if (error || !data) return null;
-  const { pan_number, bank_account_name, bank_account_number, bank_ifsc, bank_name } = data;
-  return { pan_number, bank_account_name, bank_account_number, bank_ifsc, bank_name };
+  const { pan_number, bank_account_name, bank_account_number, bank_ifsc, bank_name, email, phone } = data;
+  return { pan_number, bank_account_name, bank_account_number, bank_ifsc, bank_name, email, phone };
 }
 
 /** Minimal active-employee list (id/username/display_name only) — feeds Settings → Users' module-grant toggle grid, which needs no PII. */
@@ -82,7 +82,10 @@ export async function getOwnDocuments(supabase: SupabaseClient<Database>, userId
  * itself via `smark_role()` before querying anything, so it stays safe even
  * if a future call site forgets the page-level gate.
  */
-export async function getEmployeeDirectory(supabase: SupabaseClient<Database>): Promise<EmployeeDirectoryEntry[]> {
+export async function getEmployeeDirectory(
+  supabase: SupabaseClient<Database>,
+  { active = true }: { active?: boolean } = {},
+): Promise<EmployeeDirectoryEntry[]> {
   const { data: role, error: roleError } = await supabase.rpc("smark_role");
   if (roleError || (role !== "owner" && role !== "accountant")) return [];
 
@@ -90,7 +93,7 @@ export async function getEmployeeDirectory(supabase: SupabaseClient<Database>): 
     .from(TABLES.app_users)
     .select(PROFILE_COLUMNS)
     .eq("role", "employee")
-    .eq("active", true)
+    .eq("active", active)
     .order("username", { ascending: true });
   if (profilesError) throw new Error(profilesError.message);
 
@@ -115,6 +118,8 @@ export async function getEmployeeDirectory(supabase: SupabaseClient<Database>): 
             bank_account_number: priv.bank_account_number,
             bank_ifsc: priv.bank_ifsc,
             bank_name: priv.bank_name,
+            email: priv.email,
+            phone: priv.phone,
           }
         : null,
       documents: (documents ?? []).filter((d) => d.user_id === profile.id),
