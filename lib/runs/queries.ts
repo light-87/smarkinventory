@@ -485,11 +485,17 @@ export async function getReviewData(supabase: DB, service: DB, runId: string): P
     }
   }
 
-  // Cart cross-reference — "In cart ✓ ×N" (source review_add against this run's results).
-  const resultIds = Array.from(new Set(console_.sourcingLanes.flatMap((l) => l.rows.map((r) => r.resultId))));
-  const { data: cartItems, error: cartError } = resultIds.length
-    ? await supabase.from(TABLES.cart_items).select("id, demand, status, chosen_result_id").in("chosen_result_id", resultIds)
-    : { data: [] as { id: string; demand: unknown; status: string; chosen_result_id: string | null }[], error: null };
+  // Cart cross-reference — "In cart ✓ ×N". A review line is "in cart" if any
+  // OPEN cart line's demand carries its bom_line_id. Matched on bom_line_id
+  // (stable across re-runs / desktop re-syncs), NOT chosen_result_id — that's a
+  // last-writer-wins pointer that gets a fresh id on every re-run, so the old
+  // filter silently dropped the match and the "Added to cart" strip vanished
+  // after a re-run (Krunal 2026-07-15). status='open' also drops the latent
+  // false-positive where an already-ordered line still counted as in-cart.
+  const { data: cartItems, error: cartError } = await supabase
+    .from(TABLES.cart_items)
+    .select("demand")
+    .eq("status", "open");
   assertNoError(cartError, "smark_cart_items (review cross-ref)");
 
   const inCartQtyByLine = new Map<string, number>();

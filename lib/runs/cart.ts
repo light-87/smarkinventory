@@ -36,6 +36,23 @@ import { splitValueVoltage } from "@/lib/bom/footprint";
 
 type DB = SupabaseClient<Database>;
 
+/**
+ * The cart stores a line's chosen distributor in `descriptor.distributor_id` (a
+ * loose additive jsonb key — `smark_cart_items` has no distributor column). These
+ * are a LOCAL twin of lib/orders/types.ts's `withLineDistributorId` /
+ * `getLineDistributorId`: lib/orders/** is not in this package's cross-import
+ * allowlist (see module doc above), so the one-liners are mirrored, not imported.
+ */
+interface CartLineDescriptor extends CartDescriptor {
+  distributor_id?: string | null;
+}
+function withDistributorId(current: CartDescriptor | null, distributorId: string): CartLineDescriptor {
+  return { ...(current ?? {}), distributor_id: distributorId };
+}
+function lineDistributorId(current: CartDescriptor | null): string | null {
+  return (current as CartLineDescriptor | null)?.distributor_id ?? null;
+}
+
 export type AddToCartResult = { ok: true; cartItemId: string; alreadyInCart: boolean } | { ok: false; error: string };
 
 interface AddToCartParams {
@@ -133,6 +150,13 @@ export async function addReviewLineToCart(supabase: DB, service: DB, params: Add
       .from(TABLES.cart_items)
       .update({
         ...(wasAuto ? { source: "review_add" as const } : {}),
+        // Back-fill the distributor from the chosen result only when this line
+        // has none yet — never clobber an earlier auto-fill or a manual pick made
+        // in the cart ("keep existing choice"). Also covers the auto_shortfall →
+        // review_add conversion above, whose descriptor is null.
+        ...(lineDistributorId(row.descriptor) == null
+          ? { descriptor: withDistributorId(row.descriptor, result.distributor_id) }
+          : {}),
         demand: nextDemand,
         qty_to_order: nextQty,
         chosen_result_id: params.resultId,
@@ -147,7 +171,11 @@ export async function addReviewLineToCart(supabase: DB, service: DB, params: Add
     .from(TABLES.cart_items)
     .insert({
       part_id: partId,
-      descriptor,
+      // Auto-fill the cart line's distributor from the chosen result so the cart
+      // dropdown lands pre-selected instead of "— pick —" (Krunal 2026-07-15).
+      // result.distributor_id and the cart's dropdown option value are the same
+      // smark_distributors.id UUID — a direct copy, no name reconciliation.
+      descriptor: withDistributorId(descriptor, result.distributor_id),
       source: "review_add",
       demand: [demandSlice],
       qty_to_order: params.qty,
