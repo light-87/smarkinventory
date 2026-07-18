@@ -256,6 +256,24 @@ export interface EnqueueRunInput {
 }
 
 /**
+ * (Krunal 2026-07-18) A hard "run to completion / never stop / don't claim done
+ * early" directive for the DESKTOP agent, injected into its CLAUDE.md via
+ * `overallPriorities` — a server-controlled field the desktop pulls fresh every
+ * run, so this reaches every new run with NO desktop reinstall. Addresses the
+ * agent pausing to ask which approach to take, and declaring "deliverable
+ * complete" before every line has actually been written to results.json.
+ */
+export function buildRunToCompletionDirective(lineCount: number): string {
+  return [
+    "RUN TO COMPLETION — the single most important rule, above all others.",
+    "You are running FULLY UNATTENDED: no human is watching to answer questions. NEVER stop to ask which approach to take, NEVER pause for confirmation, NEVER wait for input — if unsure, pick the most reasonable option and keep going.",
+    `There are ${lineCount} lines to source. Do NOT say you are "done"/"finished"/"deliverable complete", and do NOT ask "should I continue?", until results.json has an entry for EVERY one of the ${lineCount} lines AND "complete": true. Before ever claiming to be finished, COUNT the entries in results.json — if fewer than ${lineCount}, you are NOT done; keep sourcing the remaining lines immediately.`,
+    'If a line cannot be sourced after a genuine attempt (a site won\'t load, or the part is not found), write its entry as "candidates": [] with a one-line note explaining why, then MOVE ON to the next line. One hard line must never stop or pause the whole run.',
+    "Write results.json after each line so progress is never lost, and work through the lines in efficient batches.",
+  ].join(" ");
+}
+
+/**
  * Creates the run + jobs from the Ordering Workspace's "Run ordering →"
  * (or Review's "↺ Re-run whole order", which calls this same function with a
  * fresh run). `service` MUST be a service-role client (see module doc) —
@@ -534,13 +552,20 @@ export async function createDesktopRun(
     return note ? withLowStockAlternativeNote(wl, note) : wl;
   });
 
+  // (Krunal 2026-07-18) Prepend the run-to-completion directive to the buyer's
+  // own priorities. Injected here (server-side) so the desktop CLAUDE.md gets it
+  // with NO reinstall — the runner already renders overallPriorities verbatim.
+  const overallPriorities = [buildRunToCompletionDirective(workerLines.length), plannerContext.priorities ?? ""]
+    .filter(Boolean)
+    .join("\n\n");
+
   const runId = crypto.randomUUID();
   const config: WorkerRunConfig = {
     runId,
     bomId: bom.id,
     aliasedProjectLabel: plannerContext.clientCode ? `${plannerContext.projectCode} (${plannerContext.clientCode})` : plannerContext.projectCode,
     distributorSequence: effectiveSequence.map((d) => ({ id: d.id, name: d.name, apiType: d.apiType, rank: d.rank, enabled: d.enabled })),
-    overallPriorities: plannerContext.priorities ?? "",
+    overallPriorities,
     rulesDigest: rulesDigestAliased,
     rulesDigestVersion,
     orderingLadder: ["mpn", "lcsc", "value", "package", "status", "qty", "cost"],
