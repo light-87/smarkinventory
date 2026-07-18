@@ -33,14 +33,6 @@ export const TASK_STATUS_TONE: Record<TaskStatus, ChipTone> = {
   done: "success", // green — complete
 };
 
-/** Left-edge accent colour per status — gives a card/row its colour at a glance (matches the chip tone). */
-export const TASK_STATUS_ACCENT: Record<TaskStatus, string> = {
-  open: "border-l-slate",
-  awaiting_client_input: "border-l-warn",
-  submitted: "border-l-smark-orange",
-  done: "border-l-phosphor-green",
-};
-
 /**
  * Full "pod" tone per status for the <Card> primitive — tinted fill + accent
  * bar in one prop (the vivid direction). Same four voices as the chip tone, so
@@ -52,4 +44,16 @@ export const TASK_STATUS_CARD_TONE: Record<TaskStatus, CardTone> = {
   awaiting_client_input: "warn",
   submitted: "accent",
   done: "success",
+};
+
+/**
+ * The same pod as CLASSES (tinted bg + left accent colour) for non-<Card>
+ * rows — e.g. the client portal's `<li>` task rows — so owner board and portal
+ * stay identical. Pair with a `border-l-[3px]` (or -4) width on the element.
+ */
+export const TASK_STATUS_POD: Record<TaskStatus, string> = {
+  open: "bg-surface border-l-slate",
+  awaiting_client_input: "bg-surface-warn border-l-warn",
+  submitted: "bg-surface-accent border-l-smark-orange",
+  done: "bg-surface-success border-l-phosphor-green",
 };

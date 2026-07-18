@@ -1,7 +1,7 @@
 import { Chip } from "@/components/ui/chip";
 import { EmptyState } from "@/components/ui/empty-state";
 import type { PortalTask, PortalTaskStatus } from "@/lib/portal/types";
-import { TASK_STATUS_ACCENT, TASK_STATUS_TONE } from "@/lib/pm/task-status-ui";
+import { TASK_STATUS_POD, TASK_STATUS_TONE } from "@/lib/pm/task-status-ui";
 import { MarkInputProvidedButton } from "./mark-input-provided-button";
 import { ReportBugForm } from "./report-bug-form";
 
@@ -69,7 +69,7 @@ export function PmDashboard({ token, progress, tasks }: PmDashboardProps) {
         {tasks.map((task) => (
           <li
             key={task.id}
-            className={`flex flex-col gap-2 rounded-xl border border-l-[3px] border-charcoal bg-surface-panel px-4 py-3 ${TASK_STATUS_ACCENT[task.status]}`}
+            className={`flex flex-col gap-2 rounded-xl border border-l-[3px] border-charcoal px-4 py-3 ${TASK_STATUS_POD[task.status]}`}
           >
             <div className="flex flex-wrap items-start justify-between gap-2">
               <span className="min-w-0 flex-1 text-[15px] font-medium break-words text-snow">{task.title}</span>
