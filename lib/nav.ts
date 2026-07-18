@@ -106,6 +106,17 @@ export function isNavItemActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
+/**
+ * The nav GROUP the current path belongs to — the module-hue "you are here"
+ * signal (matches the same active item `titleForPath` resolves). Unmatched
+ * routes (e.g. `/part/:pid`) fall back to `overview` (cobalt). Pair with
+ * NAV_GROUP_ACCENT for the header/section accent.
+ */
+export function groupForPath(pathname: string, role: Role): NavGroupId {
+  const match = visibleNavItems(role).find((item) => isNavItemActive(pathname, item.href));
+  return match?.group ?? "overview";
+}
+
 /** Every nav item this role can see, in canonical order. */
 export function visibleNavItems(role: Role): NavItem[] {
   return NAV_ITEMS.filter((item) => canSee(role, item.area));
