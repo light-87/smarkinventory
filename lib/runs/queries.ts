@@ -21,6 +21,7 @@ import type { AgentRunRow, BomLineRow, BomRow, Database, MpnMatch, PartStatus } 
 import { TABLES } from "@/types/db";
 import { getActiveRules, getDigestSummary, scopeLabel, buildGlobalAliasMapping, deAliasText } from "@/lib/ai";
 import { getPrimaryLocationsByPartId, getProjectHeader, type ProjectHeader } from "@/lib/bom/queries";
+import { derivePackageFromFootprint } from "@/lib/bom/footprint";
 import { formatNumber } from "@/lib/format";
 import type { ClaudeMasterPlan, WorkerRunConfig } from "@/types/worker";
 import { isRunStale } from "./dry-run";
@@ -267,6 +268,25 @@ interface AgentResultDbRow {
   raw: unknown;
 }
 
+/**
+ * The vendor's OWN catalogue PN from the result's raw payload, where the vendor
+ * shape carries it (element14/Farnell `sku`, Mouser `MouserPartNumber`). Null
+ * for DigiKey and desktop-sourced runs, which only capture the shared MPN + the
+ * product link — the Excel export falls back to the MPN there.
+ */
+function extractVendorPn(distributorName: string, raw: unknown): string | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const name = distributorName.toLowerCase();
+  if (name.includes("element14") || name.includes("farnell")) {
+    return typeof r.sku === "string" ? r.sku : null;
+  }
+  if (name.includes("mouser")) {
+    return typeof r.MouserPartNumber === "string" ? r.MouserPartNumber : null;
+  }
+  return null;
+}
+
 async function getSourcingLanes(
   service: DB,
   runId: string,
@@ -322,6 +342,7 @@ async function getSourcingLanes(
           confidence: r.confidence,
           why: resultWhy(r, dealiasMapping),
           selected: r.selected,
+          vendorPn: extractVendorPn(distributorName, r.raw),
         };
       });
 
@@ -335,6 +356,7 @@ async function getSourcingLanes(
       mpn: line.mpn,
       lcscPn: line.lcsc_pn,
       value: lineValue(line),
+      package: derivePackageFromFootprint(line.footprint),
       jobStatus,
       // Model-authored (Opus master plan) — same de-aliasing requirement as `why` above (report finding #1).
       aiSkipReason: rawSkipReason ? deAliasText(rawSkipReason, dealiasMapping) : null,

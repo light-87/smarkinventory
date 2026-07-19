@@ -30,16 +30,26 @@ export function CartScreen({ cartLines, distributors, orderedGroups, arrivedGrou
     <div className="mx-auto flex max-w-4xl flex-col gap-5 px-4 py-6 pb-28 sm:px-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-heading-sm font-normal text-snow">Cart</h1>
-        <SegmentedControl
-          aria-label="Cart section"
-          value={section}
-          onChange={setSection}
-          options={[
-            { value: "cart", label: `Cart (${openCartCount})` },
-            { value: "ordered", label: `Ordered (${orderedCount})` },
-            { value: "arrived", label: `Arrived (${arrivedCount})` },
-          ]}
-        />
+        <div className="flex flex-wrap items-center gap-2.5">
+          {section === "cart" && openCartCount > 0 && (
+            <a
+              href="/api/cart/xlsx"
+              className="inline-flex h-9 items-center justify-center rounded-full border border-charcoal px-3.5 text-xs text-snow transition-colors hover:bg-ash"
+            >
+              Download Excel
+            </a>
+          )}
+          <SegmentedControl
+            aria-label="Cart section"
+            value={section}
+            onChange={setSection}
+            options={[
+              { value: "cart", label: `Cart (${openCartCount})` },
+              { value: "ordered", label: `Ordered (${orderedCount})` },
+              { value: "arrived", label: `Arrived (${arrivedCount})` },
+            ]}
+          />
+        </div>
       </div>
 
       {!canWrite && (

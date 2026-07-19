@@ -159,6 +159,14 @@ export interface LaneOptionRow {
   confidence: number | null;
   why: string;
   selected: boolean;
+  /**
+   * The vendor's OWN catalogue part number, extracted from the result's raw
+   * payload where the vendor shape carries it (element14 `sku`, Mouser
+   * `MouserPartNumber`); null otherwise (DigiKey / desktop-sourced runs only
+   * capture the shared MPN + the product link). Used by the Excel export's
+   * per-vendor PN column, which falls back to the MPN when this is null.
+   */
+  vendorPn: string | null;
 }
 
 export interface SourcingLane {
@@ -170,6 +178,8 @@ export interface SourcingLane {
   mpn: string | null;
   lcscPn: string | null;
   value: string;
+  /** Package/footprint facet, derived from the bom line's raw `footprint` — its own "Size" column in the Excel export (the `value` string also folds it in for the on-screen review). */
+  package: string | null;
   jobStatus: "queued" | "claimed" | "done" | "failed" | "not_dispatched";
   /** Set when Opus decided this line needs no distributor search at all (a rule hit, not a DB skip-buy). */
   aiSkipReason: string | null;

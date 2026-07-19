@@ -112,12 +112,20 @@ export function ReviewView({ projectId, data, writable }: ReviewViewProps) {
               Go to cart →
             </Link>
           </div>
-          <a
-            href={`/api/runs/${data.run.id}/review-pdf`}
-            className="inline-flex h-9 items-center justify-center rounded-full border border-charcoal px-3.5 text-xs text-snow transition-colors hover:bg-ash"
-          >
-            Save as PDF cart
-          </a>
+          <div className="flex flex-none items-center gap-2">
+            <a
+              href={`/api/runs/${data.run.id}/review-xlsx`}
+              className="inline-flex h-9 items-center justify-center rounded-full border border-charcoal px-3.5 text-xs text-snow transition-colors hover:bg-ash"
+            >
+              Download Excel
+            </a>
+            <a
+              href={`/api/runs/${data.run.id}/review-pdf`}
+              className="inline-flex h-9 items-center justify-center rounded-full border border-charcoal px-3.5 text-xs text-snow transition-colors hover:bg-ash"
+            >
+              Save as PDF cart
+            </a>
+          </div>
         </div>
       </div>
     </div>
