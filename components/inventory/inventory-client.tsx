@@ -44,7 +44,9 @@ export function InventoryClient({ listResult, drawerPid, drawerResult }: Invento
     !!drawerPid && (!drawerResult || (drawerResult.ok && drawerResult.data.part.internal_pid !== drawerPid));
 
   return (
-    <div className="flex h-full min-h-0">
+    // Solid white surface: inventory is a full-bleed sidebar + table (no cards),
+    // so without this the gridded canvas shows straight through it and reads oddly.
+    <div className="flex h-full min-h-0 bg-surface">
       <FacetSidebar
         groups={filters.facetGroups}
         isGroupOpen={filters.isGroupOpen}
