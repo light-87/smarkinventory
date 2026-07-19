@@ -31,10 +31,12 @@ export function Rail({
   role,
   pathname,
   grantedModules = [],
+  navBadges = {},
 }: {
   role: Role;
   pathname: string;
   grantedModules?: readonly Module[];
+  navBadges?: Record<string, boolean>;
 }) {
   const items = effectiveVisibleNavItems(role, grantedModules);
   const overviewItems = items.filter((item) => item.group === "overview");
@@ -50,7 +52,7 @@ export function Rail({
 
       <nav className="flex flex-1 flex-col overflow-y-auto overflow-x-hidden py-3 pr-3 pl-4">
         {overviewItems.map((item) => (
-          <RailLink key={item.id} item={item} active={isNavItemActive(pathname, item.href)} />
+          <RailLink key={item.id} item={item} active={isNavItemActive(pathname, item.href)} badge={navBadges[item.id]} />
         ))}
 
         {RAIL_GROUP_ORDER.map((group) => {
@@ -68,7 +70,7 @@ export function Rail({
                 {NAV_GROUP_LABELS[group]}
               </div>
               {groupItems.map((item) => (
-                <RailLink key={item.id} item={item} active={isNavItemActive(pathname, item.href)} />
+                <RailLink key={item.id} item={item} active={isNavItemActive(pathname, item.href)} badge={navBadges[item.id]} />
               ))}
             </div>
           );
@@ -78,7 +80,7 @@ export function Rail({
       {footerItems.length > 0 && (
         <div className="border-t border-border-faint px-4 py-3">
           {footerItems.map((item) => (
-            <RailLink key={item.id} item={item} active={isNavItemActive(pathname, item.href)} />
+            <RailLink key={item.id} item={item} active={isNavItemActive(pathname, item.href)} badge={navBadges[item.id]} />
           ))}
         </div>
       )}
@@ -86,15 +88,16 @@ export function Rail({
   );
 }
 
-function RailLink({ item, active }: { item: NavItem; active: boolean }) {
+function RailLink({ item, active, badge = false }: { item: NavItem; active: boolean; badge?: boolean }) {
   const Icon = NAV_ICONS[item.id];
   const accent = NAV_GROUP_ACCENT[item.group];
   return (
     <Link
       href={item.href}
       className={cn(
-        "relative flex items-center gap-3 rounded-full px-3 py-[9px] text-sm transition-colors",
-        active ? "bg-surface-raised font-medium text-snow" : "text-smoke hover:bg-surface-raised hover:text-snow",
+        // Bigger + darker than before (owner: labels/icons read too small and grey).
+        "relative flex items-center gap-3 rounded-full px-3 py-[9px] text-[15px] font-medium transition-colors",
+        active ? "bg-surface-raised text-snow" : "text-silver-mist hover:bg-surface-raised hover:text-snow",
       )}
     >
       {/* Active left bar in the section's hue — the primary wayfinding mark. */}
@@ -107,9 +110,13 @@ function RailLink({ item, active }: { item: NavItem; active: boolean }) {
       />
       <span
         aria-hidden
-        className={cn("size-[18px] flex-none [&_svg]:size-full", active ? accent.text : "text-graphite")}
+        className={cn("relative size-[20px] flex-none [&_svg]:size-full", active ? accent.text : "text-smoke")}
       >
         {Icon ? <Icon /> : null}
+        {/* Attention dot — something in this section needs a decision. */}
+        {badge && (
+          <span className="absolute -top-1 -right-1 size-2.5 rounded-full border-2 border-canvas bg-smark-orange-soft" />
+        )}
       </span>
       {item.label}
       <NavLinkPending spinner />

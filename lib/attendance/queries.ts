@@ -33,6 +33,20 @@ function assertNoError(error: { message: string } | null, context: string): void
   if (error) throw new Error(`[attendance] ${context}: ${error.message}`);
 }
 
+/**
+ * Nav-badge signal: how many attendance approvals are waiting on the owner —
+ * pending leave + overtime + comp-work across all users. Runs under the
+ * caller's RLS (only owner/accountant see others' rows; the layout calls this
+ * for the owner). `head: true` counts without pulling rows.
+ */
+export async function countPendingAttendanceApprovals(client: DB): Promise<number> {
+  const tables = [TABLES.leave_requests, TABLES.overtime, TABLES.comp_work] as const;
+  const results = await Promise.all(
+    tables.map((table) => client.from(table).select("id", { count: "exact", head: true }).eq("status", "pending")),
+  );
+  return results.reduce((sum, r) => sum + (r.count ?? 0), 0);
+}
+
 /* ────────────────────────────────────────────────────────────────────────────
  * Holidays — company-wide, readable by every active role.
  * ──────────────────────────────────────────────────────────────────────────── */

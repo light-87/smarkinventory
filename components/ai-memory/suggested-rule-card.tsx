@@ -17,7 +17,7 @@ export function SuggestedRuleCard({ rule, pending, onApprove, onReject }: Sugges
   const source = typeof value?.source === "string" ? value.source : null;
 
   return (
-    <Card className="border-smark-orange bg-[#161210]" padding="md">
+    <Card tone="accent" padding="md">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-[220px] flex-1">
           <div className="text-[15px] text-snow">

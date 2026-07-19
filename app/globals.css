@@ -272,3 +272,17 @@
     scrollbar-color: var(--color-slate) transparent;
   }
 }
+
+/*
+ * Blue matte — a faint white square grid over the canvas (owner request:
+ * "not just plain blue, a grid of small squares, white lines on blue").
+ * Applied to the app-shell root; opaque white cards/rail sit on top, so the
+ * grid only shows through in the blue gaps behind content.
+ */
+.bg-canvas-grid {
+  background-color: var(--color-canvas);
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.5) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.5) 1px, transparent 1px);
+  background-size: 22px 22px;
+}

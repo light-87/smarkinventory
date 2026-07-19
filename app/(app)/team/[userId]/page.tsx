@@ -15,6 +15,7 @@ import {
 import { getMyTasks } from "@/lib/pm/queries";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Chip, type ChipTone } from "@/components/ui/chip";
+import { StatCard } from "@/components/ui/stat-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CalendarView } from "@/components/attendance/calendar-view";
 import type { ApprovalStatus } from "@/types/db";
@@ -80,6 +81,17 @@ export default async function TeamMemberPage({
 
   const openTasks = tasks.filter((t) => t.status !== "done");
 
+  // This-month attendance tally, derived from the same calendar the grid shows.
+  // "compensatory" (worked a holiday) counts as a present day.
+  const monthCounts = calendar.reduce<Record<string, number>>((acc, day) => {
+    acc[day.status] = (acc[day.status] ?? 0) + 1;
+    return acc;
+  }, {});
+  const presentDays = (monthCounts.present ?? 0) + (monthCounts.compensatory ?? 0);
+  const absentDays = monthCounts.absent ?? 0;
+  const leaveDays = monthCounts.leave ?? 0;
+  const holidayDays = monthCounts.holiday ?? 0;
+
   return (
     <div className="mx-auto flex max-w-[1180px] flex-col gap-4 px-4 pt-6 pb-24 sm:px-6 sm:pt-7">
       <div className="text-caption text-smoke">
@@ -100,6 +112,13 @@ export default async function TeamMemberPage({
           {compBalance > 0 ? "+" : ""}
           {compBalance}h comp-off banked
         </Chip>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <StatCard value={presentDays} label="Present this month" tone="success" />
+        <StatCard value={absentDays} label="Absent" tone="danger" />
+        <StatCard value={leaveDays} label="On leave" tone="warn" />
+        <StatCard value={holidayDays} label="Holidays" tone="default" />
       </div>
 
       <CalendarView

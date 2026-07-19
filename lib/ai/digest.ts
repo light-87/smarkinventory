@@ -43,6 +43,18 @@ const RULE_TYPE_LABELS: Record<LearnedRuleType, string> = {
   price_source_note: "Price source note",
 };
 
+/**
+ * Nav-badge signal: how many suggested rules are awaiting the owner's approval
+ * (A3: suggested never auto-activates). `head: true` counts without rows.
+ */
+export async function countSuggestedRules(client: SupabaseClient<Database>): Promise<number> {
+  const { count } = await client
+    .from(TABLES.learned_rules)
+    .select("id", { count: "exact", head: true })
+    .eq("status", "suggested");
+  return count ?? 0;
+}
+
 export function scopeLabel(scope: LearnedRuleRow["scope"]): string {
   return scope.charAt(0).toUpperCase() + scope.slice(1);
 }

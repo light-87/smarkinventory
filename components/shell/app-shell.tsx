@@ -12,15 +12,29 @@ import { RegisterServiceWorker } from "./register-service-worker";
 import { NavigationProgressProvider } from "./navigation-progress";
 import { TopProgressBar } from "./top-progress-bar";
 
+/** nav item id → whether it needs an attention dot (owner approvals). */
+export type NavBadges = Record<string, boolean>;
+
 /**
  * The authed shell: desktop rail + header, mobile bottom bar + More sheet,
  * around every `(app)` route. Client component (needs the live pathname for
  * active-nav-state + local open/close UI state); `user` is resolved
  * server-side once in app/(app)/layout.tsx and passed down.
  */
-export function AppShell({ user, children }: { user: SessionUser; children: ReactNode }) {
+export function AppShell({
+  user,
+  navBadges = {},
+  children,
+}: {
+  user: SessionUser;
+  navBadges?: NavBadges;
+  children: ReactNode;
+}) {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
+  // On mobile, attendance + AI-memory live inside "More" — surface an aggregate
+  // dot on the More tab so a pending approval is still visible there.
+  const anyBadge = Object.values(navBadges).some(Boolean);
 
   return (
     // `h-dvh overflow-hidden` (not `min-h-dvh`, letting the whole document
@@ -40,9 +54,9 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
     // — Rail already assumed this shape (`sticky top-0 h-dvh` + its own
     // internal `overflow-y-auto` nav list).
     <NavigationProgressProvider>
-      <div className="flex h-dvh overflow-hidden bg-canvas">
+      <div className="flex h-dvh overflow-hidden bg-canvas-grid">
         <TopProgressBar />
-        <Rail role={user.role} pathname={pathname} grantedModules={user.grantedModules} />
+        <Rail role={user.role} pathname={pathname} grantedModules={user.grantedModules} navBadges={navBadges} />
         <div className="flex min-w-0 flex-1 flex-col">
           <Header user={user} pathname={pathname} />
           {/* id targeted by the scroll-lock effect every modal/drawer/sheet
@@ -59,6 +73,7 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
           pathname={pathname}
           grantedModules={user.grantedModules}
           onMore={() => setMoreOpen(true)}
+          moreBadge={anyBadge}
         />
         <MoreSheet
           open={moreOpen}

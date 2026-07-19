@@ -2,7 +2,11 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth/session";
-import { AppShell } from "@/components/shell/app-shell";
+import { isOwner } from "@/lib/auth/roles";
+import { createClient } from "@/lib/supabase/server";
+import { countPendingAttendanceApprovals } from "@/lib/attendance/queries";
+import { countSuggestedRules } from "@/lib/ai/digest";
+import { AppShell, type NavBadges } from "@/components/shell/app-shell";
 
 // app/layout.tsx (root) is integrator-locked, so the PWA manifest link is
 // wired here instead — Next merges route-tree metadata, and this layout
@@ -41,5 +45,22 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     if (!pathname.startsWith("/onboarding")) redirect("/onboarding");
   }
 
-  return <AppShell user={user}>{children}</AppShell>;
+  // Nav attention dots — owner-only (they're the approver). A red dot on a nav
+  // item means something there needs a decision: pending attendance approvals
+  // or suggested AI-memory rules waiting to be approved.
+  let navBadges: NavBadges = {};
+  if (isOwner(user.role)) {
+    const supabase = await createClient();
+    const [attendancePending, rulesPending] = await Promise.all([
+      countPendingAttendanceApprovals(supabase),
+      countSuggestedRules(supabase),
+    ]);
+    navBadges = { attendance: attendancePending > 0, ai_memory: rulesPending > 0 };
+  }
+
+  return (
+    <AppShell user={user} navBadges={navBadges}>
+      {children}
+    </AppShell>
+  );
 }

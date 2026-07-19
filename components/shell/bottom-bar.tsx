@@ -19,11 +19,14 @@ export function BottomBar({
   pathname,
   grantedModules = [],
   onMore,
+  moreBadge = false,
 }: {
   role: Role;
   pathname: string;
   grantedModules?: readonly Module[];
   onMore: () => void;
+  /** Attention dot on More — attendance/AI-memory approvals live in the More sheet on mobile. */
+  moreBadge?: boolean;
 }) {
   const items = effectiveVisibleMobilePrimaryItems(role, grantedModules);
 
@@ -44,8 +47,8 @@ export function BottomBar({
             key={item.id}
             href={item.href}
             className={cn(
-              "flex min-w-11 flex-1 flex-col items-center justify-center gap-[3px] text-[12px]",
-              active ? NAV_GROUP_ACCENT[item.group].text : "text-smoke",
+              "flex min-w-11 flex-1 flex-col items-center justify-center gap-[3px] text-[12px] font-medium",
+              active ? NAV_GROUP_ACCENT[item.group].text : "text-silver-mist",
             )}
           >
             <span aria-hidden className="size-5 [&_svg]:size-full">
@@ -59,10 +62,13 @@ export function BottomBar({
       <button
         type="button"
         onClick={onMore}
-        className="flex min-w-11 flex-1 flex-col items-center justify-center gap-[3px] text-[12px] text-smoke"
+        className="flex min-w-11 flex-1 flex-col items-center justify-center gap-[3px] text-[12px] font-medium text-silver-mist"
       >
-        <span aria-hidden className="size-5 [&_svg]:size-full">
+        <span aria-hidden className="relative size-5 [&_svg]:size-full">
           <MoreIcon />
+          {moreBadge && (
+            <span className="absolute -top-1 -right-1 size-2.5 rounded-full border-2 border-canvas bg-smark-orange-soft" />
+          )}
         </span>
         More
       </button>
