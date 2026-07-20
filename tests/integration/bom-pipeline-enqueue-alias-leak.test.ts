@@ -104,11 +104,24 @@ describeWithDb("bom-pipeline — enqueue alias-leak regression (R2-17 / FEATURES
       .single();
     if (ruleError || !rule) throw new Error(`could not seed the rule: ${ruleError?.message}`);
 
-    // suggested → active, bumping smark_learned_rules_doc so the digest
-    // Project B's run reads back INCLUDES this Project-A-naming line.
-    await approveRule(service, rule.id, actorId);
+    // Capture the digest doc version BEFORE approving — approveRule writes a NEW
+    // smark_learned_rules_doc version whose content names Project A in REAL text.
+    // Deleting the rule ROW in `finally` does NOT remove that doc version (only
+    // approve/retire bump it), so getDigestForInjection would keep serving the
+    // leaked content to EVERY future run. We roll the doc back in `finally`.
+    const { data: docBefore } = await service
+      .from(TABLES.learned_rules_doc)
+      .select("version")
+      .order("version", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const digestVersionBefore = (docBefore as { version: number } | null)?.version ?? 0;
 
     try {
+      // suggested → active, bumping smark_learned_rules_doc so Project B's run
+      // reads back a digest that INCLUDES this Project-A-naming line.
+      await approveRule(service, rule.id, actorId);
+
       const result = await enqueueRun(service, service, { bomId: bom.id, tier: "balanced", actorId });
       expect(result.ok).toBe(true);
       if (!result.ok) return;
@@ -145,6 +158,10 @@ describeWithDb("bom-pipeline — enqueue alias-leak regression (R2-17 / FEATURES
       await service.from(TABLES.order_jobs).delete().eq("run_id", result.runId);
       await service.from(TABLES.agent_runs).delete().eq("id", result.runId);
     } finally {
+      // Roll back the digest doc version(s) this test created — otherwise the
+      // approved rule's REAL-name content leaks into every subsequent run's digest
+      // (the exact "Alias Leak Project A" leak seen on 2026-07-20).
+      await service.from(TABLES.learned_rules_doc).delete().gt("version", digestVersionBefore);
       await service.from(TABLES.learned_rules).delete().eq("id", rule.id);
       await service.from(TABLES.bom_lines).delete().eq("bom_id", bom.id);
       await service.from(TABLES.boms).delete().eq("id", bom.id);

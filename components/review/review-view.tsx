@@ -69,6 +69,22 @@ export function ReviewView({ projectId, data, writable }: ReviewViewProps) {
         </Card>
       )}
 
+      {data.coverage && !data.coverage.adequate && (
+        <Card padding="lg" className="border-smark-orange/50 bg-surface-accent">
+          <div className="flex flex-wrap items-center gap-2.5 text-[15px] text-snow">
+            <Chip tone="warn">incomplete</Chip>
+            <span>
+              Only <span className="font-mono text-silver-mist">{formatNumber(data.coverage.covered)}</span> of{" "}
+              <span className="font-mono text-silver-mist">{formatNumber(data.coverage.total)}</span> lines were sourced
+              {data.coverage.skipped > 0 ? ` (${formatNumber(data.coverage.skipped)} skipped)` : ""} —{" "}
+              <span className="text-smark-orange">{formatNumber(data.coverage.empty)}</span>{" "}
+              {data.coverage.empty === 1 ? "line has" : "lines have"} no results. This BOM stays unsourced until the gaps are
+              filled — re-run the desktop agent to source the remaining lines.
+            </span>
+          </div>
+        </Card>
+      )}
+
       {data.inStockLanes.length > 0 && (
         <Card padding="lg">
           <div className="mb-3 text-[17px] font-medium text-snow">Already in stock — skipped</div>

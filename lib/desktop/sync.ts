@@ -19,6 +19,7 @@ import type { Database } from "@/types/db";
 import { TABLES } from "@/types/db";
 import type { ClaudeMasterPlan, WorkerRunConfig } from "@/types/worker";
 import { ensureBomSourced } from "@/lib/runs/lifecycle";
+import type { RunCoverage } from "@/lib/runs/types";
 
 type DB = SupabaseClient<Database>;
 
@@ -96,7 +97,7 @@ async function upsertOne(service: DB, runId: string, r: DesktopResult): Promise<
   if (insert.error) throw new Error(`desktop/sync: insert failed: ${insert.error.message}`);
 }
 
-export type IngestOutcome = { ok: true; written: number } | { ok: false; error: string };
+export type IngestOutcome = { ok: true; written: number; coverage: RunCoverage } | { ok: false; error: string };
 
 /**
  * Validates the run is a DESKTOP run (executor stamp) and still open, writes
@@ -128,10 +129,31 @@ export async function ingestDesktopResults(service: DB, payload: DesktopResultsP
 
   for (const r of payload.results) await upsertOne(service, payload.runId, r);
 
+  // Coverage guardrail (2026-07-20): a count-only "every line has an entry" check is
+  // trivially satisfied with empty candidates:[] — the agent did exactly that (3 real
+  // of 68, the rest empty, complete:true). Judge by REAL coverage instead. Sync is
+  // incremental + idempotent, so this re-evaluates on every snapshot: the BOM flips to
+  // "sourced" (which unblocks the cart) only on a snapshot that genuinely covers it,
+  // and a fake-complete run never gets there.
+  const total = config?.lines?.length ?? 0;
+  const coveredSet = new Set(payload.results.map((r) => r.bomLineId));
+  const skippedSet = new Set((payload.masterPlan?.skip ?? []).map((s) => s.bomLineId));
+  const emptyLineIds = (config?.lines ?? [])
+    .map((l) => l.bomLineId)
+    .filter((id) => !coveredSet.has(id) && !skippedSet.has(id));
+  const coverage: RunCoverage = {
+    total,
+    covered: coveredSet.size,
+    skipped: skippedSet.size,
+    empty: emptyLineIds.length,
+    emptyLineIds,
+    adequate: total > 0 && emptyLineIds.length === 0,
+  };
+
   const newEnvelope = {
     config: envelope.config,
     masterPlan: payload.masterPlan ?? envelope.masterPlan ?? null,
-    appMeta: envelope.appMeta ?? null,
+    appMeta: { ...(envelope.appMeta ?? {}), coverage },
   };
   const { error: updateError } = await service
     .from(TABLES.agent_runs)
@@ -139,11 +161,12 @@ export async function ingestDesktopResults(service: DB, payload: DesktopResultsP
     .eq("id", payload.runId);
   if (updateError) return { ok: false, error: `Results written but the run couldn't be finalized: ${updateError.message}` };
 
-  // Mark the BOM "sourced" now that results exist, so the review CTAs surface
-  // immediately — the review page's ensureBomSourced only runs on first open,
-  // which the owner may never reach if the run later drifts off "review".
-  // Best-effort: results are already written, so a failure here is not fatal.
-  if (config?.bomId) await ensureBomSourced(service, config.bomId);
+  // Mark the BOM "sourced" — which surfaces the review CTAs and unblocks the cart —
+  // ONLY when coverage is adequate. A short/fake run leaves the BOM unsourced so the
+  // review's coverage banner + "re-run unsourced lines" gate ordering (the owner can
+  // still "Accept anyway"). Forward-only: ensureBomSourced never regresses an already
+  // sourced BOM, so a bad re-run after a good run can't un-source it. Best-effort.
+  if (config?.bomId && coverage.adequate) await ensureBomSourced(service, config.bomId);
 
-  return { ok: true, written: payload.results.length };
+  return { ok: true, written: payload.results.length, coverage };
 }

@@ -35,6 +35,7 @@ import type {
   ReviewFeedbackEntry,
   ReviewLineCard,
   RunConsoleData,
+  RunCoverage,
   RunHeader,
   RunStreamSnapshot,
   SourcingLane,
@@ -78,8 +79,8 @@ function toWorkspaceBomHeader(bom: BomRow): WorkspaceBomHeader {
   };
 }
 
-function planEnvelope(run: Pick<AgentRunRow, "plan">): { config?: WorkerRunConfig; masterPlan?: ClaudeMasterPlan | null; appMeta?: { buildQtyAtRun?: number } } {
-  return (run.plan as { config?: WorkerRunConfig; masterPlan?: ClaudeMasterPlan | null; appMeta?: { buildQtyAtRun?: number } } | null) ?? {};
+function planEnvelope(run: Pick<AgentRunRow, "plan">): { config?: WorkerRunConfig; masterPlan?: ClaudeMasterPlan | null; appMeta?: { buildQtyAtRun?: number; coverage?: RunCoverage } } {
+  return (run.plan as { config?: WorkerRunConfig; masterPlan?: ClaudeMasterPlan | null; appMeta?: { buildQtyAtRun?: number; coverage?: RunCoverage } } | null) ?? {};
 }
 
 /**
@@ -130,7 +131,11 @@ export async function getWorkspaceData(supabase: DB, service: DB, bomId: string)
   const project = await getProjectHeader(supabase, bom.project_id);
   if (!project) return null;
 
-  const { data: lines, error: linesError } = await supabase.from(TABLES.bom_lines).select("*").eq("bom_id", bomId);
+  const { data: lines, error: linesError } = await supabase
+    .from(TABLES.bom_lines)
+    .select("*")
+    .eq("bom_id", bomId)
+    .order("line_no", { ascending: true, nullsFirst: false });
   assertNoError(linesError, "smark_bom_lines");
   const allLines = (lines ?? []) as BomLineRow[];
   const toOrderLineCount = allLines.filter((l) => l.match_state !== "in_stock").length;
@@ -412,7 +417,11 @@ export async function getRunConsoleData(supabase: DB, service: DB, runId: string
   const project = await getProjectHeader(supabase, bom.project_id);
   if (!project) return null;
 
-  const { data: lines, error: linesError } = await supabase.from(TABLES.bom_lines).select("*").eq("bom_id", bom.id);
+  const { data: lines, error: linesError } = await supabase
+    .from(TABLES.bom_lines)
+    .select("*")
+    .eq("bom_id", bom.id)
+    .order("line_no", { ascending: true, nullsFirst: false });
   assertNoError(linesError, "smark_bom_lines");
   const allLines = (lines ?? []) as BomLineRow[];
   const toOrderLines = allLines.filter((l) => l.match_state !== "in_stock");
@@ -430,6 +439,7 @@ export async function getRunConsoleData(supabase: DB, service: DB, runId: string
   ]);
 
   const doneCount = sourcingLanes.filter((l) => l.jobStatus === "done" || l.jobStatus === "failed" || l.aiSkipReason).length;
+  const coverage = planEnvelope(run as Pick<AgentRunRow, "plan">).appMeta?.coverage ?? null;
 
   return {
     project,
@@ -439,6 +449,7 @@ export async function getRunConsoleData(supabase: DB, service: DB, runId: string
     sourcingLanes,
     doneCount,
     totalCount: sourcingLanes.length,
+    coverage,
   };
 }
 
@@ -448,7 +459,11 @@ export async function getRunSnapshot(service: DB, runId: string): Promise<RunStr
   assertNoError(runError, "smark_agent_runs (snapshot)");
   if (!run) return null;
 
-  const { data: lines, error: linesError } = await service.from(TABLES.bom_lines).select("*").eq("bom_id", run.bom_id);
+  const { data: lines, error: linesError } = await service
+    .from(TABLES.bom_lines)
+    .select("*")
+    .eq("bom_id", run.bom_id)
+    .order("line_no", { ascending: true, nullsFirst: false });
   assertNoError(linesError, "smark_bom_lines (snapshot)");
   const toOrderLines = ((lines ?? []) as BomLineRow[]).filter((l) => l.match_state !== "in_stock");
 
@@ -556,6 +571,7 @@ export async function getReviewData(supabase: DB, service: DB, runId: string): P
     lines,
     orderRemarks,
     cartAddedCount,
+    coverage: console_.coverage,
   };
 }
 

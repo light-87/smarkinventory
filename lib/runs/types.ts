@@ -198,6 +198,26 @@ export interface RunHeader {
   isStale: boolean;
 }
 
+/**
+ * Real-coverage summary for a desktop run (2026-07-20 guardrail). Written to the
+ * run envelope by lib/desktop/sync.ts; `adequate` gates marking the BOM sourced
+ * (and thus the cart). null on non-desktop / legacy runs.
+ */
+export interface RunCoverage {
+  /** Lines in the run config (the full BOM for desktop runs). */
+  total: number;
+  /** Lines with ≥1 real candidate — an empty candidates:[] never counts. */
+  covered: number;
+  /** Lines explicitly skipped (DNP / agent skip). */
+  skipped: number;
+  /** Lines with no result and no skip — need attention before ordering. */
+  empty: number;
+  /** bom_line ids of the `empty` lines — feeds the review's "re-run these" action. */
+  emptyLineIds: string[];
+  /** true when nothing is empty → safe to mark the BOM sourced. */
+  adequate: boolean;
+}
+
 export interface RunConsoleData {
   project: WorkspaceProjectHeader;
   bom: WorkspaceBomHeader;
@@ -206,6 +226,8 @@ export interface RunConsoleData {
   sourcingLanes: SourcingLane[];
   doneCount: number;
   totalCount: number;
+  /** Desktop-run coverage guardrail summary; null for cloud/legacy runs. */
+  coverage: RunCoverage | null;
 }
 
 export interface ReviewFeedbackEntry {
@@ -229,6 +251,8 @@ export interface ReviewData {
   lines: ReviewLineCard[];
   orderRemarks: ReviewFeedbackEntry[];
   cartAddedCount: number;
+  /** Desktop-run coverage guardrail summary; null for cloud/legacy runs. */
+  coverage: RunCoverage | null;
 }
 
 /** SSE snapshot payload shape (app/api/runs/[runId]/stream) — see hooks/use-run-stream.ts. */

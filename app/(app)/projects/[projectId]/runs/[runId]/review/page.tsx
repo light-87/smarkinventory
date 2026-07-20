@@ -35,8 +35,14 @@ export default async function ReviewPage({ params }: ReviewPageProps) {
 
   const writable = sessionUser != null && canWrite(sessionUser.role, "projects");
 
-  // First time this BOM's review is opened, flip draft → sourced (no-op on repeat visits — lib/runs/lifecycle.ts).
-  await ensureBomSourced(supabase, data.bom.id);
+  // First time this BOM's review is opened, flip draft → sourced (no-op on repeat
+  // visits — lib/runs/lifecycle.ts). A desktop run with INADEQUATE coverage must NOT
+  // auto-source: that would undo the sync.ts coverage guardrail and unblock the cart
+  // on a half-sourced BOM. The owner uses the review's "Accept anyway" for that.
+  // (coverage is null for cloud/legacy runs → unchanged behavior.)
+  if (data.coverage == null || data.coverage.adequate) {
+    await ensureBomSourced(supabase, data.bom.id);
+  }
 
   return <ReviewView projectId={projectId} data={data} writable={writable} />;
 }

@@ -52,6 +52,8 @@ export type EnqueueRunResult = { ok: true; runId: string } | { ok: false; error:
 interface LoadedBomContext {
   bom: BomRow;
   project: { id: string; name: string; client: string | null };
+  /** Every line for this BOM, ordered by line_no — the desktop full-BOM sourcing set. */
+  allLines: BomLineRow[];
   toOrderLines: BomLineRow[];
   /** Already fully stocked — no jobs, but the planner still sees them (complete-file context). */
   inStockLines: BomLineRow[];
@@ -66,7 +68,11 @@ async function loadBomContext(supabase: DB, bomId: string): Promise<LoadedBomCon
   const project = await getProjectHeader(supabase, bom.project_id);
   if (!project) return { error: "That BOM's project no longer exists." };
 
-  const { data: lines, error: linesError } = await supabase.from(TABLES.bom_lines).select("*").eq("bom_id", bomId);
+  const { data: lines, error: linesError } = await supabase
+    .from(TABLES.bom_lines)
+    .select("*")
+    .eq("bom_id", bomId)
+    .order("line_no", { ascending: true, nullsFirst: false });
   if (linesError) return { error: linesError.message };
 
   const allLines = (lines ?? []) as BomLineRow[];
@@ -86,7 +92,7 @@ async function loadBomContext(supabase: DB, bomId: string): Promise<LoadedBomCon
     (preferences ?? []) as { distributor_id: string; rank: number; enabled: boolean }[],
   );
 
-  return { bom, project, toOrderLines, inStockLines, effectiveSequence };
+  return { bom, project, allLines, toOrderLines, inStockLines, effectiveSequence };
 }
 
 /**
@@ -243,6 +249,16 @@ function withLowStockAlternativeNote(line: WorkerBomLine, note: string): WorkerB
   return { ...line, priorityNote: line.priorityNote ? `${note}\n${line.priorityNote}` : note };
 }
 
+/**
+ * Full-BOM desktop runs source EVERY line (user decision 2026-07-20), including
+ * ones the catalog already stocks. This tags those lines so the agent treats them
+ * as price-comparison context, not a shortfall — and crucially does NOT skip them.
+ */
+function withInStockContextNote(line: WorkerBomLine): WorkerBomLine {
+  const tag = "INVENTORY: this part is already in stock — source it anyway for price comparison (context only, do NOT skip).";
+  return { ...line, priorityNote: line.priorityNote ? `${tag}\n${line.priorityNote}` : tag };
+}
+
 export interface EnqueueRunInput {
   bomId: string;
   tier: ConcurrencyPreset;
@@ -267,8 +283,16 @@ export function buildRunToCompletionDirective(lineCount: number): string {
   return [
     "RUN TO COMPLETION — the single most important rule, above all others.",
     "You are running FULLY UNATTENDED: no human is watching to answer questions. NEVER stop to ask which approach to take, NEVER pause for confirmation, NEVER wait for input — if unsure, pick the most reasonable option and keep going.",
-    `There are ${lineCount} lines to source. Do NOT say you are "done"/"finished"/"deliverable complete", and do NOT ask "should I continue?", until results.json has an entry for EVERY one of the ${lineCount} lines AND "complete": true. Before ever claiming to be finished, COUNT the entries in results.json — if fewer than ${lineCount}, you are NOT done; keep sourcing the remaining lines immediately.`,
-    'If a line cannot be sourced after a genuine attempt (a site won\'t load, or the part is not found), write its entry as "candidates": [] with a one-line note explaining why, then MOVE ON to the next line. One hard line must never stop or pause the whole run.',
+    `This BOM has ${lineCount} lines and you must produce a REAL result for every one — that is the whole job, not a sample. Do NOT say you are "done"/"finished"/"deliverable complete", and do NOT set "complete": true, until all ${lineCount} lines are genuinely resolved.`,
+    // Redefine "done" so empty placeholders can't pass a count-only check (the agent
+    // filled 64 of 68 lines with empty candidates:[] and still claimed complete).
+    `A line is resolved ONLY IF its results.json entry has at least one real candidate, OR it is a DNP line ("skipped": "DNP"), OR you genuinely could not source it — "candidates": [] WITH a specific "notes" stating what you searched and why nothing qualified. An empty "candidates": [] with no real search behind it does NOT count. Counting entries is not enough; each entry must be real.`,
+    // Retry threshold — the agent gave up after a single screenshot timeout.
+    "Before recording an empty result for a line, make a GENUINE attempt: actually search the enabled distributors for it, and if a search errors or times out, RETRY it at least once — a single timeout or one failed page load is NOT a genuine attempt. Only after real attempts may you record an empty result and MOVE ON. One hard line must never stop or pause the whole run.",
+    // Browser hygiene — the agent broke a URL by not encoding "0.1%" and wasted time on screenshots.
+    'When you build a search URL, URL-ENCODE the query — encode %, &, #, +, and spaces (e.g. "0.1%" and "470K 1206" must be percent-encoded) — or type into the site\'s own search box instead. Read pages via the TEXT snapshot; do NOT take screenshots (they time out and burn the run).',
+    // Distributor rule clarity — the agent read the per-line LCSC rule as contradicting the order.
+    'Distributor rules do not conflict: the run\'s distributor ORDER (e.g. "LCSC → Unikey") is the global order to try for a normal line. The per-line rule "LCSC PN given → source from LCSC only" overrides the order for THAT line alone. Follow the per-line rule when a line has an LCSC PN; otherwise follow the global order.',
     "Write results.json after each line so progress is never lost, and work through the lines in efficient batches.",
   ].join(" ");
 }
@@ -455,10 +479,13 @@ export async function createDesktopRun(
 ): Promise<DesktopRunContextResult> {
   const loaded = await loadBomContext(supabase, input.bomId);
   if ("error" in loaded) return { ok: false, error: loaded.error };
-  const { bom, project, inStockLines, effectiveSequence } = loaded;
+  const { bom, project, allLines, inStockLines, effectiveSequence } = loaded;
 
-  if (loaded.toOrderLines.length === 0) {
-    return { ok: false, error: "Nothing to order — every line on this BOM is already in stock." };
+  // Full-BOM desktop runs (user decision 2026-07-20): source EVERY line, in-stock
+  // included — stock is shown per line as context, never a filter. Only a genuinely
+  // empty BOM has nothing to do.
+  if (allLines.length === 0) {
+    return { ok: false, error: "This BOM has no lines to source." };
   }
 
   // Resume + low-stock alternatives (no reinstall). On a re-run we look at the
@@ -479,7 +506,7 @@ export async function createDesktopRun(
   const alternativeNoteByLineId = new Map<string, string>();
 
   const neededByLineId = new Map<string, number>();
-  for (const l of loaded.toOrderLines) neededByLineId.set(l.id, l.dnp ? 0 : (l.qty ?? 0) * bom.build_qty);
+  for (const l of allLines) neededByLineId.set(l.id, l.dnp ? 0 : (l.qty ?? 0) * bom.build_qty);
 
   if (!input.resourceAll && priorRunId) {
     const { data: prior, error: priorError } = await service
@@ -506,7 +533,9 @@ export async function createDesktopRun(
     }
   }
 
-  const remainingToOrder = loaded.toOrderLines.filter((l) => !reusedLineIds.has(l.id));
+  // Full BOM minus any lines reused from a prior run (their results are cloned below).
+  // On a first run reusedLineIds is empty, so this is every line on the BOM.
+  const remainingToOrder = allLines.filter((l) => !reusedLineIds.has(l.id));
   if (remainingToOrder.length === 0) {
     return {
       ok: false,
@@ -547,9 +576,15 @@ export async function createDesktopRun(
   const baseLines = buildWorkerBomLines(toOrderLines, bom.build_qty, aliasedTextByLineId);
   const foldedLines = input.clientRendersColumns ? baseLines : baseLines.map(foldColumnsIntoNoteForDesktop);
   // Feature #9: low-stock lines carry the "find an in-stock equivalent" note.
+  const matchStateByLineId = new Map(allLines.map((l) => [l.id, l.match_state] as const));
   const workerLines = foldedLines.map((wl) => {
+    let out = wl;
     const note = alternativeNoteByLineId.get(wl.bomLineId);
-    return note ? withLowStockAlternativeNote(wl, note) : wl;
+    if (note) out = withLowStockAlternativeNote(out, note);
+    // Full-BOM context: tag lines the catalog already covers so the agent treats them
+    // as price comparison, not a shortfall — never a reason to skip (DNP lines excepted).
+    if (!wl.dnp && matchStateByLineId.get(wl.bomLineId) === "in_stock") out = withInStockContextNote(out);
+    return out;
   });
 
   // (Krunal 2026-07-18) Prepend the run-to-completion directive to the buyer's

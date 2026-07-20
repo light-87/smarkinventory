@@ -35,10 +35,11 @@ function settingsJson(): string {
     {
       permissions: { allow: ["mcp__browser", "Read", "Write", "Edit"] },
       enabledMcpjsonServers: ["browser"],
-      // Mechanical browsing + a strict results.json contract, not open-ended
-      // reasoning — Haiku is the right tier (cheapest/fastest), and without
-      // this the spawned `claude` subprocess falls back to Opus by default.
-      model: "haiku",
+      // Multi-distributor browser sourcing WITH spec verification is too much for
+      // Haiku — it filled 64 of 68 lines with empty candidates and fake-completed
+      // (2026-07-20). Sonnet follows through and verifies. Explicit so the spawned
+      // `claude` subprocess doesn't fall back to Opus by default.
+      model: "sonnet",
     },
     null,
     2,
@@ -80,7 +81,7 @@ You are a purchasing agent for an electronics manufacturer in India. Source EVER
 ## Work unattended until every line is done — do NOT stop to ask
 This is a fully unattended batch of **${config.lines.length} lines**. Work straight through all of them without pausing.
 - NEVER stop to ask "should I continue?", "shall I proceed?", or which approach to take — the answer is always yes, keep going to the next line.
-- Do NOT announce that you are finished, or set \`"complete": true\`, until \`results.json\` has an entry for EVERY one of the ${config.lines.length} lines. Count them before you claim done.
+- Do NOT announce that you are finished, or set \`"complete": true\`, until \`results.json\` has a REAL result for EVERY one of the ${config.lines.length} lines. A line counts as done ONLY with at least one candidate, a DNP skip, or a genuine \`"candidates": []\` carrying a specific \`"notes"\` explaining what you searched — empty placeholders do NOT count. Counting entries is not enough.
 - If a single line is hard (no results anywhere, a site won't load, a CAPTCHA you can't pass), write \`"candidates": []\` with a short \`"notes"\` and MOVE ON to the next line — one stuck line must never halt the batch.
 - A line whose "VERIFIED API RESULTS" block is empty is normal (e.g. LCSC/Unikey are browse-only) — just source that line in the browser; it is not an error and not a reason to stop.
 
