@@ -180,6 +180,8 @@ export interface SourcingLane {
   value: string;
   /** Package/footprint facet, derived from the bom line's raw `footprint` — its own "Size" column in the Excel export (the `value` string also folds it in for the on-screen review). */
   package: string | null;
+  /** Reconciled stock status — true when the catalog already covers this line. On a full-BOM desktop run these are sourced too (price context) and the card shows an "in stock" badge. */
+  inStock: boolean;
   jobStatus: "queued" | "claimed" | "done" | "failed" | "not_dispatched";
   /** Set when Opus decided this line needs no distributor search at all (a rule hit, not a DB skip-buy). */
   aiSkipReason: string | null;

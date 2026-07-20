@@ -40,6 +40,7 @@ function line(over: Partial<ReviewLineCard>): ReviewLineCard {
     lcscPn: "C111",
     value: "0.1uF",
     package: "0402",
+    inStock: false,
     jobStatus: "done",
     aiSkipReason: null,
     rows: [],

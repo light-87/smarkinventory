@@ -362,6 +362,7 @@ async function getSourcingLanes(
       lcscPn: line.lcsc_pn,
       value: lineValue(line),
       package: derivePackageFromFootprint(line.footprint),
+      inStock: line.match_state === "in_stock",
       jobStatus,
       // Model-authored (Opus master plan) — same de-aliasing requirement as `why` above (report finding #1).
       aiSkipReason: rawSkipReason ? deAliasText(rawSkipReason, dealiasMapping) : null,
@@ -426,6 +427,15 @@ export async function getRunConsoleData(supabase: DB, service: DB, runId: string
   const allLines = (lines ?? []) as BomLineRow[];
   const toOrderLines = allLines.filter((l) => l.match_state !== "in_stock");
 
+  // A full-BOM desktop run's config carries EVERY line, so show them all as
+  // sourcing lanes (in-stock ones badged) instead of hiding them in the skipped
+  // strip. Cloud runs carry only to-order lines, so this reduces to the old split;
+  // legacy runs (no config) fall back to to-order.
+  const envelope = planEnvelope(run as Pick<AgentRunRow, "plan">);
+  const runLineIds = new Set((envelope.config?.lines ?? []).map((l) => l.bomLineId));
+  const sourcingSet = runLineIds.size > 0 ? allLines.filter((l) => runLineIds.has(l.id)) : toOrderLines;
+  const strippedInStock = runLineIds.size > 0 ? allLines.filter((l) => !runLineIds.has(l.id)) : allLines;
+
   // Global (name → alias code) mapping, reversed via `deAliasText` for every
   // model-authored string below — the run's context was built from this same
   // global set (`lib/runs/enqueue.ts` `buildAliasedRunContext`), so a
@@ -434,12 +444,12 @@ export async function getRunConsoleData(supabase: DB, service: DB, runId: string
   const dealiasMapping = await buildGlobalAliasMapping(service);
 
   const [inStockLanes, sourcingLanes] = await Promise.all([
-    getInStockLanes(supabase, allLines),
-    getSourcingLanes(service, runId, run as AgentRunRow, toOrderLines, dealiasMapping),
+    getInStockLanes(supabase, strippedInStock),
+    getSourcingLanes(service, runId, run as AgentRunRow, sourcingSet, dealiasMapping),
   ]);
 
   const doneCount = sourcingLanes.filter((l) => l.jobStatus === "done" || l.jobStatus === "failed" || l.aiSkipReason).length;
-  const coverage = planEnvelope(run as Pick<AgentRunRow, "plan">).appMeta?.coverage ?? null;
+  const coverage = envelope.appMeta?.coverage ?? null;
 
   return {
     project,
@@ -465,11 +475,14 @@ export async function getRunSnapshot(service: DB, runId: string): Promise<RunStr
     .eq("bom_id", run.bom_id)
     .order("line_no", { ascending: true, nullsFirst: false });
   assertNoError(linesError, "smark_bom_lines (snapshot)");
-  const toOrderLines = ((lines ?? []) as BomLineRow[]).filter((l) => l.match_state !== "in_stock");
+  const allLines = (lines ?? []) as BomLineRow[];
+  const toOrderLines = allLines.filter((l) => l.match_state !== "in_stock");
+  const envelope = planEnvelope(run as Pick<AgentRunRow, "plan">);
+  const runLineIds = new Set((envelope.config?.lines ?? []).map((l) => l.bomLineId));
+  const sourcingSet = runLineIds.size > 0 ? allLines.filter((l) => runLineIds.has(l.id)) : toOrderLines;
 
   const dealiasMapping = await buildGlobalAliasMapping(service);
-  const sourcingLanes = await getSourcingLanes(service, runId, run as AgentRunRow, toOrderLines, dealiasMapping);
-  const envelope = planEnvelope(run as Pick<AgentRunRow, "plan">);
+  const sourcingLanes = await getSourcingLanes(service, runId, run as AgentRunRow, sourcingSet, dealiasMapping);
   const doneCount = sourcingLanes.filter((l) => l.jobStatus === "done" || l.jobStatus === "failed" || l.aiSkipReason).length;
   const narration = envelope.masterPlan?.narration ?? null;
 

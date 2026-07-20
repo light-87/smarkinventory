@@ -189,6 +189,11 @@ export function ReviewLineCard({ projectId, runId, writable, line }: ReviewLineC
           )}
         </div>
         <div className="flex flex-none items-center gap-2">
+          {line.inStock && (
+            <Chip tone="neutral" size="sm">
+              In stock
+            </Chip>
+          )}
           {inCart && (
             <Chip tone="success" mono>
               In cart ✓ ×{formatNumber(line.inCartQty)}
