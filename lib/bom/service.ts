@@ -177,7 +177,9 @@ export async function runReconcile(supabase: DB, bomId: string): Promise<void> {
   const { data: lines, error: linesError } = await supabase
     .from(TABLES.bom_lines)
     .select("id, qty, mpn, lcsc_pn, dnp")
-    .eq("bom_id", bomId);
+    .eq("bom_id", bomId)
+    // Deterministic order so reconcileLines' cross-sibling stock netting (P6) is stable.
+    .order("line_no", { ascending: true, nullsFirst: false });
   if (linesError) throw linesError;
   if (!lines || lines.length === 0) return;
 

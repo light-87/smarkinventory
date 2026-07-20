@@ -80,13 +80,45 @@ export function reconcileLine(
   };
 }
 
-/** Reconciles every line of a BOM against the catalog at the given build_qty. */
+/**
+ * Reconciles every line of a BOM against the catalog at the given build_qty,
+ * NETTING stock across sibling lines matched to the same part (P6, 2026-07-20).
+ * Lines are processed in the given order (runReconcile passes them by line_no)
+ * and each matched part's stock is drawn down as earlier lines claim it, so
+ * repeated parts aren't all stamped in_stock against the FULL quantity — a real
+ * shortfall on line 40 was previously hidden because line 5's match had already
+ * "used" the whole stock in the eyes of the per-line check. A line is in_stock
+ * only if the part's REMAINING stock covers its whole need; an uncovered line
+ * goes to_order and reserves nothing (a later smaller sibling can still fit).
+ * This mirrors, within this one BOM, the aggregate netting `v_part_demand` does
+ * across all BOMs at the cart level. DNP/unmatched lines draw nothing.
+ *
+ * `reconcileLine` stays the stateless per-line primitive (single-line callers +
+ * unit tests); this batch form is the real reconcile and the only one that nets.
+ */
 export function reconcileLines(
   lines: readonly ReconcileLineInput[],
   catalog: readonly ReconcileCatalogPart[],
   buildQty: number,
 ): ReconcileLineOutcome[] {
-  return lines.map((line) => reconcileLine(line, catalog, buildQty));
+  const remainingByPart = new Map<string, number>();
+  return lines.map((line) => {
+    const need = line.dnp ? 0 : (line.qty ?? 0) * buildQty;
+    const hit = matchPart({ mpn: line.mpn, lcsc_pn: line.lcsc_pn }, catalog);
+    if (!hit) {
+      return { id: line.id, matchedPartId: null, matchState: "unresolved", matchConfidence: null, matchMethod: null, need };
+    }
+    // DNP → trivially in stock (need 0); consumes nothing (mirrors reconcileLine
+    // and v_part_demand's own DNP exclusion).
+    if (line.dnp) {
+      return { id: line.id, matchedPartId: hit.part.id, matchState: "in_stock", matchConfidence: hit.confidence, matchMethod: hit.method, need };
+    }
+    const remaining = remainingByPart.get(hit.part.id) ?? hit.part.total_qty;
+    const inStock = remaining >= need;
+    if (inStock) remainingByPart.set(hit.part.id, remaining - need); // draw it down; a to_order line reserves nothing
+    const matchState: BomLineMatchState = inStock ? "in_stock" : "to_order";
+    return { id: line.id, matchedPartId: hit.part.id, matchState, matchConfidence: hit.confidence, matchMethod: hit.method, need };
+  });
 }
 
 export interface ReconcileStats {

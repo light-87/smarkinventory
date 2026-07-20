@@ -78,4 +78,18 @@ describe("reconcileLines + computeReconcileStats", () => {
     const outcomes = reconcileLines(lines, CATALOG, 1);
     expect(computeReconcileStats(outcomes)).toEqual({ lines: 3, inStock: 1, toOrder: 2 });
   });
+
+  test("nets stock across sibling lines matched to the same part (P6)", () => {
+    // part-mpn has total_qty 500; three lines all matched to it.
+    const lines: ReconcileLineInput[] = [
+      { id: "s1", qty: 300, mpn: "ABC123", lcsc_pn: null, dnp: false }, // 500 ≥ 300 → in_stock, 200 left
+      { id: "s2", qty: 300, mpn: "ABC123", lcsc_pn: null, dnp: false }, // 200 < 300 → to_order (reserves nothing)
+      { id: "s3", qty: 150, mpn: "ABC123", lcsc_pn: null, dnp: false }, // 200 ≥ 150 → in_stock, 50 left
+    ];
+    const outcomes = reconcileLines(lines, CATALOG, 1);
+    expect(outcomes.map((o) => o.matchState)).toEqual(["in_stock", "to_order", "in_stock"]);
+    // The bug this fixes: the stateless per-line primitive would call the 2nd line
+    // in_stock too (300 ≤ 500), silently dropping a real shortfall from sourcing.
+    expect(reconcileLine(lines[1]!, CATALOG, 1).matchState).toBe("in_stock");
+  });
 });
