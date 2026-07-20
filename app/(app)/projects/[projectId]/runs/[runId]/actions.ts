@@ -13,16 +13,19 @@ import { revalidatePath } from "next/cache";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { canWrite } from "@/lib/auth/roles";
 import { reRunItem, reRunWholeOrder } from "@/lib/runs/enqueue";
+import { ensureBomSourced } from "@/lib/runs/lifecycle";
 import { selectReviewOption } from "@/lib/runs/select";
 import { addReviewLineToCart } from "@/lib/runs/cart";
 import { submitItemFeedback, submitOrderRemark } from "@/lib/runs/feedback";
 import {
+  AcceptRunCoverageInputSchema,
   AddToCartInputSchema,
   ReRunItemInputSchema,
   ReRunWholeOrderInputSchema,
   SelectReviewOptionInputSchema,
   SubmitItemFeedbackInputSchema,
   SubmitOrderRemarkInputSchema,
+  type AcceptRunCoverageInput,
   type AddToCartInput,
   type ReRunItemInput,
   type ReRunWholeOrderInput,
@@ -66,6 +69,23 @@ export async function reRunWholeOrderAction(input: ReRunWholeOrderInput): Promis
   const result = await reRunWholeOrder(supabase, service, { bomId: parsed.bomId, tier: parsed.tier, actorId });
   if (result.ok) revalidatePath(`/projects`, "layout");
   return result;
+}
+
+/** Review "Accept anyway" — owner/employee override that marks a BOM sourced
+ *  despite an incomplete desktop run. The coverage guardrail (lib/desktop/sync.ts)
+ *  otherwise withholds `sourced`, which gates the cart; this is the explicit
+ *  escape hatch for lines that are genuinely unsourceable. */
+export async function acceptRunCoverageAction(input: AcceptRunCoverageInput): Promise<RunActionResult> {
+  const parsed = AcceptRunCoverageInputSchema.parse(input);
+  await requireProjectsWriter();
+  const service = createServiceClient();
+  try {
+    await ensureBomSourced(service, parsed.bomId);
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Could not accept the run." };
+  }
+  revalidatePath(`/projects`, "layout");
+  return { ok: true };
 }
 
 /** Review's radio-select — confirm/override the recommended option. */

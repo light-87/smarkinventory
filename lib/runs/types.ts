@@ -255,6 +255,10 @@ export interface ReviewData {
   coverage: RunCoverage | null;
 }
 
+/** "Accept anyway" override — mark a BOM sourced despite an incomplete desktop run. */
+export const AcceptRunCoverageInputSchema = z.object({ bomId: z.uuid() });
+export type AcceptRunCoverageInput = z.infer<typeof AcceptRunCoverageInputSchema>;
+
 /** SSE snapshot payload shape (app/api/runs/[runId]/stream) — see hooks/use-run-stream.ts. */
 export interface RunStreamSnapshot {
   status: string;
