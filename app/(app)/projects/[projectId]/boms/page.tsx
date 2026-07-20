@@ -6,6 +6,7 @@ import { getSessionUser } from "@/lib/auth/session";
 import { canWrite } from "@/lib/auth/roles";
 import { getProjectHeader, listBomsForProject } from "@/lib/bom/queries";
 import { getLatestRunStatusByBomIds } from "@/lib/runs/queries";
+import { hasReviewableResults } from "@/lib/runs/lifecycle";
 import { BomListTable } from "@/components/bom/bom-list-table";
 
 export const metadata: Metadata = { title: "BOMs" };
@@ -36,14 +37,19 @@ export default async function BomsPage({ params, searchParams }: BomsPageProps) 
   const visible = allBoms.filter((b) => (showArchived ? b.archivedAt != null : b.archivedAt == null));
   const archivedCount = allBoms.filter((b) => b.archivedAt != null).length;
 
-  // "In review" CTA — surface the BOM's most recent run when it's sitting in
-  // review, whether that run was desktop- or worker-created (docs/desktop-
-  // web-handoff-prompt.md §2).
+  // "In review" CTA — surface the BOM's most recent run whenever it has
+  // reviewable output, whether desktop- or worker-created. Gated on
+  // hasReviewableResults (not status === "review" alone) so a "sourced" BOM's
+  // output stays reachable even if its run drifted off "review" (Krunal bug:
+  // AEM showed "sourced" with the review link hidden).
   const latestRunByBom = await getLatestRunStatusByBomIds(supabase, visible.map((b) => b.savedRunId));
   const reviewRunIdByBom = new Map(
-    Array.from(latestRunByBom.entries())
-      .filter(([, run]) => run.status === "review")
-      .map(([bomId, run]) => [bomId, run.runId] as const),
+    visible
+      .map((b) => {
+        const run = latestRunByBom.get(b.id);
+        return run && hasReviewableResults(run.status, b.sourcingStatus) ? ([b.id, run.runId] as const) : null;
+      })
+      .filter((entry): entry is readonly [string, string] => entry !== null),
   );
 
   return (

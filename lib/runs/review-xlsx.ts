@@ -41,10 +41,39 @@ function vendorSortKey(name: string): number {
   return i === -1 ? VENDOR_ORDER.length : i;
 }
 
-/** Per-vendor PN: the vendor's own SKU where captured, else the LCSC PN for the LCSC column, else the shared MPN. */
-function vendorPnCell(row: LaneOptionRow, lineMpn: string | null, lineLcscPn: string | null): string {
+function isLcsc(distributorName: string): boolean {
+  return distributorName.toLowerCase().includes("lcsc");
+}
+
+/**
+ * The LCSC part number (`Cxxxxx`) as it sits in an LCSC product URL, e.g.
+ * `.../..._C17726.html`. Guarded to LCSC-shaped links so a stray "C…" inside a
+ * regular URL isn't mistaken for one. This is the real LCSC PN "as extracted
+ * after searching" — the desktop/worker records the LCSC product link, so we
+ * read it back from there rather than showing the MPN.
+ */
+function lcscPnFromUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  const match = /[_/]C(\d{3,})(?:\.html)?(?:[/?#]|$)/i.exec(url);
+  return match ? `C${match[1]}` : null;
+}
+
+/** The real LCSC PN for a line: the BOM's own value, else pulled from that line's LCSC product link. */
+function resolveLcscPn(line: ReviewData["lines"][number]): string {
+  if (line.lcscPn) return line.lcscPn;
+  const lcscRow = line.rows.find((r) => isLcsc(r.distributorName));
+  return lcscPnFromUrl(lcscRow?.orderLink) ?? "";
+}
+
+/**
+ * Per-vendor PN. For LCSC it is the real LCSC PN (BOM value or extracted from
+ * the product link) and NEVER the MPN — showing the MPN there is the bug
+ * Krunal flagged. For other vendors it is the captured vendor SKU, else the
+ * shared MPN as a searchable fallback.
+ */
+function vendorPnCell(row: LaneOptionRow, lineMpn: string | null, resolvedLcscPn: string): string {
+  if (isLcsc(row.distributorName)) return resolvedLcscPn || lcscPnFromUrl(row.orderLink) || "";
   if (row.vendorPn) return row.vendorPn;
-  if (row.distributorName.toLowerCase().includes("lcsc") && lineLcscPn) return lineLcscPn;
   return lineMpn ?? "";
 }
 
@@ -74,7 +103,7 @@ export function buildReviewRows(review: ReviewData): { header: string[]; rows: C
     const cur = vendorCurrency.get(v);
     header.push(`${v} PN`, `${v} Unit Cost${cur ? ` (${cur})` : ""}`, `${v} Stock`, `${v} Link`);
   }
-  header.push("Recommended Vendor", "Total Cost", "Currency", "Status", "Note");
+  header.push("Recommended Vendor", "Total Cost", "Currency", "Note");
 
   const rows: Cell[][] = review.lines.map((line, i) => {
     const totalQty = line.cartQtyNeeded;
@@ -82,6 +111,7 @@ export function buildReviewRows(review: ReviewData): { header: string[]; rows: C
     const rowByVendor = new Map(line.rows.map((r) => [r.distributorName, r] as const));
     const chosen = selectedRow(line.rows);
     const totalCost: Cell = chosen?.price != null ? chosen.price * totalQty : "";
+    const lcscPn = resolveLcscPn(line);
 
     const cells: Cell[] = [
       line.lineNo ?? i + 1,
@@ -89,7 +119,7 @@ export function buildReviewRows(review: ReviewData): { header: string[]; rows: C
       line.value,
       line.package ?? "",
       line.mpn ?? "",
-      line.lcscPn ?? "",
+      lcscPn,
       unitQty,
       totalQty,
     ];
@@ -100,14 +130,13 @@ export function buildReviewRows(review: ReviewData): { header: string[]; rows: C
         cells.push("", "", "", "");
         continue;
       }
-      cells.push(vendorPnCell(r, line.mpn, line.lcscPn), r.price ?? "", r.stockQty ?? "", r.orderLink ?? "");
+      cells.push(vendorPnCell(r, line.mpn, lcscPn), r.price ?? "", r.stockQty ?? "", r.orderLink ?? "");
     }
 
     cells.push(
       chosen ? chosen.distributorName : line.aiSkipReason ? "— skipped" : "— none selected",
       totalCost,
       chosen?.currency ?? "",
-      line.jobStatus,
       line.aiSkipReason ?? chosen?.why ?? "",
     );
     return cells;

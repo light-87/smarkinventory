@@ -6,6 +6,7 @@ import { getSessionUser } from "@/lib/auth/session";
 import { canWrite } from "@/lib/auth/roles";
 import { getBomDetail } from "@/lib/bom/queries";
 import { getLatestRunStatusByBomIds } from "@/lib/runs/queries";
+import { hasReviewableResults } from "@/lib/runs/lifecycle";
 import { ReconcileView } from "@/components/bom/reconcile-view";
 
 export const metadata: Metadata = { title: "BOM" };
@@ -23,10 +24,11 @@ export default async function BomDetailPage({ params }: BomDetailPageProps) {
 
   const writable = sessionUser != null && canWrite(sessionUser.role, "projects");
 
-  // "In review" CTA — link straight to the review screen when this BOM's most
-  // recent run (desktop- or worker-created) is sitting in review.
+  // "In review" CTA — link straight to the review screen whenever this BOM has
+  // reviewable output (desktop- or worker-created), even if the run drifted off
+  // "review" while the BOM stayed "sourced" (Krunal bug).
   const latestRun = (await getLatestRunStatusByBomIds(supabase, [detail.bom.saved_run_id])).get(detail.bom.id);
-  const reviewRunId = latestRun?.status === "review" ? latestRun.runId : null;
+  const reviewRunId = latestRun && hasReviewableResults(latestRun.status, detail.bom.sourcing_status) ? latestRun.runId : null;
 
   return (
     <div className="flex flex-col gap-4">

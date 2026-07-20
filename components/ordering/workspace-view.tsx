@@ -18,6 +18,7 @@ import { DistributorSequenceCard } from "./distributor-sequence-card";
 import { PrioritiesCard } from "./priorities-card";
 import { MemoryContextCardView, StandardRulesCard } from "./memory-rules-cards";
 import { formatNumber } from "@/lib/format";
+import { hasReviewableResults } from "@/lib/runs/lifecycle";
 import type { WorkspaceData } from "@/lib/runs/types";
 
 export interface WorkspaceViewProps {
@@ -28,7 +29,10 @@ export interface WorkspaceViewProps {
 
 export function WorkspaceView({ projectId, data, writable }: WorkspaceViewProps) {
   const nothingToOrder = data.toOrderLineCount === 0;
-  const reviewRunId = data.savedRun?.status === "review" ? data.savedRun.id : null;
+  // Show "Review results →" whenever the run has reviewable output, even if it
+  // drifted off "review" while the BOM stayed "sourced" (Krunal bug).
+  const reviewRunId =
+    data.savedRun && hasReviewableResults(data.savedRun.status, data.bom.sourcingStatus) ? data.savedRun.id : null;
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 px-4 py-5 sm:px-6">

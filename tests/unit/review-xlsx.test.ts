@@ -70,7 +70,8 @@ describe("buildReviewRows — header", () => {
     expect(header).toContain("DigiKey Stock");
     expect(header).toContain("DigiKey Link");
     expect(header.some((h) => h.startsWith("DigiKey Unit Cost"))).toBe(true);
-    expect(header.slice(-5)).toEqual(["Recommended Vendor", "Total Cost", "Currency", "Status", "Note"]);
+    expect(header.slice(-4)).toEqual(["Recommended Vendor", "Total Cost", "Currency", "Note"]);
+    expect(header).not.toContain("Status");
   });
 
   test("vendors are ordered LCSC, DigiKey, Mouser, element14", () => {
@@ -109,6 +110,31 @@ describe("buildReviewRows — cells", () => {
     expect(rows[0]![dkPn]).toBe(""); // C1 has no DigiKey option
     expect(rows[0]![dkPn + 1]).toBe(""); // cost
     expect(rows[1]![dkPn]).toBe("MPN1"); // C2 has DigiKey → MPN fallback
+  });
+
+  test("LCSC PN comes from the product URL when the BOM line has none, and never falls back to the MPN", () => {
+    const r = review([
+      line({
+        mpn: "MPN1",
+        lcscPn: null, // BOM line carries no LCSC PN (desktop/LCSC-sourced case)
+        rows: [
+          opt({ distributorName: "LCSC", vendorPn: null, orderLink: "https://www.lcsc.com/product-detail/foo_C17726.html" }),
+          opt({ distributorName: "DigiKey", vendorPn: null, orderLink: "https://www.digikey.com/x" }),
+        ],
+      }),
+    ]);
+    const { rows } = buildReviewRows(r);
+    const vendors = ["LCSC", "DigiKey"];
+    // base + LCSC vendor column both show the extracted Cxxxxx, not the MPN
+    expect(rows[0]![5]).toBe("C17726");
+    expect(rows[0]![vendorGroupStart(vendors, "LCSC")]).toBe("C17726");
+    // no LCSC PN anywhere → blank, NOT the MPN
+    const r2 = review([line({ mpn: "MPN1", lcscPn: null, rows: [opt({ distributorName: "LCSC", vendorPn: null, orderLink: null })] })]);
+    const out2 = buildReviewRows(r2);
+    expect(out2.rows[0]![5]).toBe("");
+    expect(out2.rows[0]![vendorGroupStart(["LCSC"], "LCSC")]).toBe("");
+    // DigiKey still falls back to the MPN
+    expect(rows[0]![vendorGroupStart(vendors, "DigiKey")]).toBe("MPN1");
   });
 
   test("per-vendor PN: vendorPn wins, LCSC falls back to lcscPn, others to mpn", () => {

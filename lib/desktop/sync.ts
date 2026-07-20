@@ -18,6 +18,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/db";
 import { TABLES } from "@/types/db";
 import type { ClaudeMasterPlan, WorkerRunConfig } from "@/types/worker";
+import { ensureBomSourced } from "@/lib/runs/lifecycle";
 
 type DB = SupabaseClient<Database>;
 
@@ -137,6 +138,12 @@ export async function ingestDesktopResults(service: DB, payload: DesktopResultsP
     .update({ plan: newEnvelope as never, status: "review", actual_cost: null })
     .eq("id", payload.runId);
   if (updateError) return { ok: false, error: `Results written but the run couldn't be finalized: ${updateError.message}` };
+
+  // Mark the BOM "sourced" now that results exist, so the review CTAs surface
+  // immediately — the review page's ensureBomSourced only runs on first open,
+  // which the owner may never reach if the run later drifts off "review".
+  // Best-effort: results are already written, so a failure here is not fatal.
+  if (config?.bomId) await ensureBomSourced(service, config.bomId);
 
   return { ok: true, written: payload.results.length };
 }
