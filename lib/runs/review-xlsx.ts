@@ -52,14 +52,14 @@ function isLcsc(distributorName: string): boolean {
  * after searching" — the desktop/worker records the LCSC product link, so we
  * read it back from there rather than showing the MPN.
  */
-function lcscPnFromUrl(url: string | null | undefined): string | null {
+export function lcscPnFromUrl(url: string | null | undefined): string | null {
   if (!url) return null;
   const match = /[_/]C(\d{3,})(?:\.html)?(?:[/?#]|$)/i.exec(url);
   return match ? `C${match[1]}` : null;
 }
 
 /** The real LCSC PN for a line: the BOM's own value, else pulled from that line's LCSC product link. */
-function resolveLcscPn(line: ReviewData["lines"][number]): string {
+export function resolveLcscPn(line: ReviewData["lines"][number]): string {
   if (line.lcscPn) return line.lcscPn;
   const lcscRow = line.rows.find((r) => isLcsc(r.distributorName));
   return lcscPnFromUrl(lcscRow?.orderLink) ?? "";
