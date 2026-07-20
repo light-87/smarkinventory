@@ -37,6 +37,20 @@ function arg(name: string): string | null {
   return i >= 0 ? (process.argv[i + 1] ?? null) : null;
 }
 
+/**
+ * readFileSync + JSON.parse, tolerant of a leading UTF-8 BOM (F-018). The
+ * agent rewrites results.json from its Claude Code terminal; when it does so
+ * via Windows PowerShell (Set-Content/Out-File default to UTF-8-WITH-BOM), the
+ * file gains a BOM prefix that raw JSON.parse rejects with "Unexpected
+ * token". readResults() then treated every post-seed snapshot as "unreadable
+ * mid-write" and silently synced nothing — the run showed 0/N on the web
+ * despite a full results.json. Node's utf8 read does NOT strip the BOM, so we
+ * strip it here for every agent-writable file we parse.
+ */
+function readJsonFile(file: string): unknown {
+  const s = readFileSync(file, "utf8"); return JSON.parse(s.charCodeAt(0) === 0xFEFF ? s.slice(1) : s);
+}
+
 // Upload-only mode: skip run-context/prefetch/browser and just re-POST an
 // existing run's already-written results.json (the "Sync latest again" button,
 // v0.4.0). Needs --run <runId> to locate ~/.smarkstock-sessions/<runId>/.
@@ -160,8 +174,8 @@ if (uploadOnly) {
     console.error(`No saved session for run ${runArg} on this machine — nothing to re-sync.`);
     process.exit(1);
   }
-  const cfg = JSON.parse(readFileSync(cfgPath, "utf8")) as WorkerRunConfig;
-  const parsed = AgentResultsFileSchema.safeParse(JSON.parse(readFileSync(resPath, "utf8")));
+  const cfg = readJsonFile(cfgPath) as WorkerRunConfig;
+  const parsed = AgentResultsFileSchema.safeParse(readJsonFile(resPath));
   if (!parsed.success) {
     console.error(`results.json for run ${runArg} isn't valid — ${parsed.error.message}`);
     process.exit(1);
@@ -284,7 +298,7 @@ let consecutiveParseFailures = 0;
 
 function readResults(): ResultsFile | null {
   try {
-    const raw = JSON.parse(readFileSync(session.resultsFile, "utf8"));
+    const raw = readJsonFile(session.resultsFile);
     const parsed = AgentResultsFileSchema.safeParse(raw);
     if (!parsed.success) {
       consecutiveParseFailures++;
