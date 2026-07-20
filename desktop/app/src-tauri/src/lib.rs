@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -8,6 +9,52 @@ use tauri_plugin_shell::ShellExt;
 #[tauri::command]
 fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
+}
+
+// --- Durable auth store (F-017) -------------------------------------------
+// A tiny key/value store the webview's supabase client persists its session to
+// (see desktop/app/src/lib/supabase.ts). It lives in the app's own data dir,
+// NOT the WebView2 data folder that Windows AV/OneDrive wipe — the fix for the
+// "always logs out" bug. Backed by one JSON file (a String→String map).
+
+fn auth_store_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir.join("auth-session.json"))
+}
+
+fn read_auth_map(app: &tauri::AppHandle) -> Result<HashMap<String, String>, String> {
+    let path = auth_store_path(app)?;
+    match fs::read_to_string(&path) {
+        Ok(s) => serde_json::from_str(&s).map_err(|e| e.to_string()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(HashMap::new()),
+        Err(e) => Err(e.to_string()),
+    }
+}
+
+fn write_auth_map(app: &tauri::AppHandle, map: &HashMap<String, String>) -> Result<(), String> {
+    let path = auth_store_path(app)?;
+    let s = serde_json::to_string(map).map_err(|e| e.to_string())?;
+    fs::write(&path, s).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn auth_store_get(app: tauri::AppHandle, key: String) -> Result<Option<String>, String> {
+    Ok(read_auth_map(&app)?.get(&key).cloned())
+}
+
+#[tauri::command]
+fn auth_store_set(app: tauri::AppHandle, key: String, value: String) -> Result<(), String> {
+    let mut map = read_auth_map(&app)?;
+    map.insert(key, value);
+    write_auth_map(&app, &map)
+}
+
+#[tauri::command]
+fn auth_store_remove(app: tauri::AppHandle, key: String) -> Result<(), String> {
+    let mut map = read_auth_map(&app)?;
+    map.remove(&key);
+    write_auth_map(&app, &map)
 }
 
 /// The in-flight sidecar child plus the sentinel path "Finish & sync" writes to
@@ -173,7 +220,10 @@ pub fn run() {
             start_sourcing_run,
             finish_sourcing_run,
             cancel_sourcing_run,
-            sync_run_again
+            sync_run_again,
+            auth_store_get,
+            auth_store_set,
+            auth_store_remove
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
