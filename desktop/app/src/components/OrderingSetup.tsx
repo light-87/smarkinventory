@@ -13,6 +13,7 @@ import {
   Typography,
 } from "@mui/material";
 import type { BomPickerEntry } from "../lib/boms";
+import { PastRuns } from "./PastRuns";
 import { colors } from "../colors";
 
 export interface OrderingConfig {
@@ -25,6 +26,8 @@ interface OrderingSetupProps {
   bom: BomPickerEntry;
   onBack: () => void;
   onStart: (config: OrderingConfig) => void;
+  /** Resume a saved on-disk run for this BOM instead of starting a new one. */
+  onResume: (runId: string) => void;
 }
 
 /**
@@ -33,7 +36,7 @@ interface OrderingSetupProps {
  * limit, docs in lib/runs/enqueue.ts EnqueueRunInput). Leaving it blank runs
  * every to-order line on the BOM.
  */
-export function OrderingSetup({ bom, onBack, onStart }: OrderingSetupProps) {
+export function OrderingSetup({ bom, onBack, onStart, onResume }: OrderingSetupProps) {
   const [lineLimitInput, setLineLimitInput] = useState("");
   const [resourceAll, setResourceAll] = useState(false);
 
@@ -68,6 +71,8 @@ export function OrderingSetup({ bom, onBack, onStart }: OrderingSetupProps) {
             />
           </CardContent>
         </Card>
+
+        <PastRuns bomId={bom.id} onResume={onResume} />
 
         <Card sx={{ mb: 3, borderTop: `3px solid ${colors.copper}` }}>
           <CardContent>

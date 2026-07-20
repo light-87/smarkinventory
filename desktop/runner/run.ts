@@ -57,7 +57,12 @@ function readJsonFile(file: string): unknown {
 const uploadOnly = process.argv.includes("--upload-only");
 const runArg = arg("run");
 const bomId = arg("bom");
-if (!uploadOnly && !bomId) {
+// Resume mode (v0.7.0): re-open an existing on-disk session for --resume <runId>
+// — reuse its config.json + results.json + CLAUDE.md, relaunch the browser and
+// Claude terminal, and keep syncing. No new run is created; the same runId's
+// results are updated in place. Powers the desktop "Past runs → Resume" list.
+const resumeRunId = arg("resume");
+if (!uploadOnly && !resumeRunId && !bomId) {
   console.error("usage: bun run desktop/runner/run.ts --bom <bomId> [--lines N] [--web http://localhost:3000]");
   process.exit(1);
 }
@@ -187,72 +192,98 @@ if (uploadOnly) {
   process.exit(0);
 }
 
-if (!bomId) process.exit(1); // guarded above for normal mode; narrows for TS
+// config / reviewPath / session / initialPrompt come from EITHER a fresh
+// run-context call (new run) OR an existing on-disk session (--resume). The
+// browser launch, Claude terminal, and results.json watch loop below are shared.
+let config: WorkerRunConfig;
+let reviewPath: string;
+let session: { dir: string; resultsFile: string };
+let initialPrompt: string;
 
-// ── 2. Create the desktop run + pull the aliased context ────────────────────
-const ctxRes = await fetch(`${webBase}/api/desktop/run-context`, {
-  method: "POST",
-  headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
-  // clientRendersColumns: this runner prints LCSC PN / part link / custom
-  // columns in CLAUDE.md itself, so the server skips its note fold-in (which
-  // exists only for older installs that don't render them).
-  // resourceAll: when false (default) the server reuses lines already sourced
-  // by the BOM's previous run and only sends the remaining ones.
-  body: JSON.stringify({ bomId, lineLimit, clientRendersColumns: true, resourceAll }),
-});
-const ctxRawBody = await ctxRes.text();
-let ctx: { runId?: string; config?: WorkerRunConfig; reviewPath?: string; error?: string };
-try {
-  ctx = JSON.parse(ctxRawBody);
-} catch {
-  console.error(`run-context returned non-JSON (HTTP ${ctxRes.status}) — is ${webBase} reachable and running?`);
-  console.error(ctxRawBody.slice(0, 500));
-  process.exit(1);
-}
-if (!ctxRes.ok || !ctx.runId || !ctx.config) {
-  console.error(`run-context failed (HTTP ${ctxRes.status}): ${ctx.error}`);
-  process.exit(1);
-}
-const config = ctx.config;
-const reviewPath = ctx.reviewPath ?? "";
-console.log(`✓ run ${ctx.runId} created — ${config.lines.length} line(s)`);
-
-// ── 3. REST prefetch (free, exact — the agent browses only the gaps) ────────
-// Only the distributors THIS run enabled. A "LCSC only" run (or any browse-only
-// selection) has no REST API to hit, so we skip prefetch entirely instead of
-// pinging DigiKey/Mouser/element14 and reporting a misleading "0 results".
-const enabledNames = config.distributorSequence.filter((d) => d.enabled).map((d) => d.name);
-let prefetch;
-if (hasRestDistributor(enabledNames)) {
-  console.log(`REST prefetch (${enabledNames.join(" / ")})…`);
-  prefetch = await prefetchAll(config.lines, enabledNames, (done, total) => {
-    if (done % 5 === 0 || done === total) console.log(`  ${done}/${total}`);
-  });
-  const withApi = prefetch.filter((p) => p.candidates.length > 0).length;
-  console.log(`✓ prefetch done — ${withApi}/${config.lines.length} lines have API candidates`);
+if (resumeRunId) {
+  // ── 2r. Resume: reuse the saved session, no new run / prefetch / seed ──────
+  const dir = path.join(homedir(), ".smarkstock-sessions", resumeRunId);
+  if (!existsSync(path.join(dir, "config.json"))) {
+    console.error(`No saved session for run ${resumeRunId} on this machine — nothing to resume.`);
+    process.exit(1);
+  }
+  config = readJsonFile(path.join(dir, "config.json")) as WorkerRunConfig;
+  // The app knows the project and passes it so the review link is exact; without
+  // it we still sync, just don't print the link (the app builds its own button).
+  const projectId = arg("project");
+  reviewPath = projectId ? `/projects/${projectId}/runs/${resumeRunId}/review` : "";
+  session = { dir, resultsFile: path.join(dir, "results.json") };
+  initialPrompt =
+    "Continue sourcing per CLAUDE.md — results.json already holds prior results; pick up any lines still missing or unfinished and keep updating it. Do not restart from scratch.";
+  console.log(`✓ resuming run ${resumeRunId} — ${config.lines.length} line(s), reusing the saved session`);
 } else {
-  console.log(
-    `REST prefetch skipped — no REST-API distributor enabled (this run: ${enabledNames.join(", ") || "none"}). ` +
-      "LCSC/Unikey are browse-only; the agent sources them directly in the browser.",
-  );
-  prefetch = await prefetchAll(config.lines, enabledNames); // returns empty candidates instantly
+  if (!bomId) process.exit(1); // guarded above for normal mode; narrows for TS
+
+  // ── 2. Create the desktop run + pull the aliased context ────────────────────
+  const ctxRes = await fetch(`${webBase}/api/desktop/run-context`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+    // clientRendersColumns: this runner prints LCSC PN / part link / custom
+    // columns in CLAUDE.md itself, so the server skips its note fold-in (which
+    // exists only for older installs that don't render them).
+    // resourceAll: when false (default) the server reuses lines already sourced
+    // by the BOM's previous run and only sends the remaining ones.
+    body: JSON.stringify({ bomId, lineLimit, clientRendersColumns: true, resourceAll }),
+  });
+  const ctxRawBody = await ctxRes.text();
+  let ctx: { runId?: string; config?: WorkerRunConfig; reviewPath?: string; error?: string };
+  try {
+    ctx = JSON.parse(ctxRawBody);
+  } catch {
+    console.error(`run-context returned non-JSON (HTTP ${ctxRes.status}) — is ${webBase} reachable and running?`);
+    console.error(ctxRawBody.slice(0, 500));
+    process.exit(1);
+  }
+  if (!ctxRes.ok || !ctx.runId || !ctx.config) {
+    console.error(`run-context failed (HTTP ${ctxRes.status}): ${ctx.error}`);
+    process.exit(1);
+  }
+  config = ctx.config;
+  reviewPath = ctx.reviewPath ?? "";
+  console.log(`✓ run ${ctx.runId} created — ${config.lines.length} line(s)`);
+
+  // ── 3. REST prefetch (free, exact — the agent browses only the gaps) ────────
+  // Only the distributors THIS run enabled. A "LCSC only" run (or any browse-only
+  // selection) has no REST API to hit, so we skip prefetch entirely instead of
+  // pinging DigiKey/Mouser/element14 and reporting a misleading "0 results".
+  const enabledNames = config.distributorSequence.filter((d) => d.enabled).map((d) => d.name);
+  let prefetch;
+  if (hasRestDistributor(enabledNames)) {
+    console.log(`REST prefetch (${enabledNames.join(" / ")})…`);
+    prefetch = await prefetchAll(config.lines, enabledNames, (done, total) => {
+      if (done % 5 === 0 || done === total) console.log(`  ${done}/${total}`);
+    });
+    const withApi = prefetch.filter((p) => p.candidates.length > 0).length;
+    console.log(`✓ prefetch done — ${withApi}/${config.lines.length} lines have API candidates`);
+  } else {
+    console.log(
+      `REST prefetch skipped — no REST-API distributor enabled (this run: ${enabledNames.join(", ") || "none"}). ` +
+        "LCSC/Unikey are browse-only; the agent sources them directly in the browser.",
+    );
+    prefetch = await prefetchAll(config.lines, enabledNames); // returns empty candidates instantly
+  }
+
+  session = generateSession(path.join(homedir(), ".smarkstock-sessions"), config, prefetch);
+  // --dangerously-skip-permissions + the sourcing instruction as the initial
+  // prompt: the two remaining manual steps on a fresh machine are signing into
+  // Claude Code and installing/enabling the browser MCP plugin (desktop/README.md)
+  // — once those exist, this run needs nothing pressed, just supervision. The
+  // user has explicitly authorized this via a `Bash(claude --dangerously-skip-
+  // permissions*)` allow rule in .claude/settings.local.json (project-scoped,
+  // gitignored) rather than it being silently baked in.
+  initialPrompt = "Source the BOM per CLAUDE.md.";
 }
 
-// ── 4. Browser + session folder + the user's own Claude terminal ────────────
+// ── 4. Browser + the user's own Claude terminal (shared by new + resume) ─────
 const browserName = await ensureBrowser();
 console.log(`✓ browser ready (${browserName}, CDP :${CDP_PORT})`);
-
-const session = generateSession(path.join(homedir(), ".smarkstock-sessions"), config, prefetch);
 console.log(`✓ session folder: ${session.dir}`);
 
-// --dangerously-skip-permissions + the sourcing instruction as the initial
-// prompt: the two remaining manual steps on a fresh machine are signing into
-// Claude Code and installing/enabling the browser MCP plugin (desktop/README.md)
-// — once those exist, this run needs nothing pressed, just supervision. The
-// user has explicitly authorized this via a `Bash(claude --dangerously-skip-
-// permissions*)` allow rule in .claude/settings.local.json (project-scoped,
-// gitignored) rather than it being silently baked in.
-const initialPrompt = "Source the BOM per CLAUDE.md.";
 const claudeCommand = `claude --dangerously-skip-permissions "${initialPrompt}"`;
 Bun.spawn(
   ["cmd", "/c", "start", "SmarkStock Sourcing Agent", "powershell", "-NoExit", "-Command", claudeCommand],

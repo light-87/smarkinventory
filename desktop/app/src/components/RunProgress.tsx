@@ -11,7 +11,10 @@ const WEB_BASE = import.meta.env.VITE_WEB_BASE_URL ?? "http://localhost:3000";
 
 interface RunProgressProps {
   bom: BomPickerEntry;
-  config: OrderingConfig;
+  /** Present when starting a NEW run; absent when resuming a saved one. */
+  config?: OrderingConfig;
+  /** When set, resume this saved on-disk run instead of creating a new one. */
+  resumeRunId?: string;
   onBack: () => void;
 }
 
@@ -22,7 +25,7 @@ interface RunProgressProps {
  * prefetch → dedicated Brave → Claude Code session → results.json →
  * transform → upload → review link. This view just surfaces its stdout.
  */
-export function RunProgress({ bom, config, onBack }: RunProgressProps) {
+export function RunProgress({ bom, config, resumeRunId, onBack }: RunProgressProps) {
   const [lines, setLines] = useState<string[]>([]);
   const [done, setDone] = useState<{ code: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -56,20 +59,35 @@ export function RunProgress({ bom, config, onBack }: RunProgressProps) {
         return;
       }
 
+      // refreshToken lets the runner refresh the access token before uploading
+      // results, so a long run doesn't fail with "Not signed in" when it expires.
       try {
-        await invoke("start_sourcing_run", {
-          bomId: bom.id,
-          lineLimit: config.lineLimit,
-          webBase: WEB_BASE,
-          accessToken: token,
-          // Lets the runner refresh the token before uploading results, so a
-          // long run doesn't fail with "Not signed in" when the token expires.
-          refreshToken,
-          supabaseUrl: import.meta.env.VITE_SUPABASE_URL,
-          supabaseAnonKey: import.meta.env.VITE_SUPABASE_ANON_KEY,
-          // false → server reuses lines already sourced by the previous run.
-          resourceAll: config.resourceAll,
-        });
+        if (resumeRunId) {
+          // Resume a saved run: relaunch its browser + Claude terminal, keep syncing.
+          await invoke("resume_sourcing_run", {
+            runId: resumeRunId,
+            projectId: bom.projectId,
+            webBase: WEB_BASE,
+            accessToken: token,
+            refreshToken,
+            supabaseUrl: import.meta.env.VITE_SUPABASE_URL,
+            supabaseAnonKey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+          });
+        } else if (config) {
+          await invoke("start_sourcing_run", {
+            bomId: bom.id,
+            lineLimit: config.lineLimit,
+            webBase: WEB_BASE,
+            accessToken: token,
+            refreshToken,
+            supabaseUrl: import.meta.env.VITE_SUPABASE_URL,
+            supabaseAnonKey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+            // false → server reuses lines already sourced by the previous run.
+            resourceAll: config.resourceAll,
+          });
+        } else {
+          setError("Nothing to run — no ordering configuration.");
+        }
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
       }
@@ -88,7 +106,12 @@ export function RunProgress({ bom, config, onBack }: RunProgressProps) {
   }, [lines]);
 
   const reviewMatch = lines.join("\n").match(/Review it on the web: (\S+)/);
-  const runId = reviewMatch?.[1].match(/runs\/([^/]+)\/review/)?.[1] ?? null;
+  // Resume mode knows the run + project up front, so the review link and runId
+  // are available immediately; a new run parses them from the runner's log.
+  const reviewUrl = resumeRunId
+    ? `${WEB_BASE}/projects/${bom.projectId}/runs/${resumeRunId}/review`
+    : (reviewMatch?.[1] ?? null);
+  const runId = resumeRunId ?? reviewMatch?.[1].match(/runs\/([^/]+)\/review/)?.[1] ?? null;
   const [finishing, setFinishing] = useState(false);
   const [syncing, setSyncing] = useState(false);
 
@@ -147,7 +170,8 @@ export function RunProgress({ bom, config, onBack }: RunProgressProps) {
       <AppBar position="static" color="primary" elevation={0}>
         <Toolbar>
           <Typography variant="h6">
-            Sourcing {bom.name} ({config.lineLimit ?? bom.lineCount} line{(config.lineLimit ?? bom.lineCount) === 1 ? "" : "s"})
+            {resumeRunId ? "Resuming" : "Sourcing"} {bom.name} ({config?.lineLimit ?? bom.lineCount} line
+            {(config?.lineLimit ?? bom.lineCount) === 1 ? "" : "s"})
           </Typography>
         </Toolbar>
       </AppBar>
@@ -201,9 +225,9 @@ export function RunProgress({ bom, config, onBack }: RunProgressProps) {
           </Typography>
         )}
 
-        {reviewMatch && (
+        {reviewUrl && (
           <Box sx={{ mt: 2, display: "flex", flexDirection: "column", gap: 1 }}>
-            <Button variant="contained" onClick={() => window.open(reviewMatch[1], "_blank")}>
+            <Button variant="contained" onClick={() => window.open(reviewUrl, "_blank")}>
               Open review on the web
             </Button>
             {!done && (
@@ -219,7 +243,7 @@ export function RunProgress({ bom, config, onBack }: RunProgressProps) {
           </Box>
         )}
 
-        {done && !reviewMatch && (
+        {done && !reviewUrl && (
           <Typography sx={{ mt: 2 }} color={done.code === 0 ? "text.secondary" : "error"}>
             {done.code === -1 ? "Cancelled." : `Runner exited with code ${done.code}.`}
           </Typography>
@@ -228,7 +252,7 @@ export function RunProgress({ bom, config, onBack }: RunProgressProps) {
         <Box sx={{ mt: 3, display: "flex", justifyContent: "space-between" }}>
           <Button onClick={onBack}>← Back to ordering setup</Button>
           {!done &&
-            (reviewMatch ? (
+            (reviewUrl ? (
               <Button variant="contained" color="success" onClick={handleFinish} disabled={finishing}>
                 {finishing ? "Finishing…" : "Finish & sync"}
               </Button>

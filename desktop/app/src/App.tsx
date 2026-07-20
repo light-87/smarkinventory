@@ -29,6 +29,8 @@ function App() {
   const [auth, setAuth] = useState<AuthState>({ status: "loading" });
   const [selectedBom, setSelectedBom] = useState<BomPickerEntry | null>(null);
   const [orderingConfig, setOrderingConfig] = useState<OrderingConfig | null>(null);
+  // Set when the user resumes a saved on-disk run instead of starting a new one.
+  const [resumeRunId, setResumeRunId] = useState<string | null>(null);
   const [showGuide, setShowGuide] = useState(false);
   const [updateLatest, setUpdateLatest] = useState<string | null>(null);
   const [updateDismissed, setUpdateDismissed] = useState(false);
@@ -88,8 +90,15 @@ function App() {
     <SetupGuide onClose={() => setShowGuide(false)} />
   ) : !selectedBom ? (
     <BomPicker onSelect={setSelectedBom} onShowGuide={() => setShowGuide(true)} />
+  ) : resumeRunId ? (
+    <RunProgress bom={selectedBom} resumeRunId={resumeRunId} onBack={() => setResumeRunId(null)} />
   ) : !orderingConfig ? (
-    <OrderingSetup bom={selectedBom} onBack={() => setSelectedBom(null)} onStart={setOrderingConfig} />
+    <OrderingSetup
+      bom={selectedBom}
+      onBack={() => setSelectedBom(null)}
+      onStart={setOrderingConfig}
+      onResume={setResumeRunId}
+    />
   ) : (
     <RunProgress bom={selectedBom} config={orderingConfig} onBack={() => setOrderingConfig(null)} />
   );

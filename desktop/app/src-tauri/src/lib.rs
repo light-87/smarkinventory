@@ -57,6 +57,125 @@ fn auth_store_remove(app: tauri::AppHandle, key: String) -> Result<(), String> {
     write_auth_map(&app, &map)
 }
 
+// --- Past runs: list saved on-disk sessions (v0.7.0) -----------------------
+// Every sourcing run leaves a folder under ~/.smarkstock-sessions/<runId>/
+// (config.json + results.json + CLAUDE.md). We enumerate them so the desktop
+// "Past runs → Resume / Re-sync" list can re-open a run without creating a new
+// one. read_json_stripped tolerates the UTF-8 BOM the agent may write (F-018).
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct LocalSession {
+    run_id: String,
+    bom_id: String,
+    line_count: usize,
+    result_lines: usize,
+    complete: bool,
+    modified_ms: u64,
+}
+
+fn read_json_stripped(path: &std::path::Path) -> Result<serde_json::Value, String> {
+    let raw = fs::read_to_string(path).map_err(|e| e.to_string())?;
+    let trimmed = raw.strip_prefix('\u{feff}').unwrap_or(&raw);
+    serde_json::from_str(trimmed).map_err(|e| e.to_string())
+}
+
+fn sessions_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    Ok(app.path().home_dir().map_err(|e| e.to_string())?.join(".smarkstock-sessions"))
+}
+
+#[tauri::command]
+fn list_local_sessions(app: tauri::AppHandle) -> Result<Vec<LocalSession>, String> {
+    let base = sessions_dir(&app)?;
+    let mut out: Vec<LocalSession> = Vec::new();
+    let entries = match fs::read_dir(&base) {
+        Ok(e) => e,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(out),
+        Err(e) => return Err(e.to_string()),
+    };
+    for entry in entries.flatten() {
+        let dir = entry.path();
+        if !dir.is_dir() {
+            continue;
+        }
+        // A real session has a parseable config.json carrying a bomId.
+        let cfg = match read_json_stripped(&dir.join("config.json")) {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+        let bom_id = cfg.get("bomId").and_then(|v| v.as_str()).unwrap_or("").to_string();
+        if bom_id.is_empty() {
+            continue;
+        }
+        let run_id = entry.file_name().to_string_lossy().to_string();
+        let line_count = cfg.get("lines").and_then(|v| v.as_array()).map(|a| a.len()).unwrap_or(0);
+        let (result_lines, complete) = match read_json_stripped(&dir.join("results.json")) {
+            Ok(r) => (
+                r.get("lines").and_then(|v| v.as_object()).map(|o| o.len()).unwrap_or(0),
+                r.get("complete").and_then(|v| v.as_bool()).unwrap_or(false),
+            ),
+            Err(_) => (0, false),
+        };
+        let modified_ms = entry
+            .metadata()
+            .ok()
+            .and_then(|m| m.modified().ok())
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|d| d.as_millis() as u64)
+            .unwrap_or(0);
+        out.push(LocalSession { run_id, bom_id, line_count, result_lines, complete, modified_ms });
+    }
+    out.sort_by(|a, b| b.modified_ms.cmp(&a.modified_ms));
+    Ok(out)
+}
+
+/// "Resume" a saved run — relaunch the browser + Claude terminal on the existing
+/// ~/.smarkstock-sessions/<run_id> session and keep syncing, WITHOUT creating a
+/// new run (the runner's --resume mode). Mirrors start_sourcing_run's env/token
+/// handoff. project_id lets the runner print the exact review link.
+#[tauri::command]
+async fn resume_sourcing_run(
+    app: tauri::AppHandle,
+    state: State<'_, RunnerState>,
+    run_id: String,
+    project_id: String,
+    web_base: String,
+    access_token: String,
+    refresh_token: String,
+    supabase_url: String,
+    supabase_anon_key: String,
+) -> Result<(), String> {
+    let args = vec![
+        "--resume".to_string(),
+        run_id,
+        "--project".to_string(),
+        project_id,
+        "--web".to_string(),
+        web_base,
+    ];
+
+    let stop_file = stop_file_path();
+    let _ = fs::remove_file(&stop_file);
+
+    let (rx, child) = app
+        .shell()
+        .sidecar("smarkstock-runner")
+        .map_err(|e| e.to_string())?
+        .args(args)
+        .env("DESKTOP_ACCESS_TOKEN", access_token)
+        .env("DESKTOP_REFRESH_TOKEN", refresh_token)
+        .env("DESKTOP_SUPABASE_URL", supabase_url)
+        .env("DESKTOP_SUPABASE_ANON_KEY", supabase_anon_key)
+        .env("DESKTOP_STOP_FILE", stop_file.to_string_lossy().to_string())
+        .spawn()
+        .map_err(|e| e.to_string())?;
+
+    *state.0.lock().map_err(|e| e.to_string())? = Some(RunnerHandle { child, stop_file });
+
+    pump_events(app.clone(), rx, true);
+    Ok(())
+}
+
 /// The in-flight sidecar child plus the sentinel path "Finish & sync" writes to
 /// ask it to stop gracefully (flush results, then exit) — a hard `kill()` on
 /// Windows is `TerminateProcess`, which skips the runner's signal handler and
@@ -223,7 +342,9 @@ pub fn run() {
             sync_run_again,
             auth_store_get,
             auth_store_set,
-            auth_store_remove
+            auth_store_remove,
+            list_local_sessions,
+            resume_sourcing_run
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
