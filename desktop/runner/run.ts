@@ -22,7 +22,7 @@
  * print the web review link.
  */
 
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 import { createClient } from "@supabase/supabase-js";
@@ -49,6 +49,54 @@ function arg(name: string): string | null {
  */
 function readJsonFile(file: string): unknown {
   const s = readFileSync(file, "utf8"); return JSON.parse(s.charCodeAt(0) === 0xFEFF ? s.slice(1) : s);
+}
+
+/**
+ * Storage adapter over the desktop app's OWN durable auth file (F-020). The app
+ * and this runner are two supabase-js clients on ONE session; when the runner
+ * rotates the refresh token (freshAccessToken → refreshSession), the app's saved
+ * copy would go stale and the app would log out after the run. Pointing the
+ * runner's client at the SAME file + storageKey the app uses
+ * (%APPDATA%/com.smarkstock.desktop/auth-session.json, a { key: value } map —
+ * see desktop/app/src/lib/supabase.ts + src-tauri auth_store_*) makes supabase-js
+ * persist every rotated session straight back, so the app picks up the current
+ * tokens on next launch. Letting supabase-js own (de)serialisation keeps the
+ * format byte-identical on both sides. Best-effort: any fs error just degrades
+ * to the old behaviour (a possible re-login), never crashes the run.
+ */
+const APP_AUTH_STORAGE_KEY = "smarkstock-desktop-auth";
+function appAuthStorage() {
+  const roaming = process.env.APPDATA;
+  if (!roaming) return undefined; // not on Windows / no roaming dir → no write-back
+  const file = path.join(roaming, "com.smarkstock.desktop", "auth-session.json");
+  const readMap = (): Record<string, string> => {
+    try {
+      return existsSync(file) ? (readJsonFile(file) as Record<string, string>) : {};
+    } catch {
+      return {};
+    }
+  };
+  const writeMap = (map: Record<string, string>) => {
+    try {
+      mkdirSync(path.dirname(file), { recursive: true });
+      writeFileSync(file, JSON.stringify(map), "utf8");
+    } catch {
+      // best-effort — a failed write-back only means the app may need a re-login
+    }
+  };
+  return {
+    getItem: (key: string) => readMap()[key] ?? null,
+    setItem: (key: string, value: string) => {
+      const map = readMap();
+      map[key] = value;
+      writeMap(map);
+    },
+    removeItem: (key: string) => {
+      const map = readMap();
+      delete map[key];
+      writeMap(map);
+    },
+  };
 }
 
 // Upload-only mode: skip run-context/prefetch/browser and just re-POST an
@@ -91,7 +139,16 @@ if (providedToken) {
   token = providedToken;
   const refreshToken = process.env.DESKTOP_REFRESH_TOKEN;
   if (refreshToken && supaUrl && supaAnon) {
-    sessionClient = createClient(supaUrl, supaAnon, { auth: { persistSession: false, autoRefreshToken: false } });
+    // persistSession + the app's own storage: refreshSession() write-backs the
+    // rotated session so the app stays logged in (F-020). autoRefreshToken stays
+    // OFF — we refresh explicitly in freshAccessToken(); a background refresher
+    // fighting the app would reintroduce the rotation conflict.
+    const storage = appAuthStorage();
+    sessionClient = createClient(supaUrl, supaAnon, {
+      auth: storage
+        ? { persistSession: true, autoRefreshToken: false, storage, storageKey: APP_AUTH_STORAGE_KEY }
+        : { persistSession: false, autoRefreshToken: false },
+    });
     // Seed the client with the app's session so refreshSession() works later.
     await sessionClient.auth.setSession({ access_token: providedToken, refresh_token: refreshToken });
     console.log("✓ using the desktop app's signed-in session (auto-refresh enabled)");

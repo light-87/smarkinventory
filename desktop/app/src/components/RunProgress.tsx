@@ -36,6 +36,11 @@ export function RunProgress({ bom, config, resumeRunId, onBack }: RunProgressPro
     let unlistenProgress: (() => void) | undefined;
     let unlistenComplete: (() => void) | undefined;
 
+    // While a run is in progress the RUNNER owns token refresh (it writes the
+    // rotated session back to our shared store). Pause the app's own auto-refresh
+    // so the two clients don't rotate each other's token and log us out (F-020).
+    void supabase.auth.stopAutoRefresh();
+
     async function start() {
       // React 18 StrictMode (dev only) mounts, cleans up, then re-mounts —
       // without this guard the sidecar (a real subprocess with real side
@@ -97,6 +102,23 @@ export function RunProgress({ bom, config, resumeRunId, onBack }: RunProgressPro
     return () => {
       unlistenProgress?.();
       unlistenComplete?.();
+      // Leaving the run screen: adopt whatever session the runner last wrote
+      // back (it may have rotated the token during the run), then resume the
+      // app's own auto-refresh (F-020).
+      void (async () => {
+        try {
+          const stored = await invoke<string | null>("auth_store_get", { key: "smarkstock-desktop-auth" });
+          if (stored) {
+            const s = JSON.parse(stored) as { access_token?: string; refresh_token?: string };
+            if (s.access_token && s.refresh_token) {
+              await supabase.auth.setSession({ access_token: s.access_token, refresh_token: s.refresh_token });
+            }
+          }
+        } catch {
+          // ignore — auto-refresh resumes regardless
+        }
+        void supabase.auth.startAutoRefresh();
+      })();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run once per mount, same as the CLI's one-shot flow
   }, []);

@@ -83,7 +83,14 @@ function App() {
   }
 
   if (auth.status === "signedOut") {
-    return <LoginScreen onSignedIn={() => {}} />;
+    // Show the update banner here too — a logged-out user (e.g. after a token
+    // expiry) would otherwise never see that a new version is available.
+    return (
+      <>
+        {updateBanner}
+        <LoginScreen onSignedIn={() => {}} />
+      </>
+    );
   }
 
   const screen = showGuide ? (
