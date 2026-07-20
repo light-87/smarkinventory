@@ -16,7 +16,7 @@ import { getStorageAdapter, StorageNotFoundError } from "@/lib/storage";
  * script can't push it from here). Bump this string when a new version is
  * uploaded, or re-point it to a stable "latest" key if uploads move there.
  */
-export const DESKTOP_INSTALLER_KEY = "boms/SmarkStock Desktop_0.8.0_x64-setup.exe";
+export const DESKTOP_INSTALLER_KEY = "boms/SmarkStock Desktop_0.9.0_x64-setup.exe";
 
 export async function GET(): Promise<NextResponse> {
   try {
