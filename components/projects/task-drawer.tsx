@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/input";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { useToast } from "@/components/ui/toast";
-import { formatDate } from "@/lib/format";
+import { useActionRunner } from "@/hooks/use-action-runner";
+import { formatDate, formatHours, toDateOnlyString } from "@/lib/format";
 import type { EngineerOption, TaskHoldView, TaskView } from "@/lib/pm/queries";
 import type { TaskReminderView } from "@/lib/reminders/queries";
 import { NativeSelect } from "./native-select";
@@ -57,6 +58,13 @@ function Section({ label, hint, children }: { label: string; hint?: string; chil
   );
 }
 
+/** Today as `YYYY-MM-DD` in the user's OWN timezone. `toISOString()` would give
+ *  the UTC day, which in IST is still yesterday until 5:30am — quietly filing
+ *  early-morning work against the wrong date. */
+function todayLocal(): string {
+  return toDateOnlyString(new Date()) ?? "";
+}
+
 /**
  * TaskDrawer — every secondary task action lives here (progressive
  * disclosure), so the task card face stays calm. Sections are role-gated and
@@ -78,16 +86,26 @@ export function TaskDrawer({
 }: TaskDrawerProps) {
   const router = useRouter();
   const { push } = useToast();
-  const [isPending, startTransition] = useTransition();
+  const { run, isPending } = useActionRunner();
+  const [isSending, startSending] = useTransition();
 
+  // "Your work" form.
   const [hours, setHours] = useState("1");
-  const [workDate, setWorkDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [workDate, setWorkDate] = useState(todayLocal);
   const [logDescription, setLogDescription] = useState("");
+
+  // "Log time on behalf" form — its own state. These used to share `hours` /
+  // `workDate` / `logDescription` with the form above, so typing in one
+  // visibly filled the other and the owner couldn't tell the two apart.
+  const [onBehalfUserId, setOnBehalfUserId] = useState("");
+  const [onBehalfHours, setOnBehalfHours] = useState("1");
+  const [onBehalfDate, setOnBehalfDate] = useState(todayLocal);
+  const [onBehalfDescription, setOnBehalfDescription] = useState("");
+
   const [bugDescription, setBugDescription] = useState("");
   const [bugKind, setBugKind] = useState<"bug" | "change_request">("bug");
   const [assignUserId, setAssignUserId] = useState("");
   const [assignHours, setAssignHours] = useState("1");
-  const [onBehalfUserId, setOnBehalfUserId] = useState("");
   const [clientEmailDraft, setClientEmailDraft] = useState(clientEmail ?? "");
   const [reminderSubject, setReminderSubject] = useState(`Action needed: ${task.title}`);
   const [reminderBody, setReminderBody] = useState(
@@ -100,18 +118,9 @@ export function TaskDrawer({
   const engineerControlsVisible = canWrite && (isAssignedToMe || isOwner);
   const assignedIds = new Set(task.assignees.map((a) => a.userId));
   const unassignedEngineers = engineers.filter((e) => !assignedIds.has(e.id));
+  const nameByUserId = new Map(task.assignees.map((a) => [a.userId, a.displayName ?? a.username]));
 
-  function run(action: () => Promise<{ ok: boolean; error?: string }>, onDone?: () => void) {
-    startTransition(async () => {
-      const result = await action();
-      if (result.ok) {
-        onDone?.();
-        router.refresh();
-      } else {
-        push({ msg: result.error ?? "Something went wrong." });
-      }
-    });
-  }
+  const busy = isPending || isSending;
 
   const FREQUENCY_OPTIONS = [
     { value: "1", label: "Daily" },
@@ -119,8 +128,12 @@ export function TaskDrawer({
     { value: "7", label: "Weekly" },
   ] as const;
 
-  const showYourWork = engineerControlsVisible && task.status === "open";
+  // A hold parks the task on `awaiting_client_input`, so gating this on
+  // `status === "open"` alone hid the engineer's whole panel — including
+  // Submit — the instant they pressed "Put on hold".
+  const showYourWork = engineerControlsVisible && (task.status === "open" || task.status === "awaiting_client_input");
   const showReminders = isOwner && Boolean(projectId) && Boolean(openHold);
+  const showEntries = task.timeLogs.length > 0;
 
   return (
     <Drawer open={open} onClose={onClose} aria-label={`Manage task: ${task.title}`}>
@@ -139,25 +152,35 @@ export function TaskDrawer({
             {!openHold && (
               <>
                 <div className="flex gap-2">
-                  <Field label="Date" className="flex-1">
-                    <Input type="date" value={workDate} onChange={(e) => setWorkDate(e.target.value)} />
+                  <Field label="Date" htmlFor="log-date" className="flex-1">
+                    <Input id="log-date" type="date" value={workDate} onChange={(e) => setWorkDate(e.target.value)} />
                   </Field>
-                  <Field label="Hours" className="w-24">
-                    <Input type="number" min="0.5" step="0.5" max="24" value={hours} onChange={(e) => setHours(e.target.value)} />
+                  <Field label="Hours" htmlFor="log-hours" className="w-24">
+                    <Input
+                      id="log-hours"
+                      type="number"
+                      min="0.5"
+                      step="0.5"
+                      max="24"
+                      value={hours}
+                      onChange={(e) => setHours(e.target.value)}
+                    />
                   </Field>
                 </div>
-                <Field label="What did you do?">
-                  <Input value={logDescription} onChange={(e) => setLogDescription(e.target.value)} />
+                <Field label="What did you do?" htmlFor="log-description">
+                  <Input id="log-description" value={logDescription} onChange={(e) => setLogDescription(e.target.value)} />
                 </Field>
                 <Button
                   size="sm"
-                  loading={isPending}
+                  loading={busy}
                   className="self-start"
                   onClick={() => {
+                    if (!workDate) return push({ msg: "Pick the date you did the work" });
+                    if (!(Number(hours) > 0)) return push({ msg: "Enter how many hours you spent" });
                     if (!logDescription.trim()) return push({ msg: "Please describe what you did" });
                     run(
                       () => logTimeAction({ taskId: task.id, workDate, hours: Number(hours), description: logDescription.trim() }),
-                      () => setLogDescription(""),
+                      { success: `Logged ${formatHours(Number(hours))}`, onDone: () => setLogDescription("") },
                     );
                   }}
                 >
@@ -166,20 +189,53 @@ export function TaskDrawer({
               </>
             )}
             <div className="flex flex-wrap gap-2">
-              <Button size="sm" variant="outline" loading={isPending} onClick={() => run(() => submitTaskAction({ taskId: task.id }))}>
+              <Button
+                size="sm"
+                variant="outline"
+                loading={busy}
+                onClick={() => run(() => submitTaskAction({ taskId: task.id }), { success: "Sent for review" })}
+              >
                 Submit for review
               </Button>
               {!openHold && (
                 <Button
                   size="sm"
                   variant="ghost"
-                  loading={isPending}
-                  onClick={() => run(() => startHoldAction({ taskId: task.id, reason: "awaiting_client_input" }))}
+                  loading={busy}
+                  onClick={() =>
+                    run(() => startHoldAction({ taskId: task.id, reason: "awaiting_client_input" }), {
+                      success: "Task paused — waiting on the client",
+                    })
+                  }
                 >
                   Put on hold (awaiting client)
                 </Button>
               )}
             </div>
+          </Section>
+        )}
+
+        {/* Time logged so far — the record that used to be invisible everywhere */}
+        {showEntries && (
+          <Section
+            label="Time logged"
+            hint={isOwner ? "Every entry on this task." : "Your entries on this task."}
+          >
+            <p className="text-[15px] text-snow">{formatHours(task.loggedHours)} logged in total.</p>
+            <ul className="flex flex-col divide-y divide-border-hairline">
+              {task.timeLogs.map((log) => (
+                <li key={log.id} className="flex items-start justify-between gap-3 py-2.5">
+                  <div className="min-w-0">
+                    <div className="text-[15px] text-snow">{log.description}</div>
+                    <div className="text-caption text-smoke">
+                      {formatDate(log.workDate)}
+                      {isOwner && ` · ${nameByUserId.get(log.userId) ?? "Team member"}`}
+                    </div>
+                  </div>
+                  <span className="flex-none text-[15px] text-smoke">{formatHours(log.hours)}</span>
+                </li>
+              ))}
+            </ul>
           </Section>
         )}
 
@@ -192,9 +248,11 @@ export function TaskDrawer({
                   <Chip
                     key={a.userId}
                     tone="soft"
-                    onRemove={() => run(() => removeAssigneeAction({ taskId: task.id, userId: a.userId }))}
+                    onRemove={() =>
+                      run(() => removeAssigneeAction({ taskId: task.id, userId: a.userId }), { success: "Engineer removed" })
+                    }
                   >
-                    {a.displayName ?? a.username} · {a.estimatedHours}h est.
+                    {a.displayName ?? a.username} · {formatHours(a.loggedHours)} of {formatHours(a.estimatedHours)}
                   </Chip>
                 ))}
               </div>
@@ -214,13 +272,14 @@ export function TaskDrawer({
                 </Field>
                 <Button
                   size="sm"
-                  loading={isPending}
+                  loading={busy}
                   onClick={() => {
                     if (!assignUserId) return push({ msg: "Pick an engineer" });
-                    run(
-                      () => assignTaskAction({ taskId: task.id, userId: assignUserId, estimatedHours: Number(assignHours) }),
-                      () => setAssignUserId(""),
-                    );
+                    if (!(Number(assignHours) > 0)) return push({ msg: "Estimated hours must be more than 0" });
+                    run(() => assignTaskAction({ taskId: task.id, userId: assignUserId, estimatedHours: Number(assignHours) }), {
+                      success: "Engineer assigned",
+                      onDone: () => setAssignUserId(""),
+                    });
                   }}
                 >
                   Assign
@@ -232,8 +291,9 @@ export function TaskDrawer({
           </Section>
         )}
 
-        {/* Log on behalf — owner */}
-        {isOwner && task.assignees.length > 0 && (
+        {/* Log on behalf — owner. Hidden while the task is on hold: the server
+            refuses time logs then, so offering the form only wastes the typing. */}
+        {isOwner && task.assignees.length > 0 && !openHold && (
           <Section label="Log time on behalf" hint="Record hours for an engineer who couldn't log them.">
             <Field label="Engineer">
               <NativeSelect
@@ -244,33 +304,50 @@ export function TaskDrawer({
               />
             </Field>
             <div className="flex gap-2">
-              <Field label="Date" className="flex-1">
-                <Input type="date" value={workDate} onChange={(e) => setWorkDate(e.target.value)} />
+              <Field label="Date" htmlFor="behalf-date" className="flex-1">
+                <Input id="behalf-date" type="date" value={onBehalfDate} onChange={(e) => setOnBehalfDate(e.target.value)} />
               </Field>
-              <Field label="Hours" className="w-24">
-                <Input type="number" min="0.5" step="0.5" max="24" value={hours} onChange={(e) => setHours(e.target.value)} />
+              <Field label="Hours" htmlFor="behalf-hours" className="w-24">
+                <Input
+                  id="behalf-hours"
+                  type="number"
+                  min="0.5"
+                  step="0.5"
+                  max="24"
+                  value={onBehalfHours}
+                  onChange={(e) => setOnBehalfHours(e.target.value)}
+                />
               </Field>
             </div>
-            <Field label="What did they do?">
-              <Input value={logDescription} onChange={(e) => setLogDescription(e.target.value)} />
+            <Field label="What did they do?" htmlFor="behalf-description">
+              <Input
+                id="behalf-description"
+                value={onBehalfDescription}
+                onChange={(e) => setOnBehalfDescription(e.target.value)}
+              />
             </Field>
             <Button
               size="sm"
-              loading={isPending}
+              loading={busy}
               className="self-start"
               onClick={() => {
                 if (!onBehalfUserId) return push({ msg: "Pick an engineer" });
-                if (!logDescription.trim()) return push({ msg: "Please describe what they did" });
+                if (!onBehalfDate) return push({ msg: "Pick the date the work was done" });
+                if (!(Number(onBehalfHours) > 0)) return push({ msg: "Enter how many hours they spent" });
+                if (!onBehalfDescription.trim()) return push({ msg: "Please describe what they did" });
                 run(
                   () =>
                     ownerLogOnBehalfAction({
                       taskId: task.id,
                       userId: onBehalfUserId,
-                      workDate,
-                      hours: Number(hours),
-                      description: logDescription.trim(),
+                      workDate: onBehalfDate,
+                      hours: Number(onBehalfHours),
+                      description: onBehalfDescription.trim(),
                     }),
-                  () => setLogDescription(""),
+                  {
+                    success: `Logged ${formatHours(Number(onBehalfHours))} for ${nameByUserId.get(onBehalfUserId) ?? "them"}`,
+                    onDone: () => setOnBehalfDescription(""),
+                  },
                 );
               }}
             >
@@ -291,19 +368,19 @@ export function TaskDrawer({
               value={bugKind}
               onChange={setBugKind}
             />
-            <Field label="Describe the issue">
-              <Input value={bugDescription} onChange={(e) => setBugDescription(e.target.value)} />
+            <Field label="Describe the issue" htmlFor="bug-description">
+              <Input id="bug-description" value={bugDescription} onChange={(e) => setBugDescription(e.target.value)} />
             </Field>
             <Button
               size="sm"
-              loading={isPending}
+              loading={busy}
               className="self-start"
               onClick={() => {
                 if (!bugDescription.trim()) return push({ msg: "Please describe the issue" });
-                run(
-                  () => reportBugAction({ taskId: task.id, description: bugDescription.trim(), classification: bugKind }),
-                  () => setBugDescription(""),
-                );
+                run(() => reportBugAction({ taskId: task.id, description: bugDescription.trim(), classification: bugKind }), {
+                  success: bugKind === "bug" ? "Bug reported" : "Change request sent",
+                  onDone: () => setBugDescription(""),
+                });
               }}
             >
               Report
@@ -323,9 +400,9 @@ export function TaskDrawer({
             <Button
               size="sm"
               variant="outline"
-              loading={isPending}
+              loading={busy}
               className="self-start"
-              onClick={() => run(() => endHoldAction({ taskId: task.id }))}
+              onClick={() => run(() => endHoldAction({ taskId: task.id }), { success: "Task resumed" })}
             >
               Mark input received
             </Button>
@@ -337,11 +414,13 @@ export function TaskDrawer({
                 </Field>
                 <Button
                   size="sm"
-                  loading={isPending}
+                  loading={busy}
                   className="self-start"
                   onClick={() => {
                     if (!clientEmailDraft.trim()) return push({ msg: "Enter a client email" });
-                    run(() => setProjectClientEmailAction({ projectId, clientEmail: clientEmailDraft.trim() }));
+                    run(() => setProjectClientEmailAction({ projectId, clientEmail: clientEmailDraft.trim() }), {
+                      success: "Client email saved",
+                    });
                   }}
                 >
                   Save client email
@@ -370,9 +449,13 @@ export function TaskDrawer({
                   <Button
                     size="sm"
                     variant="outline"
-                    loading={isPending}
+                    loading={busy}
                     onClick={() =>
-                      run(() => updateReminderFrequencyAction({ reminderId: activeReminder.id, frequencyDays: reminderFrequencyDraft }))
+                      run(
+                        () =>
+                          updateReminderFrequencyAction({ reminderId: activeReminder.id, frequencyDays: reminderFrequencyDraft }),
+                        { success: "Reminder frequency updated" },
+                      )
                     }
                   >
                     Update frequency
@@ -380,8 +463,8 @@ export function TaskDrawer({
                   <Button
                     size="sm"
                     variant="ghost"
-                    loading={isPending}
-                    onClick={() => run(() => cancelReminderAction({ reminderId: activeReminder.id }))}
+                    loading={busy}
+                    onClick={() => run(() => cancelReminderAction({ reminderId: activeReminder.id }), { success: "Reminder cancelled" })}
                   >
                     Cancel reminder
                   </Button>
@@ -410,22 +493,27 @@ export function TaskDrawer({
                 </Field>
                 <Button
                   size="sm"
-                  loading={isPending}
+                  loading={busy}
                   className="self-start"
                   onClick={() => {
                     if (!reminderSubject.trim() || !reminderBody.trim()) return push({ msg: "Subject and message are required" });
-                    startTransition(async () => {
-                      const result = await composeAndSendReminderAction({
-                        taskId: task.id,
-                        subject: reminderSubject.trim(),
-                        body: reminderBody.trim(),
-                        frequencyDays: reminderFrequency,
-                      });
-                      if (result.ok) {
-                        if (result.warning) push({ msg: result.warning });
-                        router.refresh();
-                      } else {
-                        push({ msg: result.error });
+                    startSending(async () => {
+                      try {
+                        const result = await composeAndSendReminderAction({
+                          taskId: task.id,
+                          subject: reminderSubject.trim(),
+                          body: reminderBody.trim(),
+                          frequencyDays: reminderFrequency,
+                        });
+                        if (result.ok) {
+                          push({ msg: result.warning ?? "Reminder sent" });
+                          router.refresh();
+                        } else {
+                          push({ msg: result.error });
+                        }
+                      } catch (error) {
+                        console.error("[pm] send reminder failed:", error);
+                        push({ msg: "Couldn't reach the server — reload the page and try again." });
                       }
                     });
                   }}

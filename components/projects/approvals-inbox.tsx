@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { Card, SectionLabel } from "@/components/ui/card";
 import { Chip } from "@/components/ui/chip";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
+import { useActionRunner } from "@/hooks/use-action-runner";
 import { EmptyState } from "@/components/ui/empty-state";
 import { acceptChangeRequestAction, rejectChangeRequestAction, triageBugAction } from "@/lib/pm/actions";
 import type { BugView, ChangeRequestView, EngineerOption } from "@/lib/pm/queries";
@@ -21,9 +21,8 @@ export interface ApprovalsInboxProps {
 
 /** Owner approvals inbox: pending bugs (confirm/dismiss/reclassify) + pending change requests (accept/reject). */
 export function ApprovalsInbox({ bugs, changeRequests, taskTitleById, engineers }: ApprovalsInboxProps) {
-  const router = useRouter();
   const { push } = useToast();
-  const [isPending, startTransition] = useTransition();
+  const { run, isPending } = useActionRunner();
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
   const [taskTitle, setTaskTitle] = useState("");
   const [hoursByUser, setHoursByUser] = useState<Record<string, string>>({});
@@ -31,20 +30,18 @@ export function ApprovalsInbox({ bugs, changeRequests, taskTitleById, engineers 
   const openBugs = bugs.filter((b) => b.status === "open");
   const pendingCrs = changeRequests.filter((c) => c.status === "pending");
 
+  const TRIAGE_MESSAGE = {
+    confirm: "Bug confirmed",
+    dismiss: "Bug dismissed",
+    reclassify: "Moved to change requests",
+  } as const;
+
   function triage(bugId: string, decision: "confirm" | "dismiss" | "reclassify") {
-    startTransition(async () => {
-      const result = await triageBugAction({ bugId, decision });
-      if (result.ok) router.refresh();
-      else push({ msg: result.error });
-    });
+    run(() => triageBugAction({ bugId, decision }), { success: TRIAGE_MESSAGE[decision] });
   }
 
   function reject(changeRequestId: string) {
-    startTransition(async () => {
-      const result = await rejectChangeRequestAction({ changeRequestId });
-      if (result.ok) router.refresh();
-      else push({ msg: result.error });
-    });
+    run(() => rejectChangeRequestAction({ changeRequestId }), { success: "Change request rejected" });
   }
 
   function accept(changeRequestId: string) {
@@ -54,16 +51,21 @@ export function ApprovalsInbox({ bugs, changeRequests, taskTitleById, engineers 
       return;
     }
     const assignees = Object.entries(hoursByUser).map(([userId, hours]) => ({ userId, estimatedHours: Number(hours) || 0 }));
-    startTransition(async () => {
-      const result = await acceptChangeRequestAction({ changeRequestId, title: trimmed, assignees });
-      if (result.ok) {
+    // Same guard the new-task form has always had. Without it, an engineer
+    // ticked with a blank hours box sent 0 to a schema that demands a positive
+    // number — and the resulting validation throw took the whole page down.
+    if (assignees.some((a) => a.estimatedHours <= 0)) {
+      push({ msg: "Estimated hours must be greater than 0 for every assigned engineer" });
+      return;
+    }
+
+    run(() => acceptChangeRequestAction({ changeRequestId, title: trimmed, assignees }), {
+      success: "Task created from the change request",
+      onDone: () => {
         setAcceptingId(null);
         setTaskTitle("");
         setHoursByUser({});
-        router.refresh();
-      } else {
-        push({ msg: result.error });
-      }
+      },
     });
   }
 

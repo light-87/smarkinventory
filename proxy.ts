@@ -60,6 +60,16 @@ export async function proxy(request: NextRequest) {
   }
 
   if (!active && !isPublicPath(pathname)) {
+    // A Server Action POST cannot follow a 302 to an HTML login page: the
+    // client receives markup where it expected an action response, throws
+    // "An unexpected response was received from the server", and the whole
+    // screen dies — which is what users hit when a session lapsed mid-shift
+    // and they tapped a button. Let the action run instead; its own guard
+    // (lib/pm/auth.ts) returns a "session expired" result and the client
+    // navigates to /login itself. Nothing leaks: with no valid session
+    // `smark_role()` is NULL, so every RLS policy refuses the data anyway.
+    if (request.headers.get("next-action")) return response;
+
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("next", pathname);
     return NextResponse.redirect(loginUrl);

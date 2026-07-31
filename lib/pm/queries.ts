@@ -214,6 +214,13 @@ export interface TaskAssigneeView {
   displayName: string | null;
   username: string;
   estimatedHours: number;
+  /**
+   * Hours this engineer has logged on the task so far. RLS-scoped like every
+   * other read here: an owner/accountant sees everyone's, an employee sees
+   * only their own (so a teammate's row reads 0 for them, which is correct —
+   * not a missing number).
+   */
+  loggedHours: number;
 }
 
 export interface TaskView {
@@ -228,6 +235,15 @@ export interface TaskView {
   doneAt: string | null;
   createdAt: string;
   assignees: TaskAssigneeView[];
+  /** Total logged hours visible to the caller (sum of `timeLogs`). */
+  loggedHours: number;
+  /**
+   * The task's time-log entries, newest work-date first. Carried on the task
+   * itself so the card can show "3h logged" and the drawer can list the
+   * entries — before this, logging time changed nothing on screen anywhere and
+   * engineers reasonably concluded the save had failed.
+   */
+  timeLogs: TimeLogView[];
 }
 
 async function attachAssignees(supabase: DB, taskIds: string[]): Promise<Map<string, TaskAssigneeView[]>> {
@@ -257,6 +273,39 @@ async function attachAssignees(supabase: DB, taskIds: string[]): Promise<Map<str
       displayName: row.smark_app_users?.display_name ?? null,
       username: row.smark_app_users?.username ?? "",
       estimatedHours: Number(row.estimated_hours),
+      loggedHours: 0, // filled in by toTaskView from the task's time logs
+    });
+    byTask.set(row.task_id, list);
+  }
+  return byTask;
+}
+
+/**
+ * Time logs for a batch of tasks in ONE query (rather than the per-task
+ * round trip `getTimeLogsForTask` does), keyed by task id. RLS decides what
+ * comes back — see `TaskAssigneeView.loggedHours`.
+ */
+async function attachTimeLogs(supabase: DB, taskIds: string[]): Promise<Map<string, TimeLogView[]>> {
+  const byTask = new Map<string, TimeLogView[]>();
+  if (taskIds.length === 0) return byTask;
+
+  const { data, error } = await supabase
+    .from(TABLES.time_logs)
+    .select("id, task_id, user_id, work_date, hours, description, created_at")
+    .in("task_id", taskIds)
+    .order("work_date", { ascending: false });
+  assertNoError(error, "smark_time_logs (tasks)");
+
+  for (const row of data ?? []) {
+    const list = byTask.get(row.task_id) ?? [];
+    list.push({
+      id: row.id,
+      taskId: row.task_id,
+      userId: row.user_id,
+      workDate: row.work_date,
+      hours: Number(row.hours),
+      description: row.description,
+      createdAt: row.created_at,
     });
     byTask.set(row.task_id, list);
   }
@@ -274,7 +323,15 @@ function toTaskView(row: {
   submitted_at: string | null;
   done_at: string | null;
   created_at: string;
-}, assigneesByTask: Map<string, TaskAssigneeView[]>): TaskView {
+}, assigneesByTask: Map<string, TaskAssigneeView[]>, logsByTask: Map<string, TimeLogView[]>): TaskView {
+  const timeLogs = logsByTask.get(row.id) ?? [];
+  const hoursByUser = new Map<string, number>();
+  let loggedHours = 0;
+  for (const log of timeLogs) {
+    loggedHours += log.hours;
+    hoursByUser.set(log.userId, (hoursByUser.get(log.userId) ?? 0) + log.hours);
+  }
+
   return {
     id: row.id,
     projectId: row.project_id,
@@ -286,11 +343,13 @@ function toTaskView(row: {
     submittedAt: row.submitted_at,
     doneAt: row.done_at,
     createdAt: row.created_at,
-    assignees: assigneesByTask.get(row.id) ?? [],
+    assignees: (assigneesByTask.get(row.id) ?? []).map((a) => ({ ...a, loggedHours: hoursByUser.get(a.userId) ?? 0 })),
+    loggedHours,
+    timeLogs,
   };
 }
 
-/** Every task of a project, newest first, with assignees embedded. */
+/** Every task of a project, newest first, with assignees + time logs embedded. */
 export async function getProjectTasks(supabase: DB, projectId: string): Promise<TaskView[]> {
   const { data, error } = await supabase
     .from(TABLES.tasks)
@@ -300,8 +359,12 @@ export async function getProjectTasks(supabase: DB, projectId: string): Promise<
   assertNoError(error, "smark_tasks (project)");
 
   const rows = data ?? [];
-  const assigneesByTask = await attachAssignees(supabase, rows.map((r) => r.id));
-  return rows.map((r) => toTaskView(r, assigneesByTask));
+  const taskIds = rows.map((r) => r.id);
+  const [assigneesByTask, logsByTask] = await Promise.all([
+    attachAssignees(supabase, taskIds),
+    attachTimeLogs(supabase, taskIds),
+  ]);
+  return rows.map((r) => toTaskView(r, assigneesByTask, logsByTask));
 }
 
 /** Project completion % (lib/pm/kpi.ts projectProgress — % of tasks with status='done'). */
@@ -331,8 +394,12 @@ export async function getMyTasks(supabase: DB, userId: string): Promise<TaskView
   assertNoError(error, "smark_tasks (my tasks)");
 
   const rows = data ?? [];
-  const assigneesByTask = await attachAssignees(supabase, rows.map((r) => r.id));
-  return rows.map((r) => toTaskView(r, assigneesByTask));
+  const myTaskIds = rows.map((r) => r.id);
+  const [assigneesByTask, logsByTask] = await Promise.all([
+    attachAssignees(supabase, myTaskIds),
+    attachTimeLogs(supabase, myTaskIds),
+  ]);
+  return rows.map((r) => toTaskView(r, assigneesByTask, logsByTask));
 }
 
 /* ────────────────────────────────────────────────────────────────────────────

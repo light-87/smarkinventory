@@ -19,15 +19,32 @@ export interface PmActionContext {
   role: Role;
 }
 
+/**
+ * Auth/permission refusal raised by the guards below. Typed (rather than a
+ * bare Error) so `lib/pm/action-error.ts` can tell "your session is gone —
+ * send them to /login" apart from "you're signed in but this is owner-only",
+ * and so neither one ever reaches the user as an unhandled server-action
+ * throw (which replaces the whole page with Next's crash screen).
+ */
+export class PmAuthError extends Error {
+  readonly kind: "signed_out" | "forbidden";
+
+  constructor(message: string, kind: "signed_out" | "forbidden") {
+    super(message);
+    this.name = "PmAuthError";
+    this.kind = kind;
+  }
+}
+
 async function resolveCaller(): Promise<PmActionContext> {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not signed in.");
+  if (!user) throw new PmAuthError("Not signed in.", "signed_out");
 
   const { data: role } = await supabase.rpc("smark_role");
-  if (!role) throw new Error("Your account isn't active.");
+  if (!role) throw new PmAuthError("Your account isn't active.", "signed_out");
 
   return { supabase, actorId: user.id, role: role as Role };
 }
@@ -35,7 +52,7 @@ async function resolveCaller(): Promise<PmActionContext> {
 /** Read access (owner/employee full, accountant read-only). */
 export async function requirePmReader(): Promise<PmActionContext> {
   const ctx = await resolveCaller();
-  if (!canSee(ctx.role, "projects")) throw new Error("You don't have access to Projects.");
+  if (!canSee(ctx.role, "projects")) throw new PmAuthError("You don't have access to Projects.", "forbidden");
   return ctx;
 }
 
@@ -43,7 +60,7 @@ export async function requirePmReader(): Promise<PmActionContext> {
 export async function requirePmWriter(): Promise<PmActionContext> {
   const ctx = await resolveCaller();
   if (!canWrite(ctx.role, "projects")) {
-    throw new Error("You don't have permission to make changes on Projects.");
+    throw new PmAuthError("You don't have permission to make changes on Projects.", "forbidden");
   }
   return ctx;
 }
@@ -51,6 +68,6 @@ export async function requirePmWriter(): Promise<PmActionContext> {
 /** Owner-only actions (create task, assign hours, triage bugs, accept/reject change requests, etc). */
 export async function requirePmOwner(): Promise<PmActionContext> {
   const ctx = await resolveCaller();
-  if (!isOwner(ctx.role)) throw new Error("Only the owner can do this.");
+  if (!isOwner(ctx.role)) throw new PmAuthError("Only the owner can do this.", "forbidden");
   return ctx;
 }

@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Chip } from "@/components/ui/chip";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/components/ui/toast";
-import { formatDate } from "@/lib/format";
+import { useActionRunner } from "@/hooks/use-action-runner";
+import { formatDate, formatHours } from "@/lib/format";
 import type { EngineerOption, TaskHoldView, TaskView } from "@/lib/pm/queries";
 import type { TaskReminderView } from "@/lib/reminders/queries";
 import { markTaskDoneAction, submitTaskAction } from "@/lib/pm/actions";
@@ -48,26 +47,20 @@ export function TaskCard({
   clientEmail,
   activeReminder,
 }: TaskCardProps) {
-  const router = useRouter();
-  const { push } = useToast();
-  const [isPending, startTransition] = useTransition();
+  const { run, isPending } = useActionRunner();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const isAssignedToMe = currentUserId != null && task.assignees.some((a) => a.userId === currentUserId);
   const engineerControlsVisible = canWrite && (isAssignedToMe || isOwner);
 
-  function run(action: () => Promise<{ ok: boolean; error?: string }>) {
-    startTransition(async () => {
-      const result = await action();
-      if (result.ok) router.refresh();
-      else push({ msg: result.error ?? "Something went wrong." });
-    });
-  }
-
   // Card face shows one primary next-step; everything else lives in the drawer.
   const canMarkDone = isOwner && task.status === "submitted";
   const canLog = engineerControlsVisible && task.status === "open" && !openHold;
-  const canSubmitOnly = engineerControlsVisible && task.status === "open" && openHold;
+  // A hold moves the task to `awaiting_client_input` (lib/pm/core.ts startHold).
+  // This used to test `status === "open" && openHold` — never true — so the
+  // moment an engineer put a task on hold they lost every control on it and
+  // had to wait for the owner. Time logging stays paused; submitting does not.
+  const canSubmitOnly = engineerControlsVisible && task.status === "awaiting_client_input";
   const hasManage = canWrite || isOwner;
 
   return (
@@ -91,8 +84,8 @@ export function TaskCard({
       {task.assignees.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {task.assignees.map((a) => (
-            <Chip key={a.userId} tone="soft">
-              {a.displayName ?? a.username} · {a.estimatedHours}h est.
+            <Chip key={a.userId} tone={a.loggedHours > a.estimatedHours ? "warn" : "soft"}>
+              {a.displayName ?? a.username} · {formatHours(a.loggedHours)} of {formatHours(a.estimatedHours)}
             </Chip>
           ))}
         </div>
@@ -103,7 +96,11 @@ export function TaskCard({
       {(canMarkDone || canLog || canSubmitOnly || hasManage) && (
         <div className="flex flex-wrap gap-2">
           {canMarkDone && (
-            <Button size="sm" loading={isPending} onClick={() => run(() => markTaskDoneAction({ taskId: task.id }))}>
+            <Button
+              size="sm"
+              loading={isPending}
+              onClick={() => run(() => markTaskDoneAction({ taskId: task.id }), { success: "Task marked done" })}
+            >
               Mark done
             </Button>
           )}
@@ -113,7 +110,12 @@ export function TaskCard({
             </Button>
           )}
           {canSubmitOnly && (
-            <Button size="sm" variant="outline" loading={isPending} onClick={() => run(() => submitTaskAction({ taskId: task.id }))}>
+            <Button
+              size="sm"
+              variant="outline"
+              loading={isPending}
+              onClick={() => run(() => submitTaskAction({ taskId: task.id }), { success: "Sent for review" })}
+            >
               Submit for review
             </Button>
           )}

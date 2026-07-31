@@ -22,7 +22,8 @@ export function EmployeeKpiPanel({ rows, focusedUserId }: EmployeeKpiPanelProps)
       <Card padding="none">
         <CardHeader title={`Engineer KPI — ${focused.displayName}`} />
         <div className="grid grid-cols-2 gap-3.5 px-5 py-[18px] sm:grid-cols-5">
-          <KpiTile label="Efficiency /10" value={formatScore(focused.efficiencyAvg)} />
+          {/* Not "/10" — beating an estimate scores above 10 (lib/pm/kpi.ts caps at 13). */}
+          <KpiTile label="Efficiency · 10 = on estimate" value={formatScore(focused.efficiencyAvg)} />
           <KpiTile label="Effectiveness /5" value={formatScore(focused.effectivenessAvg)} />
           <KpiTile label="Hours in range" value={formatNumber(focused.hoursInRange, { decimals: 1 })} />
           <KpiTile label="Tasks completed" value={formatNumber(focused.tasksCompleted)} />
@@ -43,7 +44,7 @@ export function EmployeeKpiPanel({ rows, focusedUserId }: EmployeeKpiPanelProps)
             <TableHead>
               <Tr>
                 <Th>Engineer</Th>
-                <Th align="right">Efficiency /10</Th>
+                <Th align="right">Efficiency (10 = est.)</Th>
                 <Th align="right">Effectiveness /5</Th>
                 <Th align="right">Hours in range</Th>
                 <Th align="right">Tasks completed</Th>

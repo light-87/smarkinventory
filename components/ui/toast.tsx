@@ -86,9 +86,13 @@ export function ToastViewport({
         <div
           key={t.id}
           role="status"
-          className="animate-toast-in pointer-events-auto flex max-w-[92vw] items-center gap-4 rounded-full border border-slate bg-surface py-[11px] pr-3 pl-5 shadow-sm"
+          className="animate-toast-in pointer-events-auto flex max-w-[92vw] items-center gap-4 rounded-2xl border border-slate bg-surface py-[11px] pr-3 pl-5 shadow-sm"
         >
-          <span className="truncate text-[15px] text-snow">{t.msg}</span>
+          {/* Wraps rather than truncates: error messages are full sentences
+              ("This task is awaiting client input — time logging is paused…")
+              and a single truncated line cut them off exactly where the reason
+              was, which read as "nothing happened". */}
+          <span className="line-clamp-3 text-[15px] text-snow">{t.msg}</span>
           {t.undo && (
             <button
               type="button"

@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { Card, SectionLabel } from "@/components/ui/card";
 import { Field, Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
+import { useActionRunner } from "@/hooks/use-action-runner";
 import { createTaskAction } from "@/lib/pm/actions";
 import type { EngineerOption } from "@/lib/pm/queries";
 import { EngineerHoursMatrix } from "./engineer-hours-matrix";
@@ -17,9 +17,8 @@ export interface NewTaskFormProps {
 
 /** Owner "Add task" card: title, description, per-engineer estimated hours. */
 export function NewTaskForm({ projectId, engineers }: NewTaskFormProps) {
-  const router = useRouter();
   const { push } = useToast();
-  const [isPending, startTransition] = useTransition();
+  const { run, isPending } = useActionRunner();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -40,23 +39,24 @@ export function NewTaskForm({ projectId, engineers }: NewTaskFormProps) {
       return;
     }
 
-    startTransition(async () => {
-      const result = await createTaskAction({
-        projectId,
-        title: trimmed,
-        description: description.trim() || null,
-        assignees,
-      });
-      if (result.ok) {
-        setTitle("");
-        setDescription("");
-        setHoursByUser({});
-        setOpen(false);
-        router.refresh();
-      } else {
-        push({ msg: result.error });
-      }
-    });
+    run(
+      () =>
+        createTaskAction({
+          projectId,
+          title: trimmed,
+          description: description.trim() || null,
+          assignees,
+        }),
+      {
+        success: "Task created",
+        onDone: () => {
+          setTitle("");
+          setDescription("");
+          setHoursByUser({});
+          setOpen(false);
+        },
+      },
+    );
   }
 
   if (!open) {
