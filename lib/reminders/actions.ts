@@ -21,6 +21,7 @@ import { TABLES } from "@/types/db";
 import { sendEmail } from "@/lib/email";
 import { getPortalUrl } from "@/lib/url";
 import { requirePmOwner } from "@/lib/pm/auth";
+import { guardAction, type ActionErrorCode } from "@/lib/pm/action-error";
 import { getActiveReminderForTask } from "./queries";
 import { firstNextSendAt, addDays } from "./schedule";
 import {
@@ -34,9 +35,10 @@ import {
   type UpdateReminderFrequencyInput,
 } from "./types";
 
-type ActionResult = { ok: true } | { ok: false; error: string };
+type ActionFailureResult = { ok: false; error: string; code?: ActionErrorCode };
+type ActionResult = { ok: true } | ActionFailureResult;
 /** `warning` carries a non-fatal problem (e.g. the email failed to send) that still left state saved. */
-type SendResult = { ok: true; warning?: string } | { ok: false; error: string };
+type SendResult = { ok: true; warning?: string } | ActionFailureResult;
 
 function revalidateProject(projectId: string): void {
   revalidatePath("/projects");
@@ -45,14 +47,22 @@ function revalidateProject(projectId: string): void {
 
 /** Owner sets/updates the client's email on a project — the only email address on file for them (0012). */
 export async function setProjectClientEmailAction(input: SetProjectClientEmailInput): Promise<ActionResult> {
-  const parsed = SetProjectClientEmailInputSchema.parse(input);
-  const { supabase } = await requirePmOwner();
+  return guardAction(async () => {
+    const parsed = SetProjectClientEmailInputSchema.parse(input);
+    const { supabase } = await requirePmOwner();
 
-  const { error } = await supabase.from(TABLES.projects).update({ client_email: parsed.clientEmail }).eq("id", parsed.projectId);
-  if (error) return { ok: false, error: error.message };
+    const { data, error } = await supabase
+      .from(TABLES.projects)
+      .update({ client_email: parsed.clientEmail })
+      .eq("id", parsed.projectId)
+      .select("id")
+      .maybeSingle();
+    if (error) return { ok: false as const, error: error.message };
+    if (!data) return { ok: false as const, error: "Couldn't save the client email — refresh and try again." };
 
-  revalidateProject(parsed.projectId);
-  return { ok: true };
+    revalidateProject(parsed.projectId);
+    return { ok: true as const };
+  });
 }
 
 /**
@@ -68,6 +78,10 @@ export async function setProjectClientEmailAction(input: SetProjectClientEmailIn
  * `warning`, not a hard `error`, since the state was still saved.
  */
 export async function composeAndSendReminderAction(input: ComposeAndSendReminderInput): Promise<SendResult> {
+  return guardAction(() => composeAndSendReminder(input));
+}
+
+async function composeAndSendReminder(input: ComposeAndSendReminderInput): Promise<SendResult> {
   const parsed = ComposeAndSendReminderInputSchema.parse(input);
   const { supabase, actorId } = await requirePmOwner();
 
@@ -148,6 +162,10 @@ async function reminderTaskAndProject(
 
 /** Owner cancels a reminder — sets `active=false`, no more resends from the cron route. */
 export async function cancelReminderAction(input: CancelReminderInput): Promise<ActionResult> {
+  return guardAction(() => cancelReminder(input));
+}
+
+async function cancelReminder(input: CancelReminderInput): Promise<ActionResult> {
   const parsed = CancelReminderInputSchema.parse(input);
   const { supabase } = await requirePmOwner();
 
@@ -168,6 +186,10 @@ export async function cancelReminderAction(input: CancelReminderInput): Promise<
  * the cron route's own drift-avoidance rule (lib/reminders/schedule.ts).
  */
 export async function updateReminderFrequencyAction(input: UpdateReminderFrequencyInput): Promise<ActionResult> {
+  return guardAction(() => updateReminderFrequency(input));
+}
+
+async function updateReminderFrequency(input: UpdateReminderFrequencyInput): Promise<ActionResult> {
   const parsed = UpdateReminderFrequencyInputSchema.parse(input);
   const { supabase } = await requirePmOwner();
 

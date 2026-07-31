@@ -114,6 +114,17 @@ export function formatNumber(
   }).format(value);
 }
 
+/**
+ * "2h" / "2.5h" / "0h" — logged and estimated hours on task cards and in the
+ * task drawer. Half-hour steps are the smallest the forms allow, so one
+ * decimal is enough, and a whole number never renders as "2.0h".
+ */
+export function formatHours(hours: number | null | undefined): string {
+  if (hours === null || hours === undefined || Number.isNaN(hours)) return "0h";
+  const rounded = Math.round(hours * 10) / 10;
+  return `${Number.isInteger(rounded) ? rounded : rounded.toFixed(1)}h`;
+}
+
 /* ────────────────────────────────────────────────────────────────────────────
  * Dates — accepts `date`/`timestamptz` columns as returned by PostgREST
  * (plain `YYYY-MM-DD`, or ISO datetime with offset), a `Date`, or epoch ms.

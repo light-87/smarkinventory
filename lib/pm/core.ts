@@ -32,6 +32,16 @@ type DB = SupabaseClient<Database>;
 type Result = { ok: true } | { ok: false; error: string };
 type ResultWithId = { ok: true; id: string } | { ok: false; error: string };
 
+/**
+ * PostgREST answers an UPDATE/DELETE that matched no rows with a success and
+ * no error — and RLS denial looks exactly like "no rows matched". Without a
+ * readback (`.select(...)`) every one of these writes would report `ok` after
+ * changing nothing, which is precisely the "I pressed it and nothing happened,
+ * no error either" symptom. So each write below selects what it touched and
+ * fails loudly when that comes back empty.
+ */
+const NOT_WRITTEN = "Couldn't save that — you may not have permission, or it changed in the meantime. Refresh and try again.";
+
 /** Is there a currently-OPEN hold (`ended_at is null`) on this task? Time-logging is blocked while true. */
 export async function hasOpenHold(supabase: DB, taskId: string): Promise<boolean> {
   const { data, error } = await supabase
@@ -106,12 +116,14 @@ export async function assignTask(supabase: DB, actorId: string, input: AssignTas
 }
 
 export async function removeAssignee(supabase: DB, input: RemoveAssigneeInput): Promise<Result> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from(TABLES.task_assignees)
     .delete()
     .eq("task_id", input.taskId)
-    .eq("user_id", input.userId);
+    .eq("user_id", input.userId)
+    .select("task_id");
   if (error) return { ok: false, error: error.message };
+  if ((data ?? []).length === 0) return { ok: false, error: NOT_WRITTEN };
   return { ok: true };
 }
 
@@ -153,21 +165,27 @@ export async function ownerLogOnBehalf(supabase: DB, actorId: string, input: Own
 
 /** Engineer (or owner) submits a task for review. */
 export async function submitTask(supabase: DB, taskId: string): Promise<Result> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from(TABLES.tasks)
     .update({ status: "submitted", submitted_at: new Date().toISOString() })
-    .eq("id", taskId);
+    .eq("id", taskId)
+    .select("id")
+    .maybeSingle();
   if (error) return { ok: false, error: error.message };
+  if (!data) return { ok: false, error: NOT_WRITTEN };
   return { ok: true };
 }
 
 /** Owner marks a task fully done. */
 export async function markTaskDone(supabase: DB, taskId: string): Promise<Result> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from(TABLES.tasks)
     .update({ status: "done", done_at: new Date().toISOString() })
-    .eq("id", taskId);
+    .eq("id", taskId)
+    .select("id")
+    .maybeSingle();
   if (error) return { ok: false, error: error.message };
+  if (!data) return { ok: false, error: NOT_WRITTEN };
   return { ok: true };
 }
 
@@ -222,29 +240,38 @@ export async function triageBug(
   if (taskError) return { ok: false, error: taskError.message };
 
   if (input.decision === "confirm") {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from(TABLES.bugs)
       .update({ status: "confirmed", decided_by: actorId })
-      .eq("id", input.bugId);
+      .eq("id", input.bugId)
+      .select("id")
+      .maybeSingle();
     if (error) return { ok: false, error: error.message };
+    if (!data) return { ok: false, error: NOT_WRITTEN };
     return { ok: true, taskId: bug.task_id as string, changeRequestId: null };
   }
 
   if (input.decision === "dismiss") {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from(TABLES.bugs)
       .update({ status: "dismissed", decided_by: actorId })
-      .eq("id", input.bugId);
+      .eq("id", input.bugId)
+      .select("id")
+      .maybeSingle();
     if (error) return { ok: false, error: error.message };
+    if (!data) return { ok: false, error: NOT_WRITTEN };
     return { ok: true, taskId: bug.task_id as string, changeRequestId: null };
   }
 
   // reclassify → spawns a smark_change_requests row.
-  const { error: bugUpdateError } = await supabase
+  const { data: reclassified, error: bugUpdateError } = await supabase
     .from(TABLES.bugs)
     .update({ classification: "change_request", status: "resolved", decided_by: actorId })
-    .eq("id", input.bugId);
+    .eq("id", input.bugId)
+    .select("id")
+    .maybeSingle();
   if (bugUpdateError) return { ok: false, error: bugUpdateError.message };
+  if (!reclassified) return { ok: false, error: NOT_WRITTEN };
 
   const { data: cr, error: crError } = await supabase
     .from(TABLES.change_requests)
@@ -325,21 +352,27 @@ export async function acceptChangeRequest(
     if (assignError) return { ok: false, error: assignError.message };
   }
 
-  const { error: crUpdateError } = await supabase
+  const { data: acceptedCr, error: crUpdateError } = await supabase
     .from(TABLES.change_requests)
     .update({ status: "accepted", decided_by: actorId, resulting_task_id: taskId })
-    .eq("id", input.changeRequestId);
+    .eq("id", input.changeRequestId)
+    .select("id")
+    .maybeSingle();
   if (crUpdateError) return { ok: false, error: crUpdateError.message };
+  if (!acceptedCr) return { ok: false, error: NOT_WRITTEN };
 
   return { ok: true, taskId, projectId: cr.project_id as string };
 }
 
 export async function rejectChangeRequest(supabase: DB, actorId: string, input: RejectChangeRequestInput): Promise<Result> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from(TABLES.change_requests)
     .update({ status: "rejected", decided_by: actorId })
-    .eq("id", input.changeRequestId);
+    .eq("id", input.changeRequestId)
+    .select("id")
+    .maybeSingle();
   if (error) return { ok: false, error: error.message };
+  if (!data) return { ok: false, error: NOT_WRITTEN };
   return { ok: true };
 }
 
@@ -377,6 +410,7 @@ export async function endHold(supabase: DB, actorId: string, taskId: string): Pr
     .select("id")
     .maybeSingle();
   if (holdError) return { ok: false, error: holdError.message };
+  if (!hold) return { ok: false, error: "This task isn't waiting on client input any more — refresh to see its current state." };
 
   const { error: taskUpdateError } = await supabase
     .from(TABLES.tasks)
@@ -385,25 +419,31 @@ export async function endHold(supabase: DB, actorId: string, taskId: string): Pr
     .eq("status", "awaiting_client_input");
   if (taskUpdateError) return { ok: false, error: taskUpdateError.message };
 
-  return { ok: true, holdId: (hold?.id as string | undefined) ?? null };
+  return { ok: true, holdId: (hold.id as string | undefined) ?? null };
 }
 
 export async function setShowTimeToClient(supabase: DB, input: SetShowTimeToClientInput): Promise<Result> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from(TABLES.projects)
     .update({ show_time_to_client: input.show })
-    .eq("id", input.projectId);
+    .eq("id", input.projectId)
+    .select("id")
+    .maybeSingle();
   if (error) return { ok: false, error: error.message };
+  if (!data) return { ok: false, error: NOT_WRITTEN };
   return { ok: true };
 }
 
 /** Owner edits a project's name + client label. */
 export async function updateProject(supabase: DB, input: UpdateProjectInput): Promise<Result> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from(TABLES.projects)
     .update({ name: input.name, client: input.client?.trim() || null })
-    .eq("id", input.projectId);
+    .eq("id", input.projectId)
+    .select("id")
+    .maybeSingle();
   if (error) return { ok: false, error: error.message };
+  if (!data) return { ok: false, error: NOT_WRITTEN };
   return { ok: true };
 }
 
@@ -414,10 +454,13 @@ export async function updateProject(supabase: DB, input: UpdateProjectInput): Pr
  * null-out archived tokens). Reversible: `archived = false` clears it.
  */
 export async function setProjectArchived(supabase: DB, input: SetProjectArchivedInput): Promise<Result> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from(TABLES.projects)
     .update({ archived_at: input.archived ? new Date().toISOString() : null })
-    .eq("id", input.projectId);
+    .eq("id", input.projectId)
+    .select("id")
+    .maybeSingle();
   if (error) return { ok: false, error: error.message };
+  if (!data) return { ok: false, error: NOT_WRITTEN };
   return { ok: true };
 }

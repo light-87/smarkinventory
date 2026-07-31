@@ -27,7 +27,8 @@ export function StatTiles({ stats }: { stats: DashboardStatTiles }) {
     { key: "hours_in_range", label: "Hours logged in range", value: formatNumber(stats.hoursLoggedInRange, { decimals: 1 }) },
     { key: "on_time_rate", label: "On-time rate", value: formatPercent(stats.onTimeRate) },
     { key: "confirmed_bugs", label: "Confirmed bugs", value: formatNumber(stats.confirmedBugs), tone: stats.confirmedBugs > 0 ? "accent" : "default" },
-    { key: "avg_efficiency", label: "Avg efficiency /10", value: formatScore(stats.avgEfficiency, "") },
+    // Not "/10" — beating an estimate scores above 10 (lib/pm/kpi.ts caps at 13).
+    { key: "avg_efficiency", label: "Avg efficiency · 10 = on estimate", value: formatScore(stats.avgEfficiency, "") },
     { key: "avg_effectiveness", label: "Avg effectiveness /5", value: formatScore(stats.avgEffectiveness, "") },
   ];
 
