@@ -53,9 +53,10 @@ describe("per-event helpers — audience + deep link", () => {
       taskTitle: "Solder the prototype",
       assigneeUserId: "employee-1",
     });
-    expect(row.user_id).toBe("employee-1");
-    expect(row.kind).toBe("task_assigned");
-    expect(row.link).toBe("/projects/proj-1");
+    expect(row).not.toBeNull();
+    expect(row!.user_id).toBe("employee-1");
+    expect(row!.kind).toBe("task_assigned");
+    expect(row!.link).toBe("/projects/proj-1");
     expect(notifications).toHaveLength(1);
   });
 
@@ -67,10 +68,11 @@ describe("per-event helpers — audience + deep link", () => {
       distributorName: "Mouser",
       recipientUserId: "employee-1",
     });
-    expect(row.user_id).toBe("employee-1");
-    expect(row.kind).toBe("arrival");
-    expect(row.link).toBe("/cart?order=order-1");
-    expect(row.title).toContain("PO-2026-001");
+    expect(row).not.toBeNull();
+    expect(row!.user_id).toBe("employee-1");
+    expect(row!.kind).toBe("arrival");
+    expect(row!.link).toBe("/cart?order=order-1");
+    expect(row!.title).toContain("PO-2026-001");
   });
 
   test("notifyRunDone targets whoever started the run, linking into the BOM's runs", async () => {
@@ -81,12 +83,13 @@ describe("per-event helpers — audience + deep link", () => {
       startedByUserId: "employee-1",
       actualCost: 1234.5,
     });
-    expect(row.user_id).toBe("employee-1");
-    expect(row.kind).toBe("run_done");
-    expect(row.link).toBe("/projects/proj-1/runs?bom=bom-1");
+    expect(row).not.toBeNull();
+    expect(row!.user_id).toBe("employee-1");
+    expect(row!.kind).toBe("run_done");
+    expect(row!.link).toBe("/projects/proj-1/runs?bom=bom-1");
     // Finding #6 — must go through the shared `formatINR` (en-IN grouping),
     // not a hand-rolled `₹${n.toFixed(2)}`.
-    expect(row.body).toBe("Actual cost ₹1,234.50");
+    expect(row!.body).toBe("Actual cost ₹1,234.50");
   });
 
   test("notifyRulePending fans out to every ACTIVE owner only", async () => {
@@ -132,6 +135,38 @@ describe("per-event helpers — audience + deep link", () => {
     expect(notifications).toHaveLength(1);
     expect(notifications[0]?.kind).toBe("portal_comment");
     expect(notifications[0]?.link).toBe("/projects/proj-1");
+  });
+});
+
+describe("a failing notification never takes the caller down with it", () => {
+  /**
+   * Production regression: an employee action on /attendance hit
+   * `new row violates row-level security policy for table "smark_notifications"`,
+   * the insert threw, and the throw escaped the Server Action — killing the
+   * whole page on a claim that HAD been saved. Callers always notify after the
+   * real write, so a failed bell must resolve, never reject.
+   */
+  test("an insert error resolves to an empty list instead of throwing", async () => {
+    const client = makeFailingClient();
+    const rows = await notify(client, { userIds: ["owner-1"], kind: "low_stock", title: "x" });
+    expect(rows).toEqual([]);
+  });
+
+  test("a single-recipient helper resolves to null instead of throwing", async () => {
+    const client = makeFailingClient();
+    const row = await notifyTaskAssigned(client, {
+      projectId: "proj-1",
+      projectName: "Acme Widget",
+      taskTitle: "Solder the prototype",
+      assigneeUserId: "employee-1",
+    });
+    expect(row).toBeNull();
+  });
+
+  test("an owner-lookup failure yields no recipients instead of throwing", async () => {
+    const client = makeFailingClient();
+    const rows = await notifyRulePending(client, { ruleSummary: "Prefer Mouser for capacitors" });
+    expect(rows).toEqual([]);
   });
 });
 
@@ -213,6 +248,19 @@ class FakeNotificationsTable {
   insert(rows: Row[]) {
     return new FakeNotificationsInsert(this.store, rows);
   }
+}
+
+/** Every read/write comes back as a PostgREST error — stands in for the RLS refusal seen in production. */
+function makeFailingClient(): SupabaseClient<Database> {
+  const failure = Promise.resolve({ data: null, error: { message: "new row violates row-level security policy" } });
+  const chain = {
+    select: () => chain,
+    eq: () => chain,
+    insert: () => chain,
+    then: (onfulfilled: (v: unknown) => unknown, onrejected?: (r: unknown) => unknown) =>
+      failure.then(onfulfilled, onrejected),
+  };
+  return { from: () => chain } as unknown as SupabaseClient<Database>;
 }
 
 function makeFakeClient(fx: Fixtures): { client: SupabaseClient<Database>; notifications: Row[] } {

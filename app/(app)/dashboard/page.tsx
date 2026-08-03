@@ -10,7 +10,7 @@ import { getSessionUser } from "@/lib/auth/session";
 import { isOwner } from "@/lib/auth/roles";
 import { getActiveUsers } from "@/lib/daily/queries";
 import { getApprovedLeaveRequestsOverlapping, getHolidays, getUpcomingBirthdays } from "@/lib/attendance/queries";
-import { datesInRange, findHolidayForDate } from "@/lib/attendance/status";
+import { shiftDateOnly } from "@/lib/attendance/status";
 import { istDateOnly } from "@/lib/timezone";
 import { getOldestOpenTasks } from "@/lib/pm/queries";
 import { effectiveVisibleNavItems, RAIL_GROUP_ORDER, NAV_GROUP_LABELS } from "@/lib/nav";
@@ -20,11 +20,14 @@ import { RecentMovementsCard } from "@/components/dashboard/recent-movements-car
 import { AgentActivityCard } from "@/components/dashboard/agent-activity-card";
 import { UsageByProjectCard } from "@/components/dashboard/usage-by-project-card";
 import { LeavesThisWeekCard } from "@/components/dashboard/leaves-this-week-card";
-import { WeeklyHolidaysCard, type WeeklyHoliday } from "@/components/dashboard/weekly-holidays-card";
+import { UpcomingHolidaysCard, type UpcomingHoliday } from "@/components/dashboard/upcoming-holidays-card";
 import { StaleTasksCard } from "@/components/dashboard/stale-tasks-card";
 import { BirthdaysThisWeekCard } from "@/components/dashboard/birthdays-this-week-card";
 
 export const metadata: Metadata = { title: "Dashboard" };
+
+/** How far ahead the holidays card looks. Long enough that a holiday added a month out is visible the day it's added. */
+const HOLIDAY_LOOKAHEAD_DAYS = 90;
 
 interface Section<T> {
   data: T | null;
@@ -67,28 +70,29 @@ export default async function DashboardPage() {
   const todayDate = istDateOnly();
   const { from: weekFrom, to: weekEnd } = currentWeekBounds(todayDate);
 
+  // Holidays are company-wide news, so this one is NOT owner-gated (RLS has
+  // always let every active role read smark_holidays) and it looks ahead
+  // rather than at the current week — see UpcomingHolidaysCard's header.
+  const holidayWindowEnd = shiftDateOnly(todayDate, HOLIDAY_LOOKAHEAD_DAYS);
+
   const [stats, movements, usage, agentRuns, leaves, holidaysSection, staleTasks, birthdays, activeUsersSection] = await Promise.all([
     loadSection(getDashboardStats(supabase)),
     loadSection(getRecentMovements(supabase)),
     loadSection(getUsageByProject(supabase)),
     loadSection(getRecentAgentRuns(supabase)),
     ownerSection(owner, () => getApprovedLeaveRequestsOverlapping(supabase, weekFrom, weekEnd)),
-    ownerSection(owner, () => getHolidays(supabase, { from: weekFrom, to: weekEnd })),
+    loadSection(getHolidays(supabase, { from: todayDate, to: holidayWindowEnd })),
     ownerSection(owner, () => getOldestOpenTasks(supabase, 5)),
     ownerSection(owner, () => getUpcomingBirthdays(supabase, weekFrom, weekEnd)),
     ownerSection(owner, () => getActiveUsers(supabase)),
   ]);
 
-  const weeklyHolidays: WeeklyHoliday[] | null = holidaysSection.data
-    ? datesInRange(weekFrom, weekEnd)
-        .map((date) => {
-          const holiday = findHolidayForDate(
-            date,
-            holidaysSection.data!.map((h) => ({ kind: h.kind, holidayDate: h.holidayDate, weekday: h.weekday, name: h.name })),
-          );
-          return holiday ? { date, name: holiday.name } : null;
-        })
-        .filter((h): h is WeeklyHoliday => h !== null)
+  const upcomingHolidays: UpcomingHoliday[] | null = holidaysSection.data
+    ? holidaysSection.data
+        .filter((h) => h.kind === "specific" && h.holidayDate !== null && h.holidayDate >= todayDate)
+        .map((h) => ({ date: h.holidayDate as string, name: h.name }))
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .slice(0, 6)
     : null;
 
   const nameById = new Map<string, string>(
@@ -119,14 +123,12 @@ export default async function DashboardPage() {
         </div>
       </div>
 
-      {owner && (
-        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-          <LeavesThisWeekCard leaves={leaves.data} error={leaves.error} nameById={nameById} />
-          <WeeklyHolidaysCard holidays={weeklyHolidays} error={holidaysSection.error} />
-          <StaleTasksCard tasks={staleTasks.data} error={staleTasks.error} />
-          <BirthdaysThisWeekCard birthdays={birthdays.data} error={birthdays.error} />
-        </div>
-      )}
+      <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+        <UpcomingHolidaysCard holidays={upcomingHolidays} error={holidaysSection.error} />
+        {owner && <LeavesThisWeekCard leaves={leaves.data} error={leaves.error} nameById={nameById} />}
+        {owner && <StaleTasksCard tasks={staleTasks.data} error={staleTasks.error} />}
+        {owner && <BirthdaysThisWeekCard birthdays={birthdays.data} error={birthdays.error} />}
+      </div>
     </div>
   );
 }

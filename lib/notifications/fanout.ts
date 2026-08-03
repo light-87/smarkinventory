@@ -46,13 +46,28 @@ interface NotifyParams {
   link?: string | null;
 }
 
+/**
+ * Notifications are a SIDE EFFECT, and every caller awaits them AFTER the row
+ * that actually matters is already written. So nothing in this module throws:
+ * a failed bell must never turn a successful save into a failed action.
+ *
+ * It used to throw, and production caught it doing real damage — an employee
+ * action on /attendance hit `new row violates row-level security policy for
+ * table "smark_notifications"` (the insert policy needs `smark_role()` to be
+ * non-null, so a session that lapsed mid-request fails it), the throw escaped
+ * the action, and the whole screen died on a claim that had in fact been
+ * saved. Failures are logged and swallowed here instead.
+ */
 async function insertNotifications(
   client: Client,
   rows: Array<{ user_id: string; kind: NotificationKind; title: string; body: string | null; link: string | null }>,
 ): Promise<NotificationRow[]> {
   if (rows.length === 0) return [];
   const { data, error } = await client.from(TABLES.notifications).insert(rows).select("*");
-  if (error) throw new Error(`notification insert failed: ${error.message}`);
+  if (error) {
+    console.error(`[notifications] insert failed (${rows[0]?.kind ?? "unknown"}):`, error.message);
+    return [];
+  }
   return data ?? [];
 }
 
@@ -63,7 +78,10 @@ async function activeOwnerIds(client: Client): Promise<string[]> {
     .select("id")
     .eq("role", "owner")
     .eq("active", true);
-  if (error) throw new Error(`owner lookup failed: ${error.message}`);
+  if (error) {
+    console.error("[notifications] owner lookup failed:", error.message);
+    return [];
+  }
   return (data ?? []).map((row) => row.id);
 }
 
@@ -90,7 +108,7 @@ export async function notify(client: Client, params: NotifyParams): Promise<Noti
 export async function notifyArrival(
   client: Client,
   params: { orderId: string; poNumber: string; distributorName: string; recipientUserId: string },
-): Promise<NotificationRow> {
+): Promise<NotificationRow | null> {
   const [row] = await notify(client, {
     userIds: [params.recipientUserId],
     kind: "arrival",
@@ -98,15 +116,14 @@ export async function notifyArrival(
     body: `${params.distributorName} — ready for put-away`,
     link: orderHref(params.orderId),
   });
-  if (!row) throw new Error("notifyArrival: insert returned no row");
-  return row;
+  return row ?? null;
 }
 
 /** A project task got an assignee (projects-hub). */
 export async function notifyTaskAssigned(
   client: Client,
   params: { projectId: string; projectName: string; taskTitle: string; assigneeUserId: string },
-): Promise<NotificationRow> {
+): Promise<NotificationRow | null> {
   const [row] = await notify(client, {
     userIds: [params.assigneeUserId],
     kind: "task_assigned",
@@ -114,8 +131,7 @@ export async function notifyTaskAssigned(
     body: params.projectName,
     link: projectHref(params.projectId),
   });
-  if (!row) throw new Error("notifyTaskAssigned: insert returned no row");
-  return row;
+  return row ?? null;
 }
 
 /** A suggested rule is awaiting owner approval (ai-memory). Audience: every active owner. */
@@ -150,7 +166,7 @@ export async function notifyLowStock(
 export async function notifyRunDone(
   client: Client,
   params: { projectId: string; bomId: string; startedByUserId: string; actualCost: number | null },
-): Promise<NotificationRow> {
+): Promise<NotificationRow | null> {
   const body = params.actualCost != null ? `Actual cost ${formatINR(params.actualCost)}` : null;
   const [row] = await notify(client, {
     userIds: [params.startedByUserId],
@@ -160,8 +176,7 @@ export async function notifyRunDone(
     // bom-pipeline owns app/(app)/projects/[projectId]/runs/** — deep-link there.
     link: `${projectHref(params.projectId)}/runs?bom=${params.bomId}`,
   });
-  if (!row) throw new Error("notifyRunDone: insert returned no row");
-  return row;
+  return row ?? null;
 }
 
 /** Checkout auto-created a draft expense from a PO (cart-orders). Audience: every active owner. */
@@ -214,7 +229,7 @@ export async function notifyLeavePending(
 export async function notifyCompDecided(
   client: Client,
   params: { userId: string; workDate: string; approved: boolean },
-): Promise<NotificationRow> {
+): Promise<NotificationRow | null> {
   const [row] = await notify(client, {
     userIds: [params.userId],
     kind: "comp_decided",
@@ -222,15 +237,14 @@ export async function notifyCompDecided(
     body: params.workDate,
     link: "/attendance",
   });
-  if (!row) throw new Error("notifyCompDecided: insert returned no row");
-  return row;
+  return row ?? null;
 }
 
 /** Owner decided a leave request (attendance). Notifies the employee. */
 export async function notifyLeaveDecided(
   client: Client,
   params: { userId: string; startDate: string; endDate: string; approved: boolean },
-): Promise<NotificationRow> {
+): Promise<NotificationRow | null> {
   const range = params.startDate === params.endDate ? params.startDate : `${params.startDate} – ${params.endDate}`;
   const [row] = await notify(client, {
     userIds: [params.userId],
@@ -239,8 +253,7 @@ export async function notifyLeaveDecided(
     body: range,
     link: "/attendance",
   });
-  if (!row) throw new Error("notifyLeaveDecided: insert returned no row");
-  return row;
+  return row ?? null;
 }
 
 /** (0018) An employee logged overtime hours (attendance). Audience: every active owner. */
@@ -262,7 +275,7 @@ export async function notifyOvertimePending(
 export async function notifyOvertimeDecided(
   client: Client,
   params: { userId: string; workDate: string; approved: boolean; hoursApproved: number | null },
-): Promise<NotificationRow> {
+): Promise<NotificationRow | null> {
   const detail = params.approved && params.hoursApproved != null ? ` (${params.hoursApproved}h)` : "";
   const [row] = await notify(client, {
     userIds: [params.userId],
@@ -271,8 +284,7 @@ export async function notifyOvertimeDecided(
     body: params.workDate,
     link: "/attendance",
   });
-  if (!row) throw new Error("notifyOvertimeDecided: insert returned no row");
-  return row;
+  return row ?? null;
 }
 
 /**
