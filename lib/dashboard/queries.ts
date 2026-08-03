@@ -205,18 +205,23 @@ export async function getUsageByProject(
   const projectIds = [...byProject.keys()];
   if (projectIds.length === 0) return [];
 
+  // Archived projects stay out of every dashboard, here included — otherwise a
+  // finished job keeps a usage bar forever.
   const { data: projects, error: projectsError } = await supabase
     .from(TABLES.projects)
     .select("id, name")
+    .is("archived_at", null)
     .in("id", projectIds);
   assertNoError(projectsError, "loading project names for usage bars");
 
   const nameById = new Map((projects ?? []).map((p) => [p.id, p.name]));
-  const inputs = projectIds.map((id) => ({
-    projectId: id,
-    name: nameById.get(id) ?? "Unknown project",
-    count: byProject.get(id)?.size ?? 0,
-  }));
+  const inputs = projectIds
+    .filter((id) => nameById.has(id))
+    .map((id) => ({
+      projectId: id,
+      name: nameById.get(id) ?? "Unknown project",
+      count: byProject.get(id)?.size ?? 0,
+    }));
 
   return buildProjectUsageBars(inputs, limit);
 }

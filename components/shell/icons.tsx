@@ -98,6 +98,18 @@ export function ProjectsIcon(props: IconProps) {
   );
 }
 
+/** Project Dashboard — bars on an axis, distinct from DashboardIcon's tile grid and ProjectsIcon's folder. */
+export function ProjectDashboardIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <path d="M4 4v14.5A1.5 1.5 0 0 0 5.5 20H20" />
+      <path d="M8.5 16.5v-3.5" />
+      <path d="M13 16.5v-7" />
+      <path d="M17.5 16.5v-5" />
+    </IconBase>
+  );
+}
+
 export function CartIcon(props: IconProps) {
   return (
     <IconBase {...props}>
@@ -236,6 +248,9 @@ export const NAV_ICONS: Record<string, (props: IconProps) => ReactNode> = {
   bulk_takeout: BulkTakeoutIcon,
   receive: ReceiveIcon,
   projects: ProjectsIcon,
+  // Keyed by lib/nav.ts's item id — this one was missing, so the Project
+  // Dashboard rail/bottom-bar entry rendered with no icon at all.
+  project_dashboard: ProjectDashboardIcon,
   cart: CartIcon,
   daily_reports: DailyReportsIcon,
   attendance: AttendanceIcon,

@@ -26,6 +26,9 @@ export async function fetchBomsForPicker(): Promise<BomPickerEntry[]> {
     // materials already ordered, nothing left to source. "draft"/"sourced"
     // stay visible since a sourced-but-not-ordered BOM may still want a re-run.
     .neq("sourcing_status", "ordered")
+    // Archived BOMs (migration 0015) are hidden in the web app; the picker was
+    // still offering them here.
+    .is("archived_at", null)
     .order("created_at", { ascending: false });
   if (bomsError) throw new Error(bomsError.message);
 
@@ -36,22 +39,28 @@ export async function fetchBomsForPicker(): Promise<BomPickerEntry[]> {
   const { data: projects, error: projectsError } = await supabase
     .from("smark_projects")
     .select("id, name, client")
+    .is("archived_at", null)
     .in("id", projectIds);
   if (projectsError) throw new Error(projectsError.message);
 
   const projectById = new Map((projects ?? []).map((p) => [p.id, p]));
 
-  return bomRows.map((b) => {
-    const project = projectById.get(b.project_id);
-    return {
-      id: b.id,
-      name: b.name,
-      lineCount: b.line_count ?? 0,
-      sourcingStatus: b.sourcing_status ?? "unknown",
-      createdAt: b.created_at,
-      projectId: b.project_id,
-      projectName: project?.name ?? "Unknown project",
-      projectClient: project?.client ?? null,
-    };
-  });
+  // A BOM whose project came back empty belongs to an archived project, so it
+  // drops out of the picker entirely rather than rendering as "Unknown
+  // project" — running a sourcing job against a closed job is never wanted.
+  return bomRows
+    .filter((b) => projectById.has(b.project_id))
+    .map((b) => {
+      const project = projectById.get(b.project_id);
+      return {
+        id: b.id,
+        name: b.name,
+        lineCount: b.line_count ?? 0,
+        sourcingStatus: b.sourcing_status ?? "unknown",
+        createdAt: b.created_at,
+        projectId: b.project_id,
+        projectName: project?.name ?? "Unknown project",
+        projectClient: project?.client ?? null,
+      };
+    });
 }

@@ -55,7 +55,12 @@ export interface DashboardFilterOptions {
 
 /** Dropdown option lists for the filter bar — projects/clients/engineers, unfiltered. */
 export async function getDashboardFilterOptions(supabase: DB): Promise<DashboardFilterOptions> {
-  const [projects, engineers] = await Promise.all([listProjects(supabase), listEngineers(supabase)]);
+  const [allProjects, engineers] = await Promise.all([listProjects(supabase), listEngineers(supabase)]);
+  // Archived jobs are gone from the numbers (loadDashboardDataset), so they
+  // must be gone from the pickers too — offering a filter that can only ever
+  // return zeros is worse than not offering it. A client with nothing but
+  // archived projects drops off the client list for the same reason.
+  const projects = allProjects.filter((p) => p.archivedAt === null);
   const clients = Array.from(new Set(projects.map((p) => p.client).filter((c): c is string => !!c))).sort((a, b) =>
     a.localeCompare(b),
   );
@@ -157,6 +162,12 @@ export async function loadDashboardDataset(supabase: DB, filters: DashboardFilte
     client: p.client,
     archivedAt: p.archived_at,
   }));
+  // Archived projects are finished business: they were still feeding the
+  // project/client dropdowns AND every total on this dashboard, so an archived
+  // job kept inflating hours, task counts and KPI averages long after it left
+  // the active list. Dropping them here is the single point that clears them
+  // out of every widget downstream.
+  projects = projects.filter((p) => p.archivedAt === null);
   if (filters.projectId) projects = projects.filter((p) => p.id === filters.projectId);
   if (filters.client) projects = projects.filter((p) => p.client === filters.client);
 
