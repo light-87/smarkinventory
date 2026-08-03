@@ -25,10 +25,11 @@ export interface HowToGuideProps {
   /** Heading above the scenarios block. */
   scenariosTitle?: string;
   /**
-   * Whether the panel starts open on a device that has never collapsed it.
-   * False for the employee guides: their pages are daily drivers, and a guide
-   * that pushes the actual work below the fold every time earns resentment
-   * rather than readers. A stored preference always wins over this.
+   * Whether the panel starts open on a device that has never touched it.
+   * Defaults to CLOSED for every guide: these pages are daily drivers, and a
+   * guide that pushes the real work below the fold on every visit earns
+   * resentment rather than readers. A stored preference still wins, so anyone
+   * who deliberately left a guide open keeps it open.
    */
   defaultOpen?: boolean;
 }
@@ -49,7 +50,7 @@ export function HowToGuide({
   steps,
   scenarios,
   scenariosTitle = "Common “what if…” questions",
-  defaultOpen = true,
+  defaultOpen = false,
 }: HowToGuideProps) {
   const [open, setOpen] = useState(defaultOpen);
 

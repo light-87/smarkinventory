@@ -17,6 +17,10 @@ import {
  * Each carries its own localStorage key: hiding the attendance guide should
  * not also hide the projects one, and an owner dismissing theirs should not
  * affect what an employee sees on their own device.
+ *
+ * All four start collapsed (HowToGuide's default) and open only when someone
+ * taps the header. The owner's project key carries a -v2 suffix so devices
+ * holding the old guide's "leave it open" preference start collapsed too.
  */
 
 /** Owner's project-management guide (`/projects`, project overview). */
@@ -24,7 +28,7 @@ export function PmOwnerGuide() {
   return (
     <HowToGuide
       title="How Project Management works"
-      storageKey="pm-guide-collapsed"
+      storageKey="pm-guide-owner-v2-collapsed"
       steps={PM_OWNER_STEPS}
       scenarios={PM_OWNER_SCENARIOS}
     />
@@ -40,7 +44,6 @@ export function PmEmployeeGuide() {
       steps={PM_EMPLOYEE_STEPS}
       scenarios={PM_EMPLOYEE_SCENARIOS}
       scenariosTitle="Questions people ask"
-      defaultOpen={false}
     />
   );
 }
@@ -66,7 +69,6 @@ export function AttendanceEmployeeGuide() {
       steps={ATTENDANCE_EMPLOYEE_STEPS}
       scenarios={ATTENDANCE_EMPLOYEE_SCENARIOS}
       scenariosTitle="Questions people ask"
-      defaultOpen={false}
     />
   );
 }
