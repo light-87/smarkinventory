@@ -12,6 +12,7 @@ import { NativeSelect } from "./native-select";
 import { formatDate } from "@/lib/format";
 import { submitLeaveRequestAction } from "@/lib/attendance/actions";
 import { countDaysInclusive } from "@/lib/attendance/status";
+import { canSpendCompDays, compDaysForLeave, formatCompDays } from "@/lib/attendance/comp-days";
 import type { LeaveRequestView } from "@/lib/attendance/queries";
 import type { LeaveReason } from "@/types/db";
 
@@ -38,11 +39,16 @@ export function LeaveRequestsCard({ myRequests, compBalance, canWrite }: LeaveRe
   const [endDate, setEndDate] = useState("");
   const [reason, setReason] = useState<LeaveReason>("personal");
   const [note, setNote] = useState("");
+  const [halfDay, setHalfDay] = useState(false);
 
   const requestedDays = startDate && endDate && endDate >= startDate ? countDaysInclusive(startDate, endDate) : 0;
-  // (0018) comp-off is HOURS and the owner picks the deduction at approval — so
-  // here we only guard against requesting a comp leave with nothing banked.
+  // (0020) comp-off is DAYS: half a day costs 0.5, otherwise one per calendar
+  // day. The cost is a property of the request, so the employee sees the price
+  // before submitting instead of learning it at approval.
+  const singleDay = requestedDays === 1;
+  const compCost = reason === "compensatory" ? compDaysForLeave(requestedDays, halfDay && singleDay) : 0;
   const noCompBalance = reason === "compensatory" && compBalance <= 0;
+  const cantAfford = reason === "compensatory" && compCost > 0 && !canSpendCompDays(compBalance, compCost);
 
   function submit() {
     if (!startDate || !endDate) {
@@ -54,16 +60,27 @@ export function LeaveRequestsCard({ myRequests, compBalance, canWrite }: LeaveRe
       return;
     }
     if (noCompBalance) {
-      push({ msg: "You have no comp-off hours banked yet." });
+      push({ msg: "You have no comp-off days banked yet." });
+      return;
+    }
+    if (cantAfford) {
+      push({ msg: `That costs ${formatCompDays(compCost)} and you have ${formatCompDays(compBalance)} banked.` });
       return;
     }
     startTransition(async () => {
-      const result = await submitLeaveRequestAction({ startDate, endDate, reason, note: note || null });
+      const result = await submitLeaveRequestAction({
+        startDate,
+        endDate,
+        reason,
+        note: note || null,
+        halfDay: halfDay && singleDay,
+      });
       if (result.ok) {
         push({ msg: "Leave request submitted." });
         setStartDate("");
         setEndDate("");
         setNote("");
+        setHalfDay(false);
         router.refresh();
       } else {
         push({ msg: result.error });
@@ -73,7 +90,7 @@ export function LeaveRequestsCard({ myRequests, compBalance, canWrite }: LeaveRe
 
   return (
     <Card padding="none">
-      <CardHeader title="My leave requests" meta={<span className="font-mono">{compBalance > 0 ? "+" : ""}{compBalance}h comp-off</span>} />
+      <CardHeader title="My leave requests" meta={<span className="font-mono">{formatCompDays(compBalance)} comp-off</span>} />
       <div className="flex flex-col gap-4 px-5 py-[18px]">
         {canWrite && (
           <div className="flex flex-col gap-3 rounded-xl border border-charcoal bg-surface-panel p-4">
@@ -85,7 +102,7 @@ export function LeaveRequestsCard({ myRequests, compBalance, canWrite }: LeaveRe
                 <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
               </Field>
             </div>
-            <Field label="Reason" hint="Compensatory draws on the comp-off hours you earned from overtime / holiday work.">
+            <Field label="Reason" hint="Compensatory draws on the comp-off days you earned from extra hours / holiday work.">
               <NativeSelect
                 value={reason}
                 onChange={(e) => setReason(e.target.value as LeaveReason)}
@@ -95,13 +112,28 @@ export function LeaveRequestsCard({ myRequests, compBalance, canWrite }: LeaveRe
             <Field label="Note (optional)">
               <Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Reason / details" />
             </Field>
+            {reason === "compensatory" && singleDay && (
+              <label className="flex min-h-11 cursor-pointer items-center gap-2.5 text-[15px] text-snow select-none">
+                <input
+                  type="checkbox"
+                  checked={halfDay}
+                  onChange={(e) => setHalfDay(e.target.checked)}
+                  className="size-[18px] flex-none accent-smark-orange"
+                />
+                Half day (costs 0.5)
+              </label>
+            )}
             {reason === "compensatory" && (
-              <p className={noCompBalance ? "text-caption text-smark-orange-soft" : "text-caption text-smoke"}>
-                {compBalance}h comp-off banked
-                {noCompBalance ? " — nothing to draw on yet" : " · the owner sets the hours to deduct when approving"}
+              <p className={noCompBalance || cantAfford ? "text-caption text-smark-orange-soft" : "text-caption text-smoke"}>
+                {formatCompDays(compBalance)} banked
+                {noCompBalance
+                  ? " — nothing to draw on yet"
+                  : compCost > 0
+                    ? ` · this leave costs ${formatCompDays(compCost)}`
+                    : ""}
               </p>
             )}
-            <Button size="sm" onClick={submit} loading={pending} disabled={noCompBalance}>
+            <Button size="sm" onClick={submit} loading={pending} disabled={noCompBalance || cantAfford}>
               Submit request
             </Button>
           </div>

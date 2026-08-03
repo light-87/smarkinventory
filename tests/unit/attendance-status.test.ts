@@ -2,7 +2,6 @@ import { describe, expect, test } from "bun:test";
 import {
   buildCalendar,
   computeCompBalance,
-  computeCompBalanceHours,
   countDaysInclusive,
   datesInRange,
   findApprovedLeaveForDate,
@@ -266,36 +265,6 @@ describe("computeCompBalance", () => {
   });
 });
 
-describe("computeCompBalanceHours (0018)", () => {
-  test("overtime hours credit the balance directly", () => {
-    expect(
-      computeCompBalanceHours({ approvedOvertimeHours: 5, approvedCompWorkDays: 0, approvedCompLeaveDebitHours: 0 }),
-    ).toBe(5);
-  });
-
-  test("holiday comp-work folds in at 8h per approved day", () => {
-    expect(HOURS_PER_DAY).toBe(8);
-    expect(
-      computeCompBalanceHours({ approvedOvertimeHours: 0, approvedCompWorkDays: 2, approvedCompLeaveDebitHours: 0 }),
-    ).toBe(16);
-  });
-
-  test("owner-chosen comp-leave debits reduce the balance", () => {
-    // 3h overtime + 1 holiday day (8h) = 11h banked, minus a 4h comp-leave debit = 7h.
-    expect(
-      computeCompBalanceHours({ approvedOvertimeHours: 3, approvedCompWorkDays: 1, approvedCompLeaveDebitHours: 4 }),
-    ).toBe(7);
-  });
-
-  test("respects a custom hoursPerDay", () => {
-    expect(
-      computeCompBalanceHours({ approvedOvertimeHours: 0, approvedCompWorkDays: 1, approvedCompLeaveDebitHours: 0, hoursPerDay: 9 }),
-    ).toBe(9);
-  });
-
-  test("can go negative if a debit exceeds credits (actions cap this before write)", () => {
-    expect(
-      computeCompBalanceHours({ approvedOvertimeHours: 2, approvedCompWorkDays: 0, approvedCompLeaveDebitHours: 8 }),
-    ).toBe(-6);
-  });
-});
+// The 0018 HOURS balance (computeCompBalanceHours) was retired by migration
+// 0020: comp-off is a DAY ledger now. Its rules are covered by
+// tests/unit/attendance-comp-days.test.ts.

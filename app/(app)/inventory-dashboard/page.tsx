@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionUser } from "@/lib/auth/session";
 import { effectiveCanSee } from "@/lib/rbac/access";
@@ -49,7 +50,12 @@ async function loadSection<T>(promise: Promise<T>): Promise<Section<T>> {
 export default async function InventoryDashboardPage() {
   const supabase = await createClient();
   const user = await getSessionUser();
-  if (!user) return null;
+  // Never render nothing: an empty return paints a blank content area inside
+  // the shell, which is indistinguishable from a broken page and is exactly
+  // what a user reports as "blank screen, had to refresh". The layout already
+  // redirects an unauthenticated visitor, so reaching here means the session
+  // resolved differently mid-render — send them to log in again.
+  if (!user) redirect("/login");
 
   if (!effectiveCanSee(user.role, "inventory", user.grantedModules)) {
     return (

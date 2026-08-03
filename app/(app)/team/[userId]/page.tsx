@@ -7,12 +7,15 @@ import { createClient } from "@/lib/supabase/server";
 import { istDateOnly } from "@/lib/timezone";
 import { formatDate } from "@/lib/format";
 import {
-  getCompBalance,
+  getCompBalanceDays,
   getLeaveRequests,
   getMonthCalendar,
   getOvertime,
 } from "@/lib/attendance/queries";
 import { getMyTasks } from "@/lib/pm/queries";
+import { getCompLedger, getCompSettings } from "@/lib/attendance/comp-ledger";
+import { formatCompDays } from "@/lib/attendance/comp-days";
+import { CompOffAdminCard } from "@/components/attendance/comp-off-admin-card";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Chip, type ChipTone } from "@/components/ui/chip";
 import { StatCard } from "@/components/ui/stat-card";
@@ -71,12 +74,14 @@ export default async function TeamMemberPage({
     .maybeSingle();
   if (!profile) notFound();
 
-  const [calendar, compBalance, overtime, leaves, tasks] = await Promise.all([
+  const [calendar, compBalance, overtime, leaves, tasks, compSettings, compLedger] = await Promise.all([
     getMonthCalendar(supabase, userId, month, todayDate),
-    getCompBalance(supabase, userId),
+    getCompBalanceDays(supabase, userId),
     getOvertime(supabase, userId),
     getLeaveRequests(supabase, userId),
     getMyTasks(supabase, userId),
+    getCompSettings(supabase, userId),
+    getCompLedger(supabase, userId),
   ]);
 
   const openTasks = tasks.filter((t) => t.status !== "done");
@@ -109,8 +114,7 @@ export default async function TeamMemberPage({
           </p>
         </div>
         <Chip tone={compBalance > 0 ? "success" : "neutral"} mono>
-          {compBalance > 0 ? "+" : ""}
-          {compBalance}h comp-off banked
+          {formatCompDays(compBalance)} comp-off banked
         </Chip>
       </div>
 
@@ -120,6 +124,15 @@ export default async function TeamMemberPage({
         <StatCard value={leaveDays} label="On leave" tone="warn" />
         <StatCard value={holidayDays} label="Holidays" tone="default" />
       </div>
+
+      <CompOffAdminCard
+        userId={userId}
+        employeeName={profile.display_name ?? profile.username}
+        balanceDays={compBalance}
+        annualDays={compSettings.annualDays}
+        ledger={compLedger}
+        today={todayDate}
+      />
 
       <CalendarView
         month={month}

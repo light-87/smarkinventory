@@ -18,7 +18,6 @@ import type { ApprovalStatus, Database, HolidayKind, LeaveReason } from "@/types
 import { TABLES } from "@/types/db";
 import {
   buildCalendar,
-  computeCompBalanceHours,
   datesInRange,
   resolveDayStatus,
   type ApprovedLeaveInput,
@@ -99,8 +98,10 @@ export interface LeaveRequestView {
   decidedBy: string | null;
   decidedAt: string | null;
   createdAt: string;
-  /** (0018) Comp-off hours debited when a compensatory leave was approved; null otherwise. */
+  /** (0018) Comp-off hours debited when a compensatory leave was approved; null otherwise. Derived from the day cost since 0020. */
   compHours: number | null;
+  /** (0020) Single-day leave taken as a half day — costs 0.5 comp days. */
+  halfDay: boolean;
 }
 
 /** `actorFilter: null` = every user's requests (owner/accountant "all"); a user id = that user's own only (employee "self"). */
@@ -111,7 +112,7 @@ export async function getLeaveRequests(
 ): Promise<LeaveRequestView[]> {
   let query = supabase
     .from(TABLES.leave_requests)
-    .select("id, user_id, start_date, end_date, reason, note, status, decided_by, decided_at, created_at, comp_hours")
+    .select("id, user_id, start_date, end_date, reason, note, status, decided_by, decided_at, created_at, comp_hours, half_day")
     .order("created_at", { ascending: false });
   if (actorFilter) query = query.eq("user_id", actorFilter);
   if (options.status) query = query.eq("status", options.status);
@@ -131,6 +132,7 @@ export async function getLeaveRequests(
     decidedAt: r.decided_at,
     createdAt: r.created_at,
     compHours: r.comp_hours,
+    halfDay: Boolean(r.half_day),
   }));
 }
 
@@ -144,7 +146,7 @@ export async function getLeaveRequests(
 export async function getApprovedLeaveRequestsOverlapping(supabase: DB, from: string, to: string): Promise<LeaveRequestView[]> {
   const { data, error } = await supabase
     .from(TABLES.leave_requests)
-    .select("id, user_id, start_date, end_date, reason, note, status, decided_by, decided_at, created_at, comp_hours")
+    .select("id, user_id, start_date, end_date, reason, note, status, decided_by, decided_at, created_at, comp_hours, half_day")
     .eq("status", "approved")
     .lte("start_date", to)
     .gte("end_date", from)
@@ -163,6 +165,7 @@ export async function getApprovedLeaveRequestsOverlapping(supabase: DB, from: st
     decidedAt: r.decided_at,
     createdAt: r.created_at,
     compHours: r.comp_hours,
+    halfDay: Boolean(r.half_day),
   }));
 }
 
@@ -292,27 +295,18 @@ export async function getOvertime(
 }
 
 /**
- * (0018) Derived comp-off balance in HOURS (never stored) —
- *   Σ approved overtime hours_approved
- *   + approved comp-work days × 8 (existing holiday-comp folded in)
- *   − Σ approved compensatory-leave comp_hours.
+ * Comp-off balance in DAYS (migration 0020) — the sum of smark_comp_ledger.
+ *
+ * Superseded the 0018 hours arithmetic, which recomputed
+ *   Σ overtime hours + comp-work days × 8 − Σ comp_hours
+ * on every read. That could only ever describe those three tables: there was
+ * nowhere to put a yearly entitlement, an owner correction or a January
+ * reset, and it counted in hours while leave is taken in half and whole days.
+ *
+ * Re-exported from lib/attendance/comp-ledger.ts so existing callers keep
+ * importing balances from this module.
  */
-export async function getCompBalance(supabase: DB, userId: string): Promise<number> {
-  const [overtime, compWork, leaves] = await Promise.all([
-    getOvertime(supabase, userId, { status: "approved" }),
-    getCompWork(supabase, userId, { status: "approved" }),
-    getLeaveRequests(supabase, userId, { status: "approved" }),
-  ]);
-  const approvedOvertimeHours = overtime.reduce((sum, o) => sum + (o.hoursApproved ?? 0), 0);
-  const approvedCompLeaveDebitHours = leaves
-    .filter((l) => l.reason === "compensatory")
-    .reduce((sum, l) => sum + (l.compHours ?? 0), 0);
-  return computeCompBalanceHours({
-    approvedOvertimeHours,
-    approvedCompWorkDays: compWork.length,
-    approvedCompLeaveDebitHours,
-  });
-}
+export { getCompBalanceDays, getCompBalancesByUser } from "./comp-ledger";
 
 /* ────────────────────────────────────────────────────────────────────────────
  * Attendance-row lookups (smark_attendance itself — presence, not status)

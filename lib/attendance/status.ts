@@ -224,27 +224,9 @@ export function computeCompBalance(approvedCompWorkDays: number, approvedCompens
 /** A standard workday in hours — the conversion factor for comp-off (0018). */
 export const HOURS_PER_DAY = 8;
 
-export interface CompBalanceHoursInput {
-  /** Σ hours_approved of approved smark_overtime rows. */
-  approvedOvertimeHours: number;
-  /** Count of approved smark_comp_work rows (whole holidays worked) — each folded in at hoursPerDay. */
-  approvedCompWorkDays: number;
-  /** Σ comp_hours of approved compensatory leave requests (the owner-chosen debits). */
-  approvedCompLeaveDebitHours: number;
-  hoursPerDay?: number;
-}
-
 /**
- * (0018) The comp-off balance in HOURS — DERIVED, never stored. Overtime hours
- * plus holiday comp-work (folded at hoursPerDay each) credit the balance;
- * owner-chosen debits on approved compensatory leaves reduce it. May go
- * negative only if a debit was recorded above the balance (actions.ts caps it).
+ * (0018) The comp-off balance in HOURS was removed by migration 0020 —
+ * balances are days now and live in lib/attendance/comp-days.ts +
+ * comp-ledger.ts. HOURS_PER_DAY above is still used to keep the legacy
+ * smark_leave_requests.comp_hours column in step with the day cost.
  */
-export function computeCompBalanceHours({
-  approvedOvertimeHours,
-  approvedCompWorkDays,
-  approvedCompLeaveDebitHours,
-  hoursPerDay = HOURS_PER_DAY,
-}: CompBalanceHoursInput): number {
-  return approvedOvertimeHours + approvedCompWorkDays * hoursPerDay - approvedCompLeaveDebitHours;
-}

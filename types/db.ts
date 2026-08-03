@@ -995,8 +995,10 @@ export const LeaveRequestRowSchema = z.object({
   status: ApprovalStatusSchema,
   decided_by: zUuid.nullable(),
   decided_at: zTimestamptz.nullable(),
-  /** (0018) Hours debited from the comp-off balance when a compensatory leave is approved (owner-chosen). Null otherwise. */
+  /** (0018) Hours debited from the comp-off balance when a compensatory leave is approved (owner-chosen). Null otherwise. Since 0020 this is derived from the day cost, kept for continuity. */
   comp_hours: z.number().nullable(),
+  /** (0020) A single-day leave taken as a half day — costs 0.5 comp days instead of 1. */
+  half_day: z.boolean(),
 });
 export type LeaveRequestRow = z.infer<typeof LeaveRequestRowSchema>;
 
@@ -1033,6 +1035,39 @@ export const OvertimeRowSchema = z.object({
   decided_at: zTimestamptz.nullable(),
 });
 export type OvertimeRow = z.infer<typeof OvertimeRowSchema>;
+
+/** (0020) `smark_comp_ledger.source_kind` — what moved the balance. */
+export const CompLedgerSourceSchema = z.enum(["overtime", "comp_work", "leave", "grant", "reset", "manual"]);
+export type CompLedgerSourceKind = z.infer<typeof CompLedgerSourceSchema>;
+
+/**
+ * (0020) `smark_comp_ledger` — every movement of a person's comp-off balance,
+ * in DAYS. The balance is `sum(delta_days)`; nothing stores it. Replaces the
+ * hours arithmetic 0018 derived from overtime/comp-work/leave.
+ */
+export const CompLedgerRowSchema = z.object({
+  id: zUuid,
+  created_at: zTimestamptz,
+  user_id: zUuid,
+  entry_date: zDateOnly,
+  delta_days: z.number(),
+  source_kind: CompLedgerSourceSchema,
+  source_id: zUuid.nullable(),
+  period_year: z.number().nullable(),
+  note: z.string().nullable(),
+  created_by: zUuid.nullable(),
+});
+export type CompLedgerRow = z.infer<typeof CompLedgerRowSchema>;
+
+/** (0020) `smark_comp_settings` — the per-employee yearly comp-off entitlement (0 = not entitled). */
+export const CompSettingsRowSchema = z.object({
+  user_id: zUuid,
+  annual_days: z.number(),
+  updated_by: zUuid.nullable(),
+  created_at: zTimestamptz,
+  updated_at: zTimestamptz.nullable(),
+});
+export type CompSettingsRow = z.infer<typeof CompSettingsRowSchema>;
 
 /** `smark_project_members` [R2-04] — `UNIQUE(project_id, user_id)`. */
 export const ProjectMemberRowSchema = z.object({
@@ -1383,6 +1418,10 @@ export const TABLES = {
   leave_requests: "smark_leave_requests",
   comp_work: "smark_comp_work",
   overtime: "smark_overtime",
+  /** (0020) Comp-off movements in days — the balance is the sum of this table. */
+  comp_ledger: "smark_comp_ledger",
+  /** (0020) Per-employee annual comp-off entitlement. */
+  comp_settings: "smark_comp_settings",
   project_members: "smark_project_members",
   time_entries: "smark_time_entries",
   tasks: "smark_tasks",
@@ -1463,6 +1502,8 @@ export type Database = {
       smark_leave_requests: TableOf<LeaveRequestRow>;
       smark_comp_work: TableOf<CompWorkRow>;
       smark_overtime: TableOf<OvertimeRow>;
+      smark_comp_ledger: TableOf<CompLedgerRow>;
+      smark_comp_settings: TableOf<CompSettingsRow>;
       smark_project_members: TableOf<ProjectMemberRow>;
       smark_time_entries: TableOf<TimeEntryRow>;
       smark_tasks: TableOf<TaskRow>;

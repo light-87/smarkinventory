@@ -9,14 +9,14 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { useToast } from "@/components/ui/toast";
 import { formatDate } from "@/lib/format";
 import { decideCompWorkAction, decideLeaveRequestAction, decideOvertimeAction } from "@/lib/attendance/actions";
-import { countDaysInclusive, HOURS_PER_DAY } from "@/lib/attendance/status";
+import { canSpendCompDays, compDaysForLeave, formatCompDays, inclusiveDayCount } from "@/lib/attendance/comp-days";
 import type { CompWorkView, LeaveRequestView, OvertimeView } from "@/lib/attendance/queries";
 
 export interface ApprovalsInboxCardProps {
   pendingLeaves: readonly LeaveRequestView[];
   pendingCompWork: readonly CompWorkView[];
   pendingOvertime: readonly OvertimeView[];
-  /** (0018) live comp-off HOURS balance per employee with a pending comp leave. */
+  /** (0020) live comp-off DAY balance per employee with a pending comp leave. */
   compBalanceByUser: ReadonlyMap<string, number>;
   nameById: ReadonlyMap<string, string>;
 }
@@ -25,7 +25,7 @@ export interface ApprovalsInboxCardProps {
 // the whole row reads as needs-attention, not just the buttons.
 const ROW = "flex flex-wrap items-center justify-between gap-3 rounded-xl border border-charcoal border-l-4 border-l-warn bg-surface-warn px-4 py-3";
 
-/** Owner's pending inbox — leave (with comp-off hours deduction), comp-work, and overtime. */
+/** Owner's pending inbox — leave (showing what it costs in comp days), comp-work, and overtime. */
 export function ApprovalsInboxCard({
   pendingLeaves,
   pendingCompWork,
@@ -132,14 +132,14 @@ function LeaveApprovalRow({
   onDecide: (approve: boolean, compHours: number | null) => void;
 }) {
   const isComp = leave.reason === "compensatory";
-  const defaultHours = Math.min(countDaysInclusive(leave.startDate, leave.endDate) * HOURS_PER_DAY, Math.max(balance, 0));
-  const [hours, setHours] = useState(String(defaultHours));
+  // (0020) The cost is a property of the request now — half a day is 0.5, a
+  // full day is 1 — so the owner approves or rejects rather than typing a
+  // number of hours to deduct. Shown here so the decision is informed.
+  const cost = isComp ? compDaysForLeave(inclusiveDayCount(leave.startDate, leave.endDate), leave.halfDay) : 0;
+  const affordable = !isComp || canSpendCompDays(balance, cost);
 
   function approve() {
-    if (!isComp) return onDecide(true, null);
-    const h = Number.parseFloat(hours);
-    if (!Number.isFinite(h) || h < 0) return;
-    onDecide(true, h);
+    onDecide(true, null);
   }
 
   return (
@@ -157,19 +157,10 @@ function LeaveApprovalRow({
       <div className="flex flex-none flex-wrap items-center gap-2">
         {isComp && (
           <span className="flex items-center gap-1.5 text-caption text-smoke">
-            <Chip tone={balance > 0 ? "success" : "warn"} mono>
-              {balance}h banked
+            <Chip tone={affordable ? "success" : "warn"} mono>
+              {formatCompDays(balance)} banked
             </Chip>
-            deduct
-            <input
-              type="number"
-              min="0"
-              step="0.5"
-              value={hours}
-              onChange={(e) => setHours(e.target.value)}
-              className="h-9 w-20 rounded-lg border border-charcoal bg-surface-well px-2 font-mono text-[14px] text-snow outline-none focus:border-smark-orange"
-            />
-            h
+            costs {formatCompDays(cost)}
           </span>
         )}
         <Button size="sm" variant="success" onClick={approve} loading={pending}>
