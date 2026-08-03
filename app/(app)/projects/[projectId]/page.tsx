@@ -17,7 +17,7 @@ import { TaskList } from "@/components/projects/task-list";
 import { NewTaskForm } from "@/components/projects/new-task-form";
 import { ApprovalsInbox } from "@/components/projects/approvals-inbox";
 import { KpiSummary } from "@/components/projects/kpi-summary";
-import { PmGuide } from "@/components/projects/pm-guide";
+import { PmOwnerGuide } from "@/components/guides/module-guides";
 import { SectionLabel } from "@/components/ui/card";
 
 export const metadata: Metadata = { title: "Project overview" };
@@ -96,7 +96,7 @@ export default async function ProjectOverviewPage({ params }: OverviewPageProps)
 
   return (
     <div className="flex flex-col gap-5">
-      {owner && <PmGuide />}
+      {owner && <PmOwnerGuide />}
 
       {engineerHasTasksHere && myKpi && <KpiSummary kpi={myKpi} />}
 

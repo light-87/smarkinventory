@@ -10,7 +10,7 @@ import { NewProjectForm } from "@/components/projects/new-project-form";
 import { ProjectCard } from "@/components/projects/project-card";
 import { MyTasksList } from "@/components/projects/my-tasks-list";
 import { KpiSummary } from "@/components/projects/kpi-summary";
-import { PmGuide } from "@/components/projects/pm-guide";
+import { PmEmployeeGuide, PmOwnerGuide } from "@/components/guides/module-guides";
 import { EmptyState } from "@/components/ui/empty-state";
 
 export const metadata: Metadata = { title: "Projects" };
@@ -57,6 +57,9 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
     return (
       <div className="mx-auto max-w-[900px] px-4 pt-6 pb-24 sm:px-6 sm:pt-7">
         <h1 className="mb-4 text-heading-sm font-normal text-snow">My tasks</h1>
+        <div className="mb-4">
+          <PmEmployeeGuide />
+        </div>
         <div className="mb-5">
           <KpiSummary kpi={kpi} />
         </div>
@@ -95,7 +98,7 @@ export default async function ProjectsPage({ searchParams }: ProjectsPageProps) 
 
       {writable && !showArchived && (
         <div className="mb-4">
-          <PmGuide />
+          <PmOwnerGuide />
         </div>
       )}
 

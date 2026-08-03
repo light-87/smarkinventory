@@ -21,6 +21,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Card } from "@/components/ui/card";
 import { CalendarView } from "@/components/attendance/calendar-view";
 import { DayBreakdownPanel, type AttendanceTimesByUser } from "@/components/attendance/day-breakdown-panel";
+import { AttendanceEmployeeGuide, AttendanceOwnerGuide } from "@/components/guides/module-guides";
 import { MarkPresentCard } from "@/components/attendance/mark-present-card";
 import { LeaveRequestsCard } from "@/components/attendance/leave-requests-card";
 import { ApprovalsInboxCard } from "@/components/attendance/approvals-inbox-card";
@@ -256,6 +257,8 @@ export default async function AttendancePage({
         <h1 className="text-heading-sm font-normal text-snow">Attendance</h1>
         <p className="text-[15px] text-smoke">Presence, holidays, leave and comp-work — nothing here is ever stored as &quot;absent&quot;.</p>
       </div>
+
+      {ownerRole ? <AttendanceOwnerGuide /> : <AttendanceEmployeeGuide />}
 
       <MarkPresentCard
         todayDate={todayDate}
