@@ -98,6 +98,16 @@ export function ProjectsIcon(props: IconProps) {
   );
 }
 
+/** Inventory Dashboard — a box with a trend line, pairing the stock cube with the analytics idea. */
+export function InventoryDashboardIcon(props: IconProps) {
+  return (
+    <IconBase {...props}>
+      <rect x="3" y="4" width="18" height="16" rx="2.5" />
+      <path d="M7 15.5 10.5 12l3 2.5L17.5 9" />
+    </IconBase>
+  );
+}
+
 /** Project Dashboard — bars on an axis, distinct from DashboardIcon's tile grid and ProjectsIcon's folder. */
 export function ProjectDashboardIcon(props: IconProps) {
   return (
@@ -247,6 +257,7 @@ export const NAV_ICONS: Record<string, (props: IconProps) => ReactNode> = {
   scan: ScanIcon,
   bulk_takeout: BulkTakeoutIcon,
   receive: ReceiveIcon,
+  inventory_dashboard: InventoryDashboardIcon,
   projects: ProjectsIcon,
   // Keyed by lib/nav.ts's item id — this one was missing, so the Project
   // Dashboard rail/bottom-bar entry rendered with no icon at all.

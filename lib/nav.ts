@@ -79,6 +79,10 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { id: "scan", area: "scan", label: "Scan", href: "/scan", group: "inventory" },
   { id: "bulk_takeout", area: "bulk_takeout", label: "Bulk takeout", href: "/bulk-takeout", group: "inventory" },
   { id: "receive", area: "receive", label: "Receive", href: "/receive", group: "inventory" },
+  // Stock numbers / movements / agent activity, moved off the main dashboard.
+  // Deliberately LAST in the inventory group: the 4-box launcher links each
+  // category to the first visible item in it, and that should stay /inventory.
+  { id: "inventory_dashboard", area: "inventory", label: "Inventory Dashboard", href: "/inventory-dashboard", group: "inventory" },
   { id: "projects", area: "projects", label: "Projects", href: "/projects", group: "projects" },
   { id: "cart", area: "cart", label: "Cart", href: "/cart", group: "ordering" },
   { id: "daily_reports", area: "daily_reports", label: "Daily Reports", href: "/daily", group: "team" },
