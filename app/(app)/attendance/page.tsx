@@ -5,7 +5,7 @@ import { canWrite, dataScope, isOwner } from "@/lib/auth/roles";
 import { effectiveCanSee } from "@/lib/rbac/access";
 import { getActiveUsers, getAttendanceForDay, getAttendanceForUserDay, getMyProjectOptions } from "@/lib/daily/queries";
 import {
-  getCompBalance,
+  getCompBalanceDays,
   getCompWork,
   getHolidays,
   getLeaveRequests,
@@ -107,7 +107,7 @@ export default async function AttendancePage({
   const myCompWork = myCompSection.data ?? [];
   const monthCalendar = monthCalendarSection.data ?? [];
 
-  const compBalance = await loadSection(getCompBalance(supabase, user.id)).then((s) => s.data ?? 0);
+  const compBalance = await loadSection(getCompBalanceDays(supabase, user.id)).then((s) => s.data ?? 0);
   const myProjectOptionsSection = canWriteSelf ? await loadSection(getMyProjectOptions(supabase, user.id)) : { data: [], error: null };
   const myProjectOptions = myProjectOptionsSection.data ?? [];
 
@@ -182,7 +182,7 @@ export default async function AttendancePage({
     );
     await Promise.all(
       compLeaveUserIds.map(async (uid) => {
-        const bal = await loadSection(getCompBalance(supabase, uid)).then((s) => s.data ?? 0);
+        const bal = await loadSection(getCompBalanceDays(supabase, uid)).then((s) => s.data ?? 0);
         ownerCompBalanceByUser.set(uid, bal);
       }),
     );

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionUser } from "@/lib/auth/session";
@@ -27,7 +28,12 @@ interface ProjectsPageProps {
 export default async function ProjectsPage({ searchParams }: ProjectsPageProps) {
   const supabase = await createClient();
   const sessionUser = await getSessionUser();
-  if (!sessionUser) return null;
+  // Never render nothing: an empty return paints a blank content area inside
+  // the shell, which is indistinguishable from a broken page and is exactly
+  // what a user reports as "blank screen, had to refresh". The layout already
+  // redirects an unauthenticated visitor, so reaching here means the session
+  // resolved differently mid-render — send them to log in again.
+  if (!sessionUser) redirect("/login");
 
   if (!effectiveCanSee(sessionUser.role, "projects", sessionUser.grantedModules)) {
     return (

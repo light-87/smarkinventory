@@ -17,8 +17,16 @@ import { createClient } from "@/lib/supabase/server";
 import { canWrite, isOwner, type Role } from "@/lib/auth/roles";
 import * as dailyCore from "@/lib/daily/core";
 import * as core from "./core";
-import { getCompBalance } from "./queries";
-import { countDaysInclusive, HOURS_PER_DAY } from "./status";
+import { getCompBalanceDays } from "./queries";
+import {
+  canSpendCompDays,
+  compDaysForLeave,
+  formatCompDays,
+  inclusiveDayCount,
+  STANDARD_ANNUAL_COMP_DAYS,
+} from "./comp-days";
+import { postLedgerEntry, setCompSettings } from "./comp-ledger";
+import { HOURS_PER_DAY } from "./status";
 import {
   notifyCompDecided,
   notifyCompPending,
@@ -40,6 +48,8 @@ import {
   SubmitCompWorkInputSchema,
   SubmitLeaveRequestInputSchema,
   SubmitOvertimeInputSchema,
+  SetCompBalanceInputSchema,
+  SetCompEntitlementInputSchema,
   type AddHolidayInput,
   type DecideCompWorkInput,
   type DecideLeaveRequestInput,
@@ -51,6 +61,8 @@ import {
   type SubmitCompWorkInput,
   type SubmitLeaveRequestInput,
   type SubmitOvertimeInput,
+  type SetCompBalanceInput,
+  type SetCompEntitlementInput,
 } from "./types";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
@@ -176,14 +188,20 @@ export async function submitLeaveRequestAction(input: SubmitLeaveRequestInput): 
   const parsed = SubmitLeaveRequestInputSchema.parse(input);
   const { supabase, actorId } = await requireAttendanceWriter();
 
-  // (0018) Comp-off is now HOURS-based and the owner picks the debit at
-  // approval — so at submit we only require the employee to have SOME banked
-  // hours (a friendly guard); the real deduction + cap happens in
-  // decideLeaveRequestAction.
+  // (0020) Comp-off is counted in DAYS. Check the cost up front rather than
+  // only at approval: an employee asking for three days on a one-day balance
+  // should hear it now, not after the owner has thought about it.
   if (parsed.reason === "compensatory") {
-    const balance = await getCompBalance(supabase, actorId);
+    const balance = await getCompBalanceDays(supabase, actorId);
+    const cost = compDaysForLeave(inclusiveDayCount(parsed.startDate, parsed.endDate), parsed.halfDay ?? false);
     if (balance <= 0) {
-      return { ok: false, error: "You have no comp-off hours banked yet." };
+      return { ok: false, error: "You have no comp-off days banked yet." };
+    }
+    if (!canSpendCompDays(balance, cost)) {
+      return {
+        ok: false,
+        error: `That leave costs ${formatCompDays(cost)} and you have ${formatCompDays(balance)} banked.`,
+      };
     }
   }
 
@@ -202,26 +220,30 @@ export async function decideLeaveRequestAction(input: DecideLeaveRequestInput): 
   const parsed = DecideLeaveRequestInputSchema.parse(input);
   const { supabase, actorId } = await requireOwner();
 
-  // (0018) Approving a compensatory leave debits the owner-chosen comp-off
-  // hours. Default = leave days × 8; capped at the employee's live balance
-  // (which excludes this still-pending leave). Non-comp / reject → no debit.
+  // (0020) Approving a compensatory leave spends DAYS, and the cost is a
+  // property of the request (half day = 0.5, otherwise one per calendar day)
+  // rather than a number the owner types. core.decideLeaveRequest writes the
+  // ledger debit; this is the balance check that stops it going negative.
+  //
+  // `compHours` is still written for continuity with the 0018 column, derived
+  // from the day cost so the two never disagree.
   let compHours: number | null = null;
   if (parsed.approve) {
     const { data: leave } = await supabase
       .from(TABLES.leave_requests)
-      .select("user_id, start_date, end_date, reason")
+      .select("user_id, start_date, end_date, reason, half_day")
       .eq("id", parsed.id)
       .maybeSingle();
     if (leave?.reason === "compensatory") {
-      const requested = parsed.compHours ?? countDaysInclusive(leave.start_date, leave.end_date) * HOURS_PER_DAY;
-      const balance = await getCompBalance(supabase, leave.user_id);
-      if (requested > balance) {
+      const cost = compDaysForLeave(inclusiveDayCount(leave.start_date, leave.end_date), Boolean(leave.half_day));
+      const balance = await getCompBalanceDays(supabase, leave.user_id);
+      if (!canSpendCompDays(balance, cost)) {
         return {
           ok: false,
-          error: `Not enough comp-off: deducting ${requested}h, only ${Math.max(balance, 0)}h banked.`,
+          error: `Not enough comp-off: this leave costs ${formatCompDays(cost)}, only ${formatCompDays(Math.max(balance, 0))} banked.`,
         };
       }
-      compHours = requested;
+      compHours = cost * HOURS_PER_DAY;
     }
   }
 
@@ -283,4 +305,65 @@ export async function ownerCorrectAttendanceAction(input: OwnerCorrectAttendance
   });
   if (result.ok) revalidatePath("/attendance");
   return result;
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Comp-off: owner corrections + the yearly entitlement (0020)
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Owner writes an employee's comp-off balance to an exact figure.
+ *
+ * Needed because the app is taking over a balance that already exists on
+ * paper: the owner has to be able to say "Krunal starts with 6 days" without
+ * inventing fake overtime claims to add up to it. Also the escape hatch for
+ * any correction after the fact.
+ *
+ * Recorded as a DELTA against the current balance rather than a stored total,
+ * so the ledger stays append-only and the adjustment shows up in history as
+ * what it was — an owner correction, with a reason and a name against it.
+ */
+export async function setCompBalanceAction(input: SetCompBalanceInput): Promise<ActionResult> {
+  const parsed = SetCompBalanceInputSchema.parse(input);
+  const { supabase, actorId } = await requireOwner();
+
+  const current = await getCompBalanceDays(supabase, parsed.userId);
+  const delta = Math.round((parsed.balanceDays - current) * 10) / 10;
+  if (delta === 0) return { ok: true };
+
+  await postLedgerEntry(supabase, {
+    userId: parsed.userId,
+    entryDate: parsed.entryDate,
+    deltaDays: delta,
+    sourceKind: "manual",
+    note: parsed.note?.trim() || `Balance set to ${formatCompDays(parsed.balanceDays)} by the owner`,
+    createdBy: actorId,
+  });
+
+  revalidatePath("/attendance");
+  revalidatePath(`/team/${parsed.userId}`);
+  return { ok: true };
+}
+
+/**
+ * Owner turns the yearly comp-off entitlement on or off for one employee.
+ *
+ * A toggle rather than a computed length-of-service rule, at the client's
+ * request: "the admin should manually add for the first time... a toggle,
+ * they get 16 days off per year, yes or no". Stored as a number of days so
+ * the standard 16 can change, or an individual can differ, without a
+ * migration — `on` simply writes the standard figure.
+ *
+ * Takes effect at the next January reset; it does not grant days today.
+ */
+export async function setCompEntitlementAction(input: SetCompEntitlementInput): Promise<ActionResult> {
+  const parsed = SetCompEntitlementInputSchema.parse(input);
+  const { supabase, actorId } = await requireOwner();
+
+  const annualDays = parsed.entitled ? (parsed.annualDays ?? STANDARD_ANNUAL_COMP_DAYS) : 0;
+  await setCompSettings(supabase, actorId, parsed.userId, annualDays);
+
+  revalidatePath("/attendance");
+  revalidatePath(`/team/${parsed.userId}`);
+  return { ok: true };
 }

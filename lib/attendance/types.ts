@@ -35,8 +35,14 @@ export const SubmitLeaveRequestInputSchema = z
     endDate: zDateOnly,
     reason: LeaveReasonSchema,
     note: z.string().trim().max(500).nullish(),
+    /** (0020) Half a day off — costs 0.5 comp days instead of 1. Only valid on a single-day request. */
+    halfDay: z.boolean().default(false),
   })
-  .refine((v) => v.endDate >= v.startDate, { message: "End date can't be before start date", path: ["endDate"] });
+  .refine((v) => v.endDate >= v.startDate, { message: "End date can't be before start date", path: ["endDate"] })
+  .refine((v) => !v.halfDay || v.startDate === v.endDate, {
+    message: "A half day has to be a single date",
+    path: ["halfDay"],
+  });
 export type SubmitLeaveRequestInput = z.infer<typeof SubmitLeaveRequestInputSchema>;
 
 /**
@@ -103,5 +109,37 @@ export const OwnerCorrectAttendanceInputSchema = z.object({
   note: z.string().trim().max(500).nullish(),
 });
 export type OwnerCorrectAttendanceInput = z.infer<typeof OwnerCorrectAttendanceInputSchema>;
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Comp-off owner controls (0020)
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+/**
+ * Owner sets an employee's comp-off balance to an exact number of days.
+ *
+ * The figure is a TARGET, not a delta — the owner thinks "he has six days",
+ * and the action works out the correction needed to get there. Half-day
+ * granularity, and negative balances are refused: comp-off is something you
+ * have, not something you can owe.
+ */
+export const SetCompBalanceInputSchema = z.object({
+  userId: zUuid,
+  balanceDays: z
+    .number()
+    .min(0, "A balance can't be negative")
+    .max(366, "That's more comp-off than a year has days")
+    .refine((v) => Math.round(v * 2) === v * 2, { message: "Use whole or half days" }),
+  entryDate: zDateOnly,
+  note: z.string().trim().max(500).nullish(),
+});
+export type SetCompBalanceInput = z.infer<typeof SetCompBalanceInputSchema>;
+
+/** Owner turns the yearly comp-off entitlement on/off for one employee. `annualDays` overrides the standard 16 when supplied. */
+export const SetCompEntitlementInputSchema = z.object({
+  userId: zUuid,
+  entitled: z.boolean(),
+  annualDays: z.number().min(0).max(60).optional(),
+});
+export type SetCompEntitlementInput = z.infer<typeof SetCompEntitlementInputSchema>;
 
 export { HolidayKindSchema, LeaveReasonSchema };

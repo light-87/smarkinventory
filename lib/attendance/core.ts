@@ -14,6 +14,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/db";
 import { TABLES } from "@/types/db";
+import { compDaysForHours, compDaysForLeave, inclusiveDayCount } from "./comp-days";
+import { syncLedgerEntryForSource } from "./comp-ledger";
 import type {
   AddHolidayInput,
   DecideCompWorkInput,
@@ -64,6 +66,20 @@ export async function decideCompWork(
     .select("user_id, work_date")
     .single();
   if (error) return { ok: false, error: error.message };
+
+  // (0020) A worked holiday is a whole comp day. syncLedgerEntryForSource
+  // clears any entry a previous decision left, so flipping approve/reject
+  // can neither double-credit nor strand days.
+  await syncLedgerEntryForSource(supabase, {
+    userId: data.user_id as string,
+    entryDate: data.work_date as string,
+    deltaDays: input.approve ? 1 : 0,
+    sourceKind: "comp_work",
+    sourceId: input.id,
+    note: input.approve ? "Worked a company holiday" : null,
+    createdBy: deciderId,
+  });
+
   return { ok: true, userId: data.user_id as string, workDate: data.work_date as string };
 }
 
@@ -105,9 +121,29 @@ export async function decideLeaveRequest(
       comp_hours: input.approve ? (input.compHours ?? null) : null,
     })
     .eq("id", input.id)
-    .select("user_id, start_date, end_date")
+    .select("user_id, start_date, end_date, reason, half_day")
     .single();
   if (error) return { ok: false, error: error.message };
+
+  // (0020) Only a COMPENSATORY leave spends the balance, and it spends days:
+  // 0.5 for a half day, otherwise one per calendar day of the request.
+  const isCompensatory = (data.reason as string) === "compensatory";
+  const cost = isCompensatory
+    ? compDaysForLeave(
+        inclusiveDayCount(data.start_date as string, data.end_date as string),
+        Boolean(data.half_day),
+      )
+    : 0;
+  await syncLedgerEntryForSource(supabase, {
+    userId: data.user_id as string,
+    entryDate: data.start_date as string,
+    deltaDays: input.approve ? -cost : 0,
+    sourceKind: "leave",
+    sourceId: input.id,
+    note: input.approve && cost > 0 ? "Compensatory leave taken" : null,
+    createdBy: deciderId,
+  });
+
   return { ok: true, userId: data.user_id as string, startDate: data.start_date as string, endDate: data.end_date as string };
 }
 
@@ -160,6 +196,20 @@ export async function decideOvertime(
     .select("user_id, work_date")
     .single();
   if (error) return { ok: false, error: error.message };
+
+  // (0020) Extra hours convert to days on approval: under 4h is half a day,
+  // 4h or more is a whole one (lib/attendance/comp-days.ts).
+  const compDays = input.approve ? compDaysForHours(hoursApproved) : 0;
+  await syncLedgerEntryForSource(supabase, {
+    userId: data.user_id as string,
+    entryDate: data.work_date as string,
+    deltaDays: compDays,
+    sourceKind: "overtime",
+    sourceId: input.id,
+    note: input.approve ? `${hoursApproved}h extra work approved` : null,
+    createdBy: deciderId,
+  });
+
   return { ok: true, userId: data.user_id as string, workDate: data.work_date as string, hoursApproved };
 }
 

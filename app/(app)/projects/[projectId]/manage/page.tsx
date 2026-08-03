@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionUser } from "@/lib/auth/session";
 import { isOwner } from "@/lib/auth/roles";
@@ -24,7 +24,12 @@ interface ManagePageProps {
 export default async function ProjectManagePage({ params }: ManagePageProps) {
   const { projectId } = await params;
   const sessionUser = await getSessionUser();
-  if (!sessionUser) return null;
+  // Never render nothing: an empty return paints a blank content area inside
+  // the shell, which is indistinguishable from a broken page and is exactly
+  // what a user reports as "blank screen, had to refresh". The layout already
+  // redirects an unauthenticated visitor, so reaching here means the session
+  // resolved differently mid-render — send them to log in again.
+  if (!sessionUser) redirect("/login");
 
   const role = sessionUser.role;
   const owner = isOwner(role);
