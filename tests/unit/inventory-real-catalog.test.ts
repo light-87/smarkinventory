@@ -95,13 +95,33 @@ describe("Inventory facets over the real catalog", () => {
     expect(shelf!.values).toEqual([{ value: "U", count: 1999, selected: false }]);
   });
 
-  test("Package facet is built from the data, keeping leading zeros intact", () => {
-    const packages = group("Package")!.values.map((v) => v.value);
-    // If a spreadsheet parser had touched these, "0402 (1005 Metric)" would be
-    // long gone. Guards the same property the CSV reader tests cover, but at
-    // the surface the client actually sees.
-    expect(packages).toContain("0402 (1005 Metric)");
-    expect(packages).toContain("0603 (1608 Metric)");
+  test("Package facet collapses the sheet's spellings into one option per size", () => {
+    const packages = group("Package")!;
+    const values = packages.values.map((v) => v.value);
+    const countOf = (v: string) => packages.values.find((x) => x.value === v)?.count;
+
+    // The sheet writes 0603 both as "0603 (1608 Metric)" (157 parts) and as
+    // "603" (13). Two checkboxes meant ticking the big one silently missed 13
+    // items, so they are one option carrying the full 170.
+    expect(values).toContain("0603");
+    expect(values).not.toContain("0603 (1608 Metric)");
+    expect(values).not.toContain("603");
+    expect(countOf("0603")).toBe(170);
+
+    expect(countOf("0805")).toBe(194 + 17);
+    expect(countOf("1206")).toBe(106 + 9);
+
+    // SMA was split four ways by parenthetical restatements of the same case.
+    expect(countOf("SMA")).toBe(4 + 2 + 5 + 1);
+    expect(values.filter((v) => v.startsWith("SMA"))).toEqual(["SMA"]);
+  });
+
+  test("facet options are ranked by count, not alphabetically", () => {
+    // Alphabetical order buried "0805" (194 parts) beneath one-offs like
+    // "10.3x10.4x4mm". The first option should be the commonest.
+    const counts = group("Package")!.values.map((v) => v.count);
+    expect(counts).toEqual([...counts].sort((a, b) => b - a));
+    expect(group("Package")!.values[0]!.value).toBe("0805");
   });
 });
 

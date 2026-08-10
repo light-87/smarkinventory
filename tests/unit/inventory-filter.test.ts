@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import {
   buildActiveChips,
   buildFacetGroups,
+  canonicalPackage,
   decodeFiltersFromSearchParams,
   displayLabelForFacetValue,
   encodeFiltersToSearchParams,
@@ -154,6 +155,45 @@ describe("filterInventoryParts", () => {
   test("combines search + filters", () => {
     const result = filterInventoryParts(ALL_PARTS, "0603", { Category: ["Resistor"] });
     expect(result.map((p) => p.internal_pid)).toEqual(["SMK-000142"]);
+  });
+});
+
+describe("canonicalPackage", () => {
+  test("a recognised chip size collapses to its bare code", () => {
+    expect(canonicalPackage("0603 (1608 Metric)")).toBe("0603");
+    expect(canonicalPackage("603")).toBe("0603"); // the sheet's leading-zero slip
+    expect(canonicalPackage("0603")).toBe("0603");
+    expect(canonicalPackage("1206 (3216 Metric)")).toBe("1206");
+  });
+
+  test("parenthetical restatements of the same package merge", () => {
+    for (const raw of ["SMA", "SMA (DO-214AC)", "SMA(DO-214AC)", "SMA(DO241AC)"]) {
+      expect(canonicalPackage(raw)).toBe("SMA");
+    }
+  });
+
+  test("anything unrecognised keeps its own text", () => {
+    expect(canonicalPackage("SOT-23-6")).toBe("SOT-23-6");
+    expect(canonicalPackage("12.95x9.5x5.2mm")).toBe("12.95x9.5x5.2mm");
+    expect(canonicalPackage("TH,P=5mm")).toBe("TH,P=5mm");
+  });
+
+  test("a number that is not a chip size is not turned into one", () => {
+    expect(canonicalPackage("1234")).toBe("1234");
+  });
+
+  test("case-only variants are deliberately left apart", () => {
+    // Folding case would mangle names like LCSC for the sake of one pair.
+    expect(canonicalPackage("8x16mm")).not.toBe(canonicalPackage("8X16mm"));
+  });
+
+  test("blank in, null out", () => {
+    expect(canonicalPackage(null)).toBeNull();
+    expect(canonicalPackage("   ")).toBeNull();
+  });
+
+  test("a package that is only a parenthetical keeps its original text", () => {
+    expect(canonicalPackage("(TO-220)")).toBe("(TO-220)");
   });
 });
 
