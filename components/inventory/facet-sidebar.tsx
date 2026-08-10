@@ -25,16 +25,26 @@ const VISIBLE_LIMIT = 8;
 const SEARCHABLE_FROM = 12;
 
 /**
+ * Groups that always show every option. Category is how people actually enter
+ * the catalog — you pick the kind of part first and narrow from there — so
+ * hiding two thirds of it behind "Show 20 more" puts a click in front of the
+ * one decision the sidebar exists to serve. It is also bounded and slow-moving
+ * (28 values, one per category the importer maps), unlike Package's 315.
+ */
+const UNCAPPED_GROUPS: ReadonlySet<FacetGroupName> = new Set<FacetGroupName>(["Category"]);
+
+/**
  * Desktop-only facet sidebar (tab-inventory.md §2: "Mobile: sidebar hidden —
  * facets not reachable — accepted prototype gap"). Collapsible groups, live
  * counts against the current filtered set, checkbox rows per prototype.
  *
- * Groups arrive ranked by count from `buildFacetGroups`, and only the first
- * few are rendered. The real catalog has 329 distinct packages with 69% of them
- * appearing exactly once, so an uncapped list buries "0805" (194 parts) under
+ * Groups arrive ranked by count from `buildFacetGroups`, and most render only
+ * their first few options. The real catalog has 315 distinct packages with most
+ * appearing exactly once, so an uncapped list buries "0805" (211 parts) under
  * hundreds of one-off strings and makes the sidebar scroll for pages. Long
  * groups also get a search box, which is the only practical way to reach a
- * specific value in a list that long.
+ * specific value in a list that long. `UNCAPPED_GROUPS` opts a group out of the
+ * cap while keeping its search box.
  *
  * A selected option is always rendered even if it falls outside the visible
  * slice or the current search, so a filter you applied can never become
@@ -87,6 +97,7 @@ function FacetGroup({ group, open, onToggleOpen, onToggleValue }: FacetGroupProp
   const [query, setQuery] = useState("");
 
   const searchable = group.values.length >= SEARCHABLE_FROM;
+  const capped = !UNCAPPED_GROUPS.has(group.name);
 
   const visible = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -96,13 +107,13 @@ function FacetGroup({ group, open, onToggleOpen, onToggleValue }: FacetGroupProp
         )
       : group.values;
 
-    if (showAll || matching.length <= VISIBLE_LIMIT) return { rows: matching, hidden: 0 };
+    if (!capped || showAll || matching.length <= VISIBLE_LIMIT) return { rows: matching, hidden: 0 };
 
     // Keep every selected option on screen even when it ranks below the cut.
     const head = matching.slice(0, VISIBLE_LIMIT);
     const selectedBelow = matching.slice(VISIBLE_LIMIT).filter((v) => v.selected);
     return { rows: [...head, ...selectedBelow], hidden: matching.length - head.length - selectedBelow.length };
-  }, [group.values, group.name, query, showAll]);
+  }, [group.values, group.name, query, showAll, capped]);
 
   return (
     <div className="border-t border-border-faint">
@@ -146,7 +157,7 @@ function FacetGroup({ group, open, onToggleOpen, onToggleValue }: FacetGroupProp
               Show {visible.hidden} more
             </button>
           )}
-          {showAll && group.values.length > VISIBLE_LIMIT && (
+          {capped && showAll && group.values.length > VISIBLE_LIMIT && (
             <button
               type="button"
               onClick={() => setShowAll(false)}
