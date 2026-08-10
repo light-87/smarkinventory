@@ -13,6 +13,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { CartDescriptor, Database, PartRow } from "@/types/db";
 import { TABLES } from "@/types/db";
+import { selectAllRows } from "@/lib/supabase/select-all";
 import type { MatchCatalogEntry } from "@/lib/matcher";
 import type { BoxOption } from "./storage-suggestion";
 
@@ -67,13 +68,21 @@ export interface MatchCatalogPart extends MatchCatalogEntry {
   total_qty: number;
 }
 
-/** Slim catalog for `lib/matcher.matchPart` — whole table, ~2000 rows at SmarkStock's scale. */
+/**
+ * Slim catalog for `lib/matcher.matchPart` — whole table, ~2000 rows at
+ * SmarkStock's scale, so it must page past PostgREST's 1000-row cap. A
+ * truncated catalog here silently defeats the duplicate guard: the second half
+ * of the catalog would read as "no match", and Receive would happily create a
+ * duplicate part for something already on a shelf.
+ */
 export async function getMatchCatalog(supabase: DB): Promise<MatchCatalogPart[]> {
-  const { data, error } = await supabase
-    .from(TABLES.parts)
-    .select("id, internal_pid, mpn, lcsc_pn, value, package, voltage, part_status, total_qty");
-  if (error) throw error;
-  return data ?? [];
+  return selectAllRows((from, to) =>
+    supabase
+      .from(TABLES.parts)
+      .select("id, internal_pid, mpn, lcsc_pn, value, package, voltage, part_status, total_qty")
+      .order("internal_pid")
+      .range(from, to),
+  );
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -167,16 +176,19 @@ export interface OnboardingRow {
 }
 
 export async function getOnboardingQueue(supabase: DB, boxes: readonly BoxOption[]): Promise<OnboardingRow[]> {
-  const [{ data: parts, error: partsErr }, { data: locatedRows, error: locErr }] = await Promise.all([
-    supabase.from(TABLES.parts).select("*").order("created_at", { ascending: true }).limit(5000),
-    supabase.from(TABLES.stock_locations).select("part_id"),
+  // Both reads page: after the real stock-list import this queue IS the whole
+  // catalog (~2000 rows, every one `needs_review`). `.limit(5000)` did not
+  // help — PostgREST's `max_rows` clamps it, so half the queue just vanished.
+  const [parts, locatedRows] = await Promise.all([
+    selectAllRows((from, to) =>
+      supabase.from(TABLES.parts).select("*").order("created_at", { ascending: true }).order("id").range(from, to),
+    ),
+    selectAllRows((from, to) => supabase.from(TABLES.stock_locations).select("part_id").order("id").range(from, to)),
   ]);
-  if (partsErr) throw partsErr;
-  if (locErr) throw locErr;
 
-  const locatedPartIds = new Set((locatedRows ?? []).map((r) => r.part_id));
+  const locatedPartIds = new Set(locatedRows.map((r) => r.part_id));
 
-  return (parts ?? [])
+  return parts
     .filter((p) => p.needs_review || !locatedPartIds.has(p.id))
     .map((part) => ({
       part,

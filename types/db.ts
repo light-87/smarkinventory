@@ -71,6 +71,24 @@ export const PART_CATEGORIES = [
   "Switch",
   "Fuse",
   "Relay",
+  // Added 2026-08-10 with the client's real stock list: every category its 31
+  // CSVs actually contain, so the Receive form offers the same vocabulary the
+  // Inventory facet now shows. Kept in sync with FILE_CATEGORY in
+  // lib/import/formatted-csv.ts.
+  "Terminal Block",
+  "FFC/FPC Connector",
+  "Cable Assembly",
+  "Thermistor/Varistor",
+  "IR",
+  "Photosensor",
+  "Dev Kit",
+  "Current Transformer",
+  "DC-DC Converter",
+  "Display",
+  "Battery",
+  "Transformer",
+  "Hardware",
+  "Voltage Protector",
   "Other",
 ] as const;
 
@@ -102,6 +120,13 @@ export type BomSourcingStatus = z.infer<typeof BomSourcingStatusSchema>;
 /** §3 `smark_bom_lines.match_state`. */
 export const BomLineMatchStateSchema = z.enum(["in_stock", "to_order", "unresolved"]);
 export type BomLineMatchState = z.infer<typeof BomLineMatchStateSchema>;
+
+/**
+ * (0021) `smark_bom_lines.match_method` — which rung of `lib/matcher`'s ladder
+ * produced the link. Mirrors that module's `MatchMethod`; kept as its own zod
+ * enum here so the DB row schema doesn't depend on lib/.
+ */
+export const MatchMethodSchema = z.enum(["mpn", "lcsc", "value_pkg"]);
 
 /** §4 `smark_order_jobs.status` — claimed atomically (FOR UPDATE SKIP LOCKED). */
 export const OrderJobStatusSchema = z.enum(["queued", "claimed", "done", "failed"]);
@@ -679,6 +704,13 @@ export const BomLineRowSchema = z.object({
   match_state: BomLineMatchStateSchema,
   /** 0–100, from lib/matcher. */
   match_confidence: z.number().nullable(),
+  /**
+   * (0021) Which matcher rung linked this line: keyed identity (`mpn`/`lcsc`,
+   * confidence 100) or `value_pkg` (exact value + package, badged in the BOM
+   * view because it is an inferred link, not an asserted one). Null on rows
+   * matched before the column existed.
+   */
+  match_method: MatchMethodSchema.nullable(),
   /** [R2-19] custom-column values from the in-app builder. */
   extra: BomLineExtraSchema.nullable(),
 });

@@ -299,6 +299,21 @@ split** (`0.1µF/50V` → `0.1µF` + `50V`), NO locations created. Then the **on
 needs-location queue → assign Shelf → Big Box → ESD → labels via the **batch print queue** (the
 2000-part time sink — build it deliberately). Real files are parser test fixtures.
 
+**Superseded 2026-08-10 — the client sent the same workbook already cleaned** (`Formatted
+Output`: 31 per-category CSVs, value/voltage split and units already parsed, every row carrying
+`Source_Sheet`/`Source_Row`). `lib/import/formatted-csv.ts` + `scripts/import-formatted-csvs.ts`
+import that; the xlsx path above stays for its fixture. Two deliberate deviations:
+- **Locations ARE created.** `total_qty` is a trigger-maintained rollup of
+  `smark_stock_locations`, so "no locations" means all ~2000 parts read as *Out of stock* — a
+  catalog the client cannot verify. Every part is parked in one staging box (shelf `U` /
+  `U-IMPORT`) holding its real count, keeps `needs_review = true`, and the onboarding queue MOVES
+  that row when a real shelf is assigned.
+- **Dedupe is provenance-first** (`Source_Sheet` + `Source_Row`), not MPN — 38 part numbers repeat
+  across the drop and some are genuine variants. Collisions are reported, never merged.
+Known data limits, reported to the client rather than papered over: 484 rows have neither MPN nor
+LCSC number and so can never match a BOM line (`lib/bom/reconcile.ts` is exact-identity by design);
+17 quantities were free text; 50 were blank.
+
 ## 15. Integrations & ToS posture
 
 Digikey (OAuth2 REST) · Mouser (key) · element14 (key, region) · LCSC + Unikey (**BrowserDriver**,

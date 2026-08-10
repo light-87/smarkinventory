@@ -1,0 +1,29 @@
+﻿Group,Description,Value,MPN,CP,SP_MOQ100,SP_MOQ25,Distributor,LCSC_Part,Qty_In_Stock,Source_Sheet,Source_Row
+18650 Battery Holders,1 Cell Battery Holder with wire,,,16,23,25,,,220,Material List,7
+,4 Cell Battery Holder with wire,,,56,68,72,,,70,Material List,8
+,1 Cell Battery Spacer,,,1.5,3,3.25,,,1500,Material List,10
+,2 Cell Battery Spacer,,,5,7,8,,,400,Material List,11
+,3 Cell Battery Spacer,,,8,11,12,,,400,Material List,12
+,3x5 Cell Battery Spacer,,,15,22,25,,,400,Material List,13
+,4x5 Cell Battery Spacer,,,20,25,30,,,400,Material List,14
+32650,2 Cell Battery Spacer,,,6,6,9,,,100,Material List,16
+AA Type Battery holder,1 Cell battery holder,,,10,,,,,,Material List,19
+,2 Cell battery holder,,,9,,,,,,Material List,20
+,4 Cell battery holder,,,38,,,,,,Material List,21
+,2 Cell battery holder With Cover,,,,,,,,,Material List,23
+,4 Cell battery holder With Cover,,,,,,,,,Material List,24
+Antenna,,,CC-BW (L-TYPE),,,,,,2,Material List,32
+Antenna,,,LRR-HY352,,,,,,2,Material List,33
+Antenna,,U.FL-R-SMT(01),Hirose,,,,,,100,Material List,34
+Antenna,,5345,Antena connector,,,,,,2,Material List,35
+Antenna,,5351,SMA Female PCB edge mount,,,,,,1,Material List,36
+Antenna,,,WiFI 2.4 GHz antenna,,,,,,5,Material List,37
+SIM/SD Card Holder,,,CC-FSIM,,,,,,3,Material List,42
+SIM/SD Card Holder,,SD CARD HOLDER,,,,,,,77,Material List,43
+SIM/SD Card Holder,,SD CARD HOLDER,TF-15x15,,,,LCSC,C111196,200,Material List,44
+SIM/SD Card Holder,,SD CARD(8GB),,,,,,,9,Material List,45
+Hardware,SMD NUTS,,SMTSO2020MTJ,,,,LCSC,C2916384,42,Material List,52
+Hardware,,,SMTSO2520MTJ,,,,LCSC,C2916379,10,Material List,53
+Hardware,,,M2*2-CU,,,,LCSC,C7528074,5,Material List,54
+Hardware,SOLDER IRON BIT,,900M-T-I,,,,HAKKO,,30,Material List,56
+Hardware,HY-2541-A1NIB,,JUMPERS,,,,LCSC,C18185739,150,Material List,57

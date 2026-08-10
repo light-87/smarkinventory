@@ -14,6 +14,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/db";
 import { TABLES } from "@/types/db";
+import { selectAllRows } from "@/lib/supabase/select-all";
 import type { TakeoutCatalogPart, TakeoutLocationRow } from "./resolve";
 import type { TakeoutRawLine } from "./types";
 
@@ -113,13 +114,20 @@ export async function getBomForTakeout(supabase: DB, bomId: string): Promise<Loa
  * Catalog + locations for matcher resolution
  * ──────────────────────────────────────────────────────────────────────────── */
 
-/** Slim catalog for `lib/matcher.matchPart` — whole table, ~2000 rows at SmarkStock's scale (same read shape as lib/receive/queries.ts's getMatchCatalog). */
+/**
+ * Slim catalog for `lib/matcher.matchPart` — whole table, ~2000 rows at
+ * SmarkStock's scale (same read shape as lib/receive/queries.ts's
+ * getMatchCatalog), paged past PostgREST's 1000-row cap. Truncating this makes
+ * pick lines for real, in-stock parts resolve to "not found".
+ */
 export async function getTakeoutCatalog(supabase: DB): Promise<TakeoutCatalogPart[]> {
-  const { data, error } = await supabase
-    .from(TABLES.parts)
-    .select("id, internal_pid, mpn, lcsc_pn, value, package, voltage, part_status, total_qty");
-  if (error) throw error;
-  return data ?? [];
+  return selectAllRows((from, to) =>
+    supabase
+      .from(TABLES.parts)
+      .select("id, internal_pid, mpn, lcsc_pn, value, package, voltage, part_status, total_qty")
+      .order("internal_pid")
+      .range(from, to),
+  );
 }
 
 /** Locations for just the given part ids, joined out to shelf code + box name — keyed by part id (a part may have >1 home). */

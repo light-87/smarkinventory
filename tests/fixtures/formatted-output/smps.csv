@@ -1,0 +1,11 @@
+﻿Output_Spec,MPN,Dimension,Height,Status,Updated_On,Description,Distributor,LCSC_Part,Qty_In_Stock,Source_Sheet,Source_Row
+5V 700mA,SPS-3W5 -5V,30x20.5mm,18mm,Ready to  ship,2025-01-27,,Green,,182,SMPS,4
+12V 400mA,SPS-5W -12V,30x20.5mm,18mm,Ready to  ship,2025-01-27,,Green,,76,SMPS,5
+5V 700mA,SPS-3W5 -5VLP,32 x20.5mm,15mm,Ready to  ship,2025-01-27,,Black,,168,SMPS,6
+12V 450mA,SPS-5W -12VLP,32 x20.5mm,15mm,Ready to  ship,2025-02-04,,Black,,50,SMPS,7
+5V 700mA,SPS-3W5 -5V,30x20.5mm,18mm,incomplete,2025-01-27,,Green,,184,SMPS,9
+12V 400mA,SPS-5W -12V,30x20.5mm,18mm,incomplete,2025-02-22,,Green,,167,SMPS,10
+12V 400mA,SPS-5W -12LP,32 x20.5mm,15mm,incomplete,2025-02-04,,Black,,250,SMPS,11
+5V 700mA,SPS-3W5 -5VLP,32 x20.5mm,15mm,incomplete,,,Black,,100,SMPS,12
+"10A,120W",Mean Well,,,,,,,,2,SMPS,177
+HI-LINK DIP-4,HLK-5M05,,,,,,,,20,SMPS,178

@@ -1,0 +1,8 @@
+﻿MPN,Voltage,Current,Description,Distributor,LCSC_Part,Qty_In_Stock,Source_Sheet,Source_Row
+Relay,"7A,250V AC","10A,125V/AC",,,,10,S9-MiscElec,51
+,"12A,120V DC","10A,28V/DC",,,,,S9-MiscElec,52
+Relay SPDT,"10A,12VDC","10A,12VDC",,RS,,5,S9-MiscElec,53
+Relay SPDT/ T9AS1D12-24,"30A ,28VDC","30A ,28VDC",,,,12,S9-MiscElec,54
+RZ03-1A4-D012,12V 16A,,,Mouser,,2,S9-MiscElec,55
+HF46F/5-HS1,5VDC,5A,,LCSC,C27167,27,S9-MiscElec,56
+G5NB-1A-E-DC5V,,,,LCSC,C48746,33,S9-MiscElec,57

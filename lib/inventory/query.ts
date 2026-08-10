@@ -14,9 +14,17 @@
  * the catalog or `smark_part_events` history grows much larger, swap this for
  * server-side pagination + a facet-count view — flagged for the integrator,
  * not solved here.
+ *
+ * Every read below pages via `selectAllRows` because "the whole thing" is more
+ * rows than PostgREST will hand over at once: the real stock list is ~2000
+ * parts against a 1000-row `max_rows` cap, and PostgREST truncates SILENTLY.
+ * Plain `.select("*")` here showed exactly half the catalog — with correct-
+ * looking counts — until 2026-08-10. Each paged query needs its stable
+ * `.order()`; see lib/supabase/select-all.ts.
  */
 
 import { createClient } from "@/lib/supabase/server";
+import { selectAllRows } from "@/lib/supabase/select-all";
 import {
   BigBoxRowSchema,
   PartEventRowSchema,
@@ -34,31 +42,42 @@ export type InventoryListResult = { ok: true; parts: InventoryPart[] } | { ok: f
 export async function getInventoryList(): Promise<InventoryListResult> {
   const supabase = await createClient();
 
-  const [partsRes, locationsRes, boxesRes, shelvesRes, eventsRes, projectsRes] = await Promise.all([
-    supabase.from(TABLES.parts).select("*").order("internal_pid", { ascending: true }),
-    supabase.from(TABLES.stock_locations).select("*"),
-    supabase.from(TABLES.big_boxes).select("*"),
-    supabase.from(TABLES.shelves).select("*"),
-    // Distributor/Project facets derive from order history (mission: "Distributor
-    // facet ← the part's order history", "Project facet ← projects a part was
-    // used in") — only these event types carry that context.
-    supabase.from(TABLES.part_events).select("*").in("event_type", ["ordered", "received", "picked"]),
-    supabase.from(TABLES.projects).select("*"),
-  ]);
-
-  const firstError =
-    partsRes.error ?? locationsRes.error ?? boxesRes.error ?? shelvesRes.error ?? eventsRes.error ?? projectsRes.error;
-  if (firstError) return { ok: false, error: firstError.message };
+  let raw;
+  try {
+    const [parts, locations, boxes, shelves, events, projects] = await Promise.all([
+      selectAllRows((from, to) =>
+        supabase.from(TABLES.parts).select("*").order("internal_pid", { ascending: true }).range(from, to),
+      ),
+      selectAllRows((from, to) => supabase.from(TABLES.stock_locations).select("*").order("id").range(from, to)),
+      selectAllRows((from, to) => supabase.from(TABLES.big_boxes).select("*").order("id").range(from, to)),
+      selectAllRows((from, to) => supabase.from(TABLES.shelves).select("*").order("id").range(from, to)),
+      // Distributor/Project facets derive from order history (mission: "Distributor
+      // facet ← the part's order history", "Project facet ← projects a part was
+      // used in") — only these event types carry that context.
+      selectAllRows((from, to) =>
+        supabase
+          .from(TABLES.part_events)
+          .select("*")
+          .in("event_type", ["ordered", "received", "picked"])
+          .order("id")
+          .range(from, to),
+      ),
+      selectAllRows((from, to) => supabase.from(TABLES.projects).select("*").order("id").range(from, to)),
+    ]);
+    raw = { parts, locations, boxes, shelves, events, projects };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Failed to load inventory." };
+  }
 
   let parsed;
   try {
     parsed = {
-      parts: PartRowSchema.array().parse(partsRes.data ?? []),
-      locations: StockLocationRowSchema.array().parse(locationsRes.data ?? []),
-      boxes: BigBoxRowSchema.array().parse(boxesRes.data ?? []),
-      shelves: ShelfRowSchema.array().parse(shelvesRes.data ?? []),
-      events: PartEventRowSchema.array().parse(eventsRes.data ?? []),
-      projects: ProjectRowSchema.array().parse(projectsRes.data ?? []),
+      parts: PartRowSchema.array().parse(raw.parts),
+      locations: StockLocationRowSchema.array().parse(raw.locations),
+      boxes: BigBoxRowSchema.array().parse(raw.boxes),
+      shelves: ShelfRowSchema.array().parse(raw.shelves),
+      events: PartEventRowSchema.array().parse(raw.events),
+      projects: ProjectRowSchema.array().parse(raw.projects),
     };
   } catch {
     return { ok: false, error: "Inventory data did not match the expected shape." };

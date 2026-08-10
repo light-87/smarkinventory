@@ -1,0 +1,55 @@
+﻿Module_Name,MPN,Description,Distributor,LCSC_Part,Qty_In_Stock,Source_Sheet,Source_Row
+1A CHARGING MODULE,18650,,,,1,S7-SMD Modules,5
+2Way solenoid valve,H-931-M,,,,1,S7-SMD Modules,6
+3-axis Electronic Compass Module Magnetic Field Sensor,HMC5883L,,,,1,S7-SMD Modules,7
+4 Channel relay board,,,,,1,S7-SMD Modules,8
+ADC Module,GY-ADS1115/ADDS1015,,,,1,S7-SMD Modules,9
+Arduino Micro Sparkfun,,,,,1,S7-SMD Modules,10
+Arduino Pro Mini,,,,,1,S7-SMD Modules,11
+Audio player - WAV Format,,,,,1,S7-SMD Modules,12
+ATWINC1510-MR210UB,,,,,0,S7-SMD Modules,13
+ATWINC1500-MR210PA WiFi 802.11b/g/n adafruit,,,,,1,S7-SMD Modules,14
+BMP280,SENSOR PRESSURE ABS,,,,1,S7-SMD Modules,16
+Bluetooth Module,HC05,,,,1,S7-SMD Modules,17
+Bluetooth Module,HM-10,,,,2,S7-SMD Modules,18
+Bluetooth SMD,HM-10  / BE-0979,,,,1,S7-SMD Modules,19
+"Bluetooth V4.1,  3.3V",BLE,,,,2,S7-SMD Modules,20
+Blutooth LE 4.2 W/Antena,RN4870,,,,1,S7-SMD Modules,21
+Bluetooth Module,TB-02,,LCSC,C503609,1,S7-SMD Modules,22
+Bluetooth Module,BK3254,,,,4,S7-SMD Modules,23
+Bluetooth Module,HOLYIOT_18010,,,,3,S7-SMD Modules,24
+Bluetooth Module,YM23,,LCSC,C2905738,2,S7-SMD Modules,25
+DHT22,,,,,1,S7-SMD Modules,27
+Digital Accelerometer 3 axis,ADXL345,,,,1,S7-SMD Modules,28
+Digital temperature and humidity sensor,AM2302,,,,1,S7-SMD Modules,29
+Esp 8266 serial Wifi wireless module 1mbyte flash memory,,,,,2,S7-SMD Modules,30
+I2C For LED Interface,,,,,3,S7-SMD Modules,31
+LORA Module,Ra-01,,LCSC,C90040,2,S7-SMD Modules,33
+O LED SCREEN MODULE,,,,,1,S7-SMD Modules,35
+RFID Reader/Writer,RFID-RC522,,,,1,S7-SMD Modules,36
+RFID Reader,EM-18 READER MODULE,,,,2,S7-SMD Modules,37
+RFM LORA,RF96,,,,2,S7-SMD Modules,38
+RFM LORA,RFM95W-915S2,,,,20,S7-SMD Modules,39
+Rotary Encoder,,,,,3,S7-SMD Modules,40
+433 MHz Transreceiver,,,,,6,S7-SMD Modules,41
+Receiver 433Mhz often coupled with transmitter FS1000A,,,,,1,S7-SMD Modules,42
+A7670C-LASS,A7670C-LASS,,ktron,,1,S7-SMD Modules,43
+SIM7600E,,,,,1,S7-SMD Modules,44
+SIM 800L,,,,,1,S7-SMD Modules,45
+Soil Moisture Sensor,,,,,1,S7-SMD Modules,46
+STM8 STM32 debugger,ST-LINK V2,,,,1,S7-SMD Modules,47
+Ultrasonic Sensor,HC-SR04,,,,1,S7-SMD Modules,50
+Way level conversion board,,,,,1,S7-SMD Modules,51
+WIFI Module,ESP8266MOD,,,,1,S7-SMD Modules,52
+WIFI Module,ESP32-WROOM-32UE,,Mouser,,2,S7-SMD Modules,53
+WIFI Module,ESP32-WROVER-I,,LCSC,C132370,1,S7-SMD Modules,54
+WIFI Module,LBEE5PA1LD-005,,,,1,S7-SMD Modules,55
+"WIFI, BLUETOOTH Module",NINA-W101,,,,1,S7-SMD Modules,56
+"WIFI, BLUETOOTH Module",NINA-W151-00B,,,,6,S7-SMD Modules,57
+WIFI Module,,,,,2,S7-SMD Modules,58
+WIFI Module,USR-C321,,,,1,S7-SMD Modules,59
+X BEE,S2C,,,,6,S7-SMD Modules,60
+Step-Up Adjustable DC-DC Switching Boost Converter,XL6009E1,,,,50,S7-SMD Modules,61
+Power Module 26.4V 24V 83mA,NN2-24S24CN,,LCSC,C231972,2,S7-SMD Modules,62
+DS18B20 Temperature Senssor,,,,,29,S7-SMD Modules,64
+"RTD Transmitter to 4-20 mA output, 24V",,,,,10,S7-SMD Modules,66

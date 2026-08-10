@@ -176,7 +176,8 @@ export async function runReconcile(supabase: DB, bomId: string): Promise<void> {
 
   const { data: lines, error: linesError } = await supabase
     .from(TABLES.bom_lines)
-    .select("id, qty, mpn, lcsc_pn, dnp")
+    // value + footprint feed rung 3 (exact value+package) — see lib/bom/reconcile.ts.
+    .select("id, qty, mpn, lcsc_pn, dnp, value, footprint")
     .eq("bom_id", bomId)
     // Deterministic order so reconcileLines' cross-sibling stock netting (P6) is stable.
     .order("line_no", { ascending: true, nullsFirst: false });
@@ -197,6 +198,9 @@ export async function runReconcile(supabase: DB, bomId: string): Promise<void> {
             matched_part_id: outcome.matchedPartId,
             match_state: outcome.matchState,
             match_confidence: outcome.matchConfidence,
+            // Persisted so the BOM view can badge a value+package link
+            // differently from one asserted by a part number (migration 0021).
+            match_method: outcome.matchMethod,
           })
           .eq("id", outcome.id),
       ),

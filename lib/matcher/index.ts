@@ -21,10 +21,15 @@
  *   3. Value + Package (+ Voltage) — fuzzy. PACKAGE IS MANDATORY here
  *      (CROSS-FEATURE A3: "Package match is mandatory... a change may add
  *      rules but not make package optional") — a candidate can only surface
- *      at this rung if its normalized package equals the input's; value
- *      (and voltage, when both sides have it) then scores how close a match
- *      it is, with `smark_parts.part_status` (Active > NRND > EOL) breaking
- *      ties.
+ *      at this rung if its `packageKey` equals the input's; value (and
+ *      voltage, when both sides have it) then scores how close a match it is,
+ *      with `smark_parts.part_status` (Active > NRND > EOL) breaking ties.
+ *
+ *      How strict rung 3 is depends on the caller. Receive's duplicate guard
+ *      and bulk takeout keep the default `DEFAULT_MIN_VALUE_SIMILARITY`,
+ *      because a near-miss shown to a human is useful there. Reconcile passes
+ *      `minValueSimilarity: 1` + `requireUnambiguous: true` — see
+ *      `lib/bom/reconcile.ts` for why a 0.87-scoring resistor is not a match.
  *
  * The FIRST rung that finds a candidate wins — later rungs never override
  * an earlier hit, but earlier rungs that come up empty fall through to the
@@ -95,6 +100,15 @@ export interface MatcherOptions {
    * Default `DEFAULT_MIN_VALUE_SIMILARITY`.
    */
   minValueSimilarity?: number;
+  /**
+   * Reject the value+package rung when more than one catalog row ties for
+   * best. Off by default: a duplicate-guard prompt showing one of several
+   * near-identical parts is still useful to a human ("looks like SMK-000101 —
+   * top up instead?"). Reconcile turns it ON, because silently picking one of
+   * two 0Ω 0402 rows would attribute a BOM line's demand to an arbitrary half
+   * of the stock.
+   */
+  requireUnambiguous?: boolean;
 }
 
 /** Confidence stamped per rung — exported so callers/tests never hardcode magic numbers. */
@@ -132,6 +146,51 @@ export function normalizeLcsc(raw: string | null | undefined): string {
 /** Uppercase, strip separators — "SOT-23" / "sot_23" / "SOT 23" all equal. */
 export function normalizePackage(raw: string | null | undefined): string {
   return (raw ?? "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+/** Imperial chip sizes. A 3/4-digit code only reduces to a size if it is one of these. */
+const IMPERIAL_CHIP_SIZES = new Set([
+  "0201", "0402", "0603", "0805", "1206", "1210", "1218",
+  "1411", "1806", "1812", "2010", "2512", "2920",
+]);
+
+/**
+ * Reduces a package/footprint to a comparable key, bridging the two vocabularies
+ * that describe the same physical thing:
+ *
+ *   catalog (from the client's stock sheet) : "0603 (1608 Metric)"
+ *   BOM     (KiCad export, stored raw)      : "SMARKKicadLib:R0603"
+ *
+ * `normalizePackage` alone turns those into "06031608METRIC" and
+ * "SMARKKICADLIBR0603", which can never be equal — so before this existed the
+ * value+package rung matched literally nothing between a real BOM and the real
+ * catalog, whatever the threshold.
+ *
+ * Reduction, in order: drop a library prefix (`Lib:` before the last colon),
+ * drop a parenthetical (the metric restatement), drop a leading component
+ * letter, then accept the result only if it is a known imperial chip size.
+ * A 3-digit code is padded ("603" → "0603"), the same leading-zero repair
+ * `lib/import/stocklist.ts` already applies to this client's sheets.
+ *
+ * Anything not recognisable as a chip size falls through to `normalizePackage`,
+ * so SOT-23-6, SMA and one-off strings behave exactly as they did.
+ */
+export function packageKey(raw: string | null | undefined): string {
+  if (!raw) return "";
+
+  const afterPrefix = raw.includes(":") ? raw.slice(raw.lastIndexOf(":") + 1) : raw;
+  const withoutParenthetical = afterPrefix.replace(/\(.*?\)/g, "");
+  const compact = withoutParenthetical.replace(/[^A-Za-z0-9]/g, "");
+
+  // Optional component letter (C/R/L/D/Q/F/U) in front of the size: "C0805" → "0805".
+  const sized = /^[CRLDQFU]?(\d{3,4})$/i.exec(compact);
+  if (sized) {
+    const digits = sized[1]!;
+    const padded = digits.length === 3 ? `0${digits}` : digits;
+    if (IMPERIAL_CHIP_SIZES.has(padded)) return padded;
+  }
+
+  return normalizePackage(withoutParenthetical);
 }
 
 const MICRO_PATTERN = /[µμ]/g;
@@ -366,18 +425,23 @@ function matchByValuePackage<TPart extends MatchCatalogEntry>(
   catalog: readonly TPart[],
   options: MatcherOptions,
 ): MatchResult<TPart> | null {
-  const targetPackage = normalizePackage(input.package);
+  // `packageKey`, not `normalizePackage`: the catalog and the BOMs describe the
+  // same chip size in two different vocabularies (see packageKey's doc).
+  const targetPackage = packageKey(input.package);
   // Package is MANDATORY at this rung (CROSS-FEATURE A3) — no package, no fuzzy match.
   if (targetPackage === "" || !input.value?.trim()) return null;
 
   const threshold = options.minValueSimilarity ?? DEFAULT_MIN_VALUE_SIMILARITY;
   let best: { part: TPart; score: number } | null = null;
+  // Counts only candidates that TIE the best score on an equal status rank —
+  // i.e. ones the tie-breaker below genuinely cannot separate.
+  let tiedWithBest = 0;
 
   // Plain for-of (not .forEach/.reduce) so ties resolve deterministically:
   // a candidate only replaces `best` on a STRICT improvement, so of several
   // equally-good matches the first one encountered in `catalog` order wins.
   for (const part of catalog) {
-    if (normalizePackage(part.package) !== targetPackage) continue;
+    if (packageKey(part.package) !== targetPackage) continue;
 
     const valueScore = valueSimilarity(input.value, part.value);
     if (valueScore <= 0) continue;
@@ -387,14 +451,27 @@ function matchByValuePackage<TPart extends MatchCatalogEntry>(
       ? valueScore * 0.8 + valueSimilarity(input.voltage, part.voltage) * 0.2
       : valueScore;
 
-    const better =
-      !best ||
-      score > best.score ||
-      (score === best.score && partStatusRank(part.part_status) < partStatusRank(best.part.part_status));
-    if (better) best = { part, score };
+    if (!best || score > best.score) {
+      best = { part, score };
+      tiedWithBest = 1;
+      continue;
+    }
+    if (score < best.score) continue;
+
+    // Same score: status breaks the tie, and only a genuinely inseparable
+    // candidate counts toward ambiguity.
+    const rank = partStatusRank(part.part_status);
+    const bestRank = partStatusRank(best.part.part_status);
+    if (rank < bestRank) {
+      best = { part, score };
+      tiedWithBest = 1;
+    } else if (rank === bestRank) {
+      tiedWithBest += 1;
+    }
   }
 
   if (!best || best.score < threshold) return null;
+  if (options.requireUnambiguous && tiedWithBest > 1) return null;
   const confidence = Math.round(clamp01(best.score) * MATCH_CONFIDENCE.valuePackageMax);
   return { part: best.part, method: "value_pkg", confidence };
 }

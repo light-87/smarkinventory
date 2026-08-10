@@ -38,7 +38,20 @@ export const DEFAULT_OPEN_GROUPS: readonly FacetGroupName[] = ["Category", "Pack
 
 export type InventoryFilters = Partial<Record<FacetGroupName, string[]>>;
 
-const SEARCH_FIELDS = ["internal_pid", "mpn", "value", "package", "category", "manufacturer", "lcsc_pn"] as const;
+// `description` earns its place here because most of the imported catalog has
+// no MPN at all (880 of 1999 rows — generic passives never had one), so the
+// description is often the only human-readable handle on a part: "RS485 Fuse
+// 0.14A", "IC ADC 16BIT SAR 8MSOP", "Microcontroller".
+const SEARCH_FIELDS = [
+  "internal_pid",
+  "mpn",
+  "value",
+  "package",
+  "category",
+  "manufacturer",
+  "lcsc_pn",
+  "description",
+] as const;
 
 const STATUS_DISPLAY: Record<string, string> = { active: "Active", nrnd: "NRND", eol: "EOL" };
 
@@ -69,8 +82,15 @@ function facetValuesForGroup(part: InventoryPart, group: FacetGroupName): string
       const dielectric = part.attributes.dielectric;
       return typeof dielectric === "string" && dielectric ? [dielectric] : [];
     }
-    case "Distributor":
-      return part.distributorNames;
+    case "Distributor": {
+      // Order history (`distributorNames`, from smark_part_events) plus the
+      // part's own default. History alone was empty for the entire imported
+      // catalog — nothing has been ordered through the app yet — which left the
+      // facet blank even though every CSV row names a distributor.
+      const names = new Set(part.distributorNames);
+      if (part.default_distributor) names.add(part.default_distributor);
+      return [...names];
+    }
     case "Project":
       return part.projectNames;
     case "Shelf":

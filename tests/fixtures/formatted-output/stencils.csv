@@ -1,0 +1,44 @@
+﻿Project,Board,Versions,Description,Source_Sheet,Source_Row
+Power Breezer,MCB,"V2, V2.1, V2.2, V2.3, V2.41, V2.41_Internal",,S12-Stencils,6
+,WiFi_Module_Board,"V1, V3",,S12-Stencils,7
+,FCB,"V1, V2.1, V2.2, V2.3, V2.4, V2.4_Internal",,S12-Stencils,8
+,CP,"V1.3, V2.3",,S12-Stencils,9
+,PRB,,,S12-Stencils,10
+,TH_Sensor,V2,,S12-Stencils,11
+,VoltageDivider (STANDARD & MAX),,,S12-Stencils,12
+,Sky2_RS485_Converter,"FT232RL, CH340B, CP2102",,S12-Stencils,13
+,WBOMAN9321C,,,S12-Stencils,14
+IR_RGB,IRRemoteControl,"V5, V6",,S12-Stencils,16
+,White_Only,,,S12-Stencils,17
+,MainBoard-NoMicro,,,S12-Stencils,18
+,Bluetooth Speaker,V1,,S12-Stencils,19
+,WS2812B,,,S12-Stencils,20
+,White_LED PCB,,,S12-Stencils,21
+UK,TempLogger (DAQ),"V1, V1.2",,S12-Stencils,23
+Heacol,Main_Board,V1,,S12-Stencils,24
+,LCD_Screen,,,S12-Stencils,25
+Imatrack,Imatrack PIC uC,,,S12-Stencils,28
+,Camera Board,,,S12-Stencils,29
+IndiaOne,MainBoard,"V2, V3",,S12-Stencils,31
+,Camera_Board,"V2, V3",,S12-Stencils,32
+,Ethernet_Board,"V1, V2",,S12-Stencils,33
+SolTrack,SolTrack (2 Stencils),"V, V4",,S12-Stencils,35
+,Photo Sensor (3 Stencils),,,S12-Stencils,36
+,SolTrack_PV_Mega2560,,,S12-Stencils,37
+,SolTrack_PV_STM,,,S12-Stencils,38
+,SolTrack_STM,V1,,S12-Stencils,39
+,YM23_BLEModule,,,S12-Stencils,40
+VSS,Master,,,S12-Stencils,42
+,AC Slave,,,S12-Stencils,43
+,DC Slave,,,S12-Stencils,44
+Durotek,Weapon Simulation System Receiver,,,S12-Stencils,47
+,3 Barrel PCB,,,S12-Stencils,48
+Green House Sensor,GHC_Gateway,,,S12-Stencils,50
+,Sensor_Nodes,,,S12-Stencils,51
+Slouchless,Slouchless_Device,,,S12-Stencils,53
+Swadeshi Processor,Swadeshi_uP_Challenge_V2,,,S12-Stencils,55
+Traffic Controller,Master_V2,2.1,,S12-Stencils,57
+,Slave_V2,2.1,,S12-Stencils,58
+SMDAS (DataLogger),SMDAS-08K08A_V1,,,S12-Stencils,60
+,SMDAS_EthernetBoard,,,S12-Stencils,61
+,SMDAS_WiFi,,,S12-Stencils,62

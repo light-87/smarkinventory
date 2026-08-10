@@ -1,0 +1,33 @@
+﻿File,Category,Source,Row_Count
+resistors.csv,Resistors,S3-Res,450
+capacitors.csv,Capacitors,S4-Cap,275
+inductors.csv,Inductors,S5-Ind+Diode (SMD Inductors section),86
+diodes.csv,Diodes,S5-Ind+Diode (SMD/TH Diodes sections),136
+ic_smd.csv,SMD ICs,S2-SMD IC,505
+ic_th.csv,TH ICs,S8-TH IC (left table),32
+discrete_semiconductors_th.csv,TH Discrete Semiconductors (transistors/regulators),S8-TH IC (right table),2
+modules.csv,SMD Modules & Sensors,S7-SMD Modules,54
+connectors.csv,Connectors (general),S10-Connectors1 + S11-Connectors2 (main tables),176
+spring_terminal_blocks.csv,Spring Terminal Blocks,S10-Connectors1 (side table),21
+ffc_fpc_connectors.csv,FFC/FPC Connectors,S11-Connectors2 (side table),51
+cable_assemblies.csv,Custom Cable Assemblies,S10-Connectors1 (JST harness table),12
+misc_fuse.csv,Fuses / PTC Resettable Fuses,S6-MiscElec (Fuse section),23
+misc_crystal.csv,Crystals / Oscillators,S6-MiscElec (Crystal section),17
+misc_led.csv,LEDs,S6-MiscElec (LED section),32
+misc_thermistor_varistor.csv,Thermistors / Varistors / MOV,S6-MiscElec (Thermistor/Varistor/MOV section),10
+misc_ir.csv,Infrared (IR) LEDs/Receivers,S6-MiscElec (Infrared section),3
+misc_photosensor.csv,Photosensors,S6-MiscElec (Photosensor section),1
+dev_kits.csv,Development Kits / Boards,S6-MiscElec (Kits section),8
+misc_switch.csv,Switches (incl. potentiometer/float switch items),S9-MiscElec (Switch section),30
+misc_current_transformer.csv,Current Transformers (incl. temperature sensor items),S9-MiscElec (Current Transformer section),2
+misc_dcdc_converter.csv,DC-DC Converters,S9-MiscElec (DC-DC Converter section),1
+misc_rocker_switch.csv,Rocker Switches,S9-MiscElec (Rocker Switches section),4
+misc_lcd_display.csv,LCD Displays,S9-MiscElec (LCD Display section),2
+misc_oled_display.csv,OLED Displays,S9-MiscElec (OLED Display section),5
+misc_battery.csv,Batteries (incl. antenna item),S9-MiscElec (Batteries section),4
+misc_relay.csv,Relays,S9-MiscElec (Relay section),7
+misc_transformer.csv,Transformers / Bobbins / Coil parts,S9-MiscElec (Transformer section),8
+material_list.csv,"Material List (battery holders, hardware, antennas)",Material List,28
+smps.csv,SMPS Power Modules,SMPS,10
+voltage_protector.csv,Adjustable Voltage Protectors,VOLTAGE PROTECTOR,4
+stencils.csv,"Stencils (PCB project/version reference — not stock quantity, no MPN/Distributor concept)",S12-Stencils,43

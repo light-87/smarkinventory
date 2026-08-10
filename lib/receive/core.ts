@@ -591,7 +591,9 @@ export async function assignOnboardingLocation(
     .eq("part_id", part.id);
   if (locationsError) throw locationsError;
 
-  if (!existingLocations || existingLocations.length === 0) {
+  const locations = existingLocations ?? [];
+
+  if (locations.length === 0) {
     // First-time placement of already-known (imported) qty — no movement, this isn't new stock arriving.
     const { error: insertError } = await supabase.from(TABLES.stock_locations).insert({
       part_id: part.id,
@@ -601,7 +603,23 @@ export async function assignOnboardingLocation(
       created_by: actorId,
     });
     if (insertError) throw insertError;
+  } else if (locations.length === 1) {
+    // Onboarding a part that already sits somewhere is a MOVE, not a no-op.
+    // The CSV import parks every part's real count in one staging box
+    // (scripts/import-formatted-csvs.ts, shelf U / U-IMPORT) so the catalog
+    // reads with true quantities from day one; putting it away has to carry
+    // that qty across. Re-pointing the row keeps the rollup trigger correct —
+    // inserting a second location would double total_qty, and skipping would
+    // strand the stock in staging forever.
+    const { error: moveError } = await supabase
+      .from(TABLES.stock_locations)
+      .update({ big_box_id: boxId, esd_note: input.esdNote ?? null })
+      .eq("id", locations[0]!.id);
+    if (moveError) throw moveError;
   }
+  // >1 location is the deliberate bulk case (reel + working box). Which one
+  // moves isn't ours to guess, so nothing is touched — clearing needs_review
+  // below still takes it off the queue.
 
   const { error: updateError } = await supabase.from(TABLES.parts).update({ needs_review: false }).eq("id", part.id);
   if (updateError) throw updateError;
