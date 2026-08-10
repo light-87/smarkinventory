@@ -167,16 +167,49 @@ describe("buildFacetGroups", () => {
     expect(stock.values.find((v) => v.value === "Out")!.count).toBe(1);
   });
 
-  test("counts are computed against the CURRENT filtered set (prototype semantics), including the group's own filter", () => {
-    // Selecting Category=Capacitor narrows the filtered set to just CAP_100N;
-    // every group's counts (including Category's own row) reflect that.
+  test("a group's own selection does not narrow its own counts", () => {
+    // Changed 2026-08-10. This used to assert resistorRow.count === 0, matching
+    // the prototype. Once zero-count values are hidden that behaviour deletes
+    // every unticked option in the group you just filtered on, leaving you
+    // unable to switch from Capacitor to Resistor or to select both.
     const groups = buildFacetGroups(ALL_PARTS, "", { Category: ["Capacitor"] });
     const category = groups.find((g) => g.name === "Category")!;
-    const capacitorRow = category.values.find((v) => v.value === "Capacitor")!;
-    const resistorRow = category.values.find((v) => v.value === "Resistor")!;
-    expect(capacitorRow.count).toBe(1);
-    expect(resistorRow.count).toBe(0); // excluded by the active Capacitor filter
-    expect(capacitorRow.selected).toBe(true);
+
+    expect(category.values.find((v) => v.value === "Capacitor")!.selected).toBe(true);
+    expect(category.values.find((v) => v.value === "Capacitor")!.count).toBe(1);
+    expect(category.values.find((v) => v.value === "Resistor")!.count).toBe(1);
+  });
+
+  test("OTHER groups still narrow to the active selection", () => {
+    // The lists that should shrink are the ones in every group you did not tick.
+    // Unfiltered the fixture offers two packages; only the capacitor's remains.
+    expect(buildFacetGroups(ALL_PARTS, "", {}).find((g) => g.name === "Package")!.values).toHaveLength(2);
+
+    const packages = buildFacetGroups(ALL_PARTS, "", { Category: ["Capacitor"] }).find((g) => g.name === "Package")!;
+    expect(packages.values.map((v) => v.value)).toEqual(["0603"]);
+  });
+
+  test("zero-count options are not rendered at all", () => {
+    const groups = buildFacetGroups(ALL_PARTS, "", { Category: ["Capacitor"] });
+    for (const group of groups) {
+      if (group.name === "Stock" || group.name === "Status") continue; // fixed enums
+      for (const value of group.values) expect(value.count).toBeGreaterThan(0);
+    }
+  });
+
+  test("a group with nothing left in scope disappears instead of showing zeroes", () => {
+    // The fixture's capacitor is the only part carrying a voltage, so filtering
+    // to Resistor empties the Voltage group and it goes entirely, rather than
+    // rendering a column of 0s. This is the real-catalog case where selecting
+    // Resistor left 26 dead Voltage rows on screen.
+    expect(buildFacetGroups(ALL_PARTS, "", {}).find((g) => g.name === "Voltage")).toBeDefined();
+    expect(buildFacetGroups(ALL_PARTS, "", { Category: ["Resistor"] }).find((g) => g.name === "Voltage")).toBeUndefined();
+  });
+
+  test("Stock/Status keep every fixed value even when the scope has none", () => {
+    const groups = buildFacetGroups(ALL_PARTS, "", { Category: ["Capacitor"] });
+    const status = groups.find((g) => g.name === "Status")!;
+    expect(status.values.map((v) => v.value)).toEqual(["active", "nrnd", "eol"]);
   });
 
   test("drops a group entirely when the full dataset has no values for it", () => {

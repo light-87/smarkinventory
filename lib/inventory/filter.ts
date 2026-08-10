@@ -5,15 +5,35 @@
  * the exported file always matches exactly what the table shows — no separate
  * "server-side filter reimplementation" to drift out of sync.
  *
- * Facet semantics mirror the approved prototype (SmarkStock-prototype/
- * SmarkStock.dc.html `facetCounts`/`filteredParts`) exactly:
- *   - a facet group's VALUE LIST is derived from the full unfiltered catalog
- *     (so a value never disappears just because it's currently filtered out),
- *     except Stock/Status which are fixed enums always shown.
- *   - each value's COUNT is computed against the full currently-filtered set
- *     (search + every active facet, including that value's own group) — not
- *     "counts excluding this group", which is a different (also valid) UX the
- *     client didn't ask for.
+ * Facet semantics originally mirrored the approved prototype exactly: a group's
+ * value list came from the FULL unfiltered catalog, and every count was computed
+ * against the fully-filtered set including that group's own selection. Both of
+ * those were rewritten on 2026-08-10, when the real 1,999-part catalog landed and
+ * made their consequences visible for the first time. The prototype had 15 parts;
+ * nothing about this was wrong until it met real data.
+ *
+ * What went wrong: ticking Category = Resistor left 317 of the 329 Package
+ * checkboxes on screen reading "0", plus 26 dead Voltage rows (resistors have no
+ * voltage) and 19 dead Distributors. The sidebar became mostly noise.
+ *
+ * What it does now, per group:
+ *   - SCOPE = the catalog filtered by the search and by every OTHER group's
+ *     selection, deliberately ignoring this group's own. That is what makes
+ *     hiding zero-count values safe: counting Category against a Category filter
+ *     would collapse the group to the one option already ticked, and you could
+ *     never switch to Capacitor or add a second category. Standard behaviour on
+ *     any faceted catalog, and it only became necessary once values were hidden.
+ *   - VALUES are the distinct values actually present in that scope, so a dead
+ *     option cannot render. A value you have selected always survives, because
+ *     the scope ignores your own group's filter.
+ *   - Stock/Status stay fixed three-value enums, always shown in full. They are
+ *     short by construction and never the source of the noise.
+ *   - A group with nothing in scope is dropped entirely (Voltage vanishes while
+ *     you are looking at resistors, instead of showing 26 zeroes).
+ *
+ * Counting is a single pass per group rather than a scan per value: Package alone
+ * has 329 values against 1,999 parts, and the old shape re-scanned the catalog
+ * for every one of them on every keystroke.
  */
 
 import type { InventoryPart } from "./types";
@@ -126,14 +146,15 @@ export function displayLabelForFacetValue(group: FacetGroupName, value: string):
   return group === "Status" ? (STATUS_DISPLAY[value] ?? value) : value;
 }
 
-function candidateValuesForGroup(parts: readonly InventoryPart[], group: FacetGroupName): string[] {
-  const fixed = FIXED_GROUP_VALUES[group];
-  if (fixed) return fixed;
-  const values = new Set<string>();
+/** One pass over `parts`, tallying how many carry each value of `group`. */
+function countValues(parts: readonly InventoryPart[], group: FacetGroupName): Map<string, number> {
+  const counts = new Map<string, number>();
   for (const part of parts) {
-    for (const value of facetValuesForGroup(part, group)) values.add(value);
+    for (const value of facetValuesForGroup(part, group)) {
+      counts.set(value, (counts.get(value) ?? 0) + 1);
+    }
   }
-  return Array.from(values).sort((a, b) => a.localeCompare(b));
+  return counts;
 }
 
 export interface FacetValueCount {
@@ -153,19 +174,31 @@ export function buildFacetGroups(
   search: string,
   filters: InventoryFilters,
 ): FacetGroupViewModel[] {
-  const filtered = filterInventoryParts(parts, search, filters);
   const groups: FacetGroupViewModel[] = [];
 
   for (const group of FACET_GROUP_ORDER) {
-    const candidates = candidateValuesForGroup(parts, group);
-    if (candidates.length === 0) continue;
+    // Every other group's selection applies; this one's deliberately does not,
+    // so its own options stay switchable and multi-selectable.
+    const otherFilters: InventoryFilters = { ...filters };
+    delete otherFilters[group];
+    const scope = filterInventoryParts(parts, search, otherFilters);
+    const counts = countValues(scope, group);
     const selected = new Set(filters[group] ?? []);
-    const values = candidates.map((value) => ({
-      value,
-      count: filtered.filter((part) => facetValuesForGroup(part, group).includes(value)).length,
-      selected: selected.has(value),
-    }));
-    groups.push({ name: group, values });
+
+    // Fixed enums render in full, in their declared order. Everything else is
+    // exactly what exists in scope, so a zero-count option cannot appear.
+    const fixed = FIXED_GROUP_VALUES[group];
+    const candidates = fixed ?? Array.from(counts.keys()).sort((a, b) => a.localeCompare(b));
+    if (candidates.length === 0) continue;
+
+    groups.push({
+      name: group,
+      values: candidates.map((value) => ({
+        value,
+        count: counts.get(value) ?? 0,
+        selected: selected.has(value),
+      })),
+    });
   }
 
   return groups;
