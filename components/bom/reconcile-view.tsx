@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { TableBody, TableHead, TableShell, Td, Th, Tr } from "@/components/ui/table";
 import { formatNumber } from "@/lib/format";
 import { updateBuildQtyAction } from "@/app/(app)/projects/[projectId]/boms/actions";
-import { DnpBadge } from "./status-chip";
+import { DnpBadge, LineStatusChip, ValuePackageMatchBadge } from "./status-chip";
 import type { BomLineRow } from "@/types/db";
 import type { BomRow } from "@/types/db";
 
@@ -38,10 +38,21 @@ function safePartLink(raw: string | null): string | null {
 /**
  * Per-BOM detail (plan/tab-orders-projects.md §2/§5): build-qty ×N + the
  * uploaded sheet mirrored IN FULL — every parsed column, every row, exactly
- * what the AI pipeline will read. Deliberately NO in-stock/to-order stats and
- * NO per-line match status here (manual-test decision: stock checking is the
- * agents' job during a run, not this page's — reconcile still runs silently
- * on upload/×N change to feed cross-project demand).
+ * what the AI pipeline will read.
+ *
+ * Per-line match status was previously hidden here on purpose (manual-test
+ * decision: "stock checking is the agents' job during a run, not this page's").
+ * That was the right call at the time and is now reversed, because the thing it
+ * was reacting to has changed: reconcile then matched on part number alone, and
+ * most of this client's catalog is generic passives with no part number, so a
+ * status column would have read "To order" for 96 of the GCU BOM's 98 lines —
+ * noise, not information. Since reconcile also matches on exact value+package
+ * it resolves roughly a third of real lines, and which ones matter.
+ *
+ * The `value + package` chip is the important half. Those links are inferred
+ * from the sheet rather than asserted by a part number, and manual-test finding
+ * F-002 was hard to spot precisely because inferred links looked identical to
+ * asserted ones. If a line looks wrong, fix its value or footprint and re-run.
  */
 export function ReconcileView({ bom, lines, writable, reviewRunId }: ReconcileViewProps) {
   const router = useRouter();
@@ -105,12 +116,13 @@ export function ReconcileView({ bom, lines, writable, reviewRunId }: ReconcileVi
 
       {error && <div className="text-caption text-smark-orange-soft">{error}</div>}
 
-      <TableShell minWidth={1400 + extraKeys.length * 120}>
+      <TableShell minWidth={1580 + extraKeys.length * 120}>
         <TableHead>
           <Tr>
             <Th>#</Th>
             <Th>Reference</Th>
             <Th align="right">Qty</Th>
+            <Th>Status</Th>
             <Th>Value</Th>
             <Th>Footprint</Th>
             <Th>Description</Th>
@@ -142,6 +154,12 @@ export function ReconcileView({ bom, lines, writable, reviewRunId }: ReconcileVi
               </Td>
               <Td align="right" mono>
                 {line.qty ?? "—"}
+              </Td>
+              <Td>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <LineStatusChip matchState={line.match_state} />
+                  {line.match_method === "value_pkg" && <ValuePackageMatchBadge />}
+                </div>
               </Td>
               <Td>{line.value ?? "—"}</Td>
               <Td className="text-smoke">{line.footprint ?? "—"}</Td>
