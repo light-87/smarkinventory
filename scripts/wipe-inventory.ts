@@ -37,8 +37,11 @@ type DB = ReturnType<typeof createServiceClient>;
 /** PostgREST requires a filter on every delete; this one matches every row. */
 const ALL_ROWS = { column: "id", filter: "is", value: null } as const;
 
-async function countOf(supabase: DB, table: string, describe?: (q: never) => never): Promise<number> {
-  void describe;
+/** Every real table name, straight from the TABLES registry — not `Parameters<DB["from"]>[0]`,
+ *  which resolves to the VIEW overload and rejects every table. */
+type TableName = (typeof TABLES)[keyof typeof TABLES];
+
+async function countOf(supabase: DB, table: TableName): Promise<number> {
   const { count, error } = await supabase.from(table).select("id", { count: "exact", head: true });
   if (error) throw new Error(`Counting ${table}: ${error.message}`);
   return count ?? 0;

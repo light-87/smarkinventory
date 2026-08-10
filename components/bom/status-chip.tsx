@@ -34,3 +34,22 @@ export function LineStatusChip({ matchState, contestedShortfall, locationLabel }
 export function DnpBadge() {
   return <Chip tone="default">DNP</Chip>;
 }
+
+/**
+ * Marks a line whose part was inferred from value + package rather than
+ * asserted by a part number (migration 0021, `match_method = 'value_pkg'`).
+ *
+ * Most of the catalog is generic passives with no MPN and no LCSC number, so
+ * this is the only rung that ever reaches them. The match is exact — same value
+ * after unit conversion, same package, exactly one candidate — but it is still
+ * a different kind of claim from "this line names this part number", and
+ * manual-test finding F-002 was hard to spot precisely because inferred links
+ * looked identical to asserted ones. This is what makes them visible.
+ */
+export function ValuePackageMatchBadge() {
+  return (
+    <Chip tone="default" title="Matched on value + package, not a part number. Check it if the line looks wrong.">
+      value + package
+    </Chip>
+  );
+}

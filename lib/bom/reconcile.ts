@@ -9,14 +9,34 @@
  * unit-testable without a DB (plan/TESTING.md "unit: reconcile matcher
  * ladder, demand/shortfall math (× build_qty)").
  *
- * Matching is EXACT-IDENTITY ONLY (MPN → LCSC PN): the fuzzy value+package
- * rung of `lib/matcher` is deliberately not fed here. An uploaded BOM is
- * rendered as-is and its unmatched lines go to AI sourcing, which reads the
- * raw line — a fuzzy guess ("10uF/25V 1206" pinned to whatever similar cap
- * the catalog has) shows a wrong location in the Status column and quietly
- * shrinks the to-order list (manual-test finding F-002, GCU_V1.1_BOM.xlsx).
- * The fuzzy rung still serves the matcher's other consumers (Receive
- * duplicate guard, bulk-takeout resolution), where a human confirms the hit.
+ * Matching is EXACT ONLY — but "exact" now covers three rungs, not two.
+ *
+ * Rungs 1–2 are keyed identity (MPN → LCSC PN). Rung 3, value+package, was
+ * originally not fed here at all, because a *fuzzy* value match pinned
+ * "10uF/25V 1206" onto whatever similar cap the catalog had, showed a wrong
+ * location in the Status column and quietly shrank the to-order list
+ * (manual-test finding F-002, GCU_V1.1_BOM.xlsx).
+ *
+ * The lesson of F-002 was that approximate values are wrong, not that the rung
+ * is. Most of the real catalog is generic passives with no MPN and no LCSC
+ * number (880 of 1999 rows), so keyed identity alone can never reach them: on
+ * the client's own two BOMs it resolved 46 of 217 live lines. So rung 3 is fed
+ * here under two conditions that make it exact rather than fuzzy:
+ *
+ *   `minValueSimilarity: 1` — the values must be genuinely EQUAL after unit
+ *      canonicalization. "0.1uF" and "100 nF" are the same capacitor and match;
+ *      "100K" and "115 kΩ" score 0.87 and do NOT. That single threshold is what
+ *      F-002 actually needed: on the same two BOMs it admits 25 more lines and
+ *      rejects 23 near-misses, every one of them a genuinely different value
+ *      (100K/115kΩ, 10K/9.1kΩ, 22.1K/22kΩ — E96 vs E24 parts).
+ *   `requireUnambiguous: true` — if two catalog rows tie (two 0Ω 0402 rows from
+ *      different distributors), nobody is matched. Picking one would attribute
+ *      the line's whole demand to an arbitrary half of the stock.
+ *
+ * A rung-3 hit is distinguishable downstream: it carries `matchMethod:
+ * "value_pkg"` and a confidence below 100, and the BOM view badges it, so a
+ * link inferred from value+package never looks like one asserted by a part
+ * number. Unmatched lines still go to AI sourcing, which reads the raw line.
  *
  * Need math [R2-27]: every line's need = `qty × bom.build_qty`. DNP lines
  * contribute ZERO need — mirrors `v_part_demand`'s own
@@ -35,6 +55,21 @@ export interface ReconcileLineInput {
   mpn: string | null;
   lcsc_pn: string | null;
   dnp: boolean;
+  /** Rung 3. Null on both leaves the line on keyed identity alone. */
+  value?: string | null;
+  /** The BOM's raw footprint string, e.g. `"SMARKKicadLib:C0805"`. */
+  footprint?: string | null;
+}
+
+/**
+ * Rung 3 fires only on an exact value match with exactly one candidate. See
+ * this module's header for why anything looser reintroduces F-002.
+ */
+const RECONCILE_MATCH_OPTIONS = { minValueSimilarity: 1, requireUnambiguous: true } as const;
+
+/** The descriptor handed to the matcher — keyed identity plus rung-3 inputs. */
+function matchInputFor(line: ReconcileLineInput) {
+  return { mpn: line.mpn, lcsc_pn: line.lcsc_pn, value: line.value ?? null, package: line.footprint ?? null };
 }
 
 /** Minimal `smark_parts` shape reconcile needs — any `PartRow` slice satisfies this. */
@@ -59,8 +94,7 @@ export function reconcileLine(
   buildQty: number,
 ): ReconcileLineOutcome {
   const need = line.dnp ? 0 : (line.qty ?? 0) * buildQty;
-  // No value/package/voltage passed — the fuzzy rung can't fire (see header).
-  const hit = matchPart({ mpn: line.mpn, lcsc_pn: line.lcsc_pn }, catalog);
+  const hit = matchPart(matchInputFor(line), catalog, RECONCILE_MATCH_OPTIONS);
 
   if (!hit) {
     return { id: line.id, matchedPartId: null, matchState: "unresolved", matchConfidence: null, matchMethod: null, need };
@@ -104,7 +138,7 @@ export function reconcileLines(
   const remainingByPart = new Map<string, number>();
   return lines.map((line) => {
     const need = line.dnp ? 0 : (line.qty ?? 0) * buildQty;
-    const hit = matchPart({ mpn: line.mpn, lcsc_pn: line.lcsc_pn }, catalog);
+    const hit = matchPart(matchInputFor(line), catalog, RECONCILE_MATCH_OPTIONS);
     if (!hit) {
       return { id: line.id, matchedPartId: null, matchState: "unresolved", matchConfidence: null, matchMethod: null, need };
     }
