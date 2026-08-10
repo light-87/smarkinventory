@@ -1,0 +1,22 @@
+﻿Pin_Count,Pitch,MPN,Description,Distributor,LCSC_Part,Qty_In_Stock,Source_Sheet,Source_Row
+2 PIN,3.5 mm Pitch,,,LCSC,C8421,50,S10-Connectors1,9
+3 PIN,,,,LCSC,C8420,25,S10-Connectors1,10
+4 PIN,,KF250-3.5-4P-2,,LCSC,C475165,35,S10-Connectors1,11
+5 PIN,,KF250-3.5-5P-1,,LCSC,C475157,3,S10-Connectors1,12
+6 PIN,,KF250-3.5-6P-2,,LCSC,C475167,46,S10-Connectors1,13
+7 PIN,,KF250-3.5-7P-1,,LCSC,C475159,34,S10-Connectors1,14
+8 PIN,,KF250-3.5-8P-2,,LCSC,C475169,30,S10-Connectors1,15
+9PIN,,DB250B-3.5-9P-GY,,LCSC,C5339115,5,S10-Connectors1,16
+10 PIN,,KF250-3.5-10P-2,,LCSC,C475170,10,S10-Connectors1,17
+12 PIN,,,,,,10,S10-Connectors1,18
+13 PIN,,,,,,1,S10-Connectors1,19
+15 PIN,,,,,,1,S10-Connectors1,21
+2 PIN,5 mm Pitch,,,,,,S10-Connectors1,28
+3 PIN,,,,,,,S10-Connectors1,29
+4 PIN,,KF243A-5.0-4P,,LCSC,C475214,8,S10-Connectors1,30
+12 PIN,,KF235-5.0-12,,LCSC,C475181,10,S10-Connectors1,39
+2PIN,7.5 mm Pitch,,,LCSC,,1,S10-Connectors1,47
+4PIN,,,,LCSC,,1,S10-Connectors1,49
+5P,7.5 mm Pitch,,,,,3,S10-Connectors1,53
+C560213,10,,,,,,S10-Connectors1,62
+C441173,12,,,,,,S10-Connectors1,63
