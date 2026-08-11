@@ -19,6 +19,7 @@
  */
 
 import { revalidatePath } from "next/cache";
+import { buildPartEdit, type PartEditInput } from "./edit";
 import { buildPartHumanText, queueLabelForPart, type LabelPartInput } from "@/lib/labels/queue";
 import { recordMovement, undoMovement } from "@/lib/movements";
 import { createClient } from "@/lib/supabase/server";
@@ -137,6 +138,68 @@ export async function undoStockMovement(movementId: string): Promise<UndoMovemen
   } catch (error) {
     return { ok: false, error: errorMessage(error, "Could not undo that adjustment.") };
   }
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Edit part details
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+export type UpdatePartResult = { ok: true; changed: number } | { ok: false; error: string };
+
+/**
+ * Writes the corrections the client makes while verifying the imported catalog.
+ * The change itself is appended to the living record as a `note` event — the
+ * event-type CHECK has no "edited" member, and a note carrying "Description: —
+ * → 0.1uF/100nF" says the same thing in the timeline the part detail already
+ * renders, without a migration.
+ */
+export async function updatePartDetails(input: PartEditInput): Promise<UpdatePartResult> {
+  const supabase = await createClient();
+  const auth = await requireInventoryWriter(supabase);
+  if (!auth.ok) return auth;
+
+  const { data: part, error: readError } = await supabase
+    .from(TABLES.parts)
+    .select("*")
+    .eq("id", input.partId)
+    .maybeSingle();
+  if (readError) return { ok: false, error: readError.message };
+  if (!part) return { ok: false, error: "That part no longer exists." };
+
+  const built = buildPartEdit(part, input);
+  if (!built.ok) return built;
+  const { patch, changes } = built.result;
+  if (changes.length === 0) return { ok: false, error: "Nothing changed." };
+
+  // `.select()` so a write that matched NO rows is caught. PostgREST answers a
+  // blocked UPDATE with 200 and an empty body rather than an error, so without
+  // this an RLS denial reports success and the client watches their correction
+  // vanish on the next refresh — the exact silent-no-op class migration 0019's
+  // audit went after elsewhere in this codebase.
+  const { data: updated, error: updateError } = await supabase
+    .from(TABLES.parts)
+    .update(patch)
+    .eq("id", input.partId)
+    .select("id");
+  if (updateError) return { ok: false, error: updateError.message };
+  if (!updated || updated.length === 0) {
+    return { ok: false, error: "The save did not go through — you may not have permission to edit inventory." };
+  }
+
+  const { error: eventError } = await supabase.from(TABLES.part_events).insert({
+    part_id: input.partId,
+    event_type: "note",
+    actor: auth.userId,
+    reason: `Edited — ${changes.join("; ")}`,
+    occurred_at: new Date().toISOString(),
+  });
+  // The part is already corrected; failing the whole action because the
+  // timeline entry didn't write would tell the client their edit was lost.
+  if (eventError) console.error("[part-edit] note event failed:", eventError.message);
+
+  revalidatePath("/inventory");
+  revalidatePath(`/part/${part.internal_pid}`);
+  return { ok: true, changed: changes.length };
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
