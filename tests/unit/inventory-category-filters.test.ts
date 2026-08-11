@@ -127,14 +127,16 @@ describe("category-scoped facets appear only for their categories", () => {
 
 describe("range filters use the spec's unit maths", () => {
   test("resistance in kΩ matches the base-unit Ohms column", () => {
-    // 252 of the 450 resistors carry a parsed Resistance_Ohms; 55 sit in 1k–10k.
-    expect(findGroup({ Category: ["Resistor"] }, "Resistance")?.rangeCount).toBe(252);
+    // 424 of the 425 resistors carry a parsed Resistance_Ohms; 94 sit in
+    // 1k–10k. (v1 parsed only 252 of 450 — the client's v2 pass filled the
+    // rest in, which is most of why that drop was worth re-importing.)
+    expect(findGroup({ Category: ["Resistor"] }, "Resistance")?.rangeCount).toBe(424);
 
     const inRange = countMatching({
       Category: ["Resistor"],
       Resistance: [encodeRange({ min: "1", max: "10", unitId: "kohm" })],
     });
-    expect(inRange).toBe(55);
+    expect(inRange).toBe(94);
   });
 
   test("the same bounds in Ω instead of kΩ mean something different", () => {
@@ -159,7 +161,7 @@ describe("range filters use the spec's unit maths", () => {
       Category: ["Capacitor"],
       Capacitance: [encodeRange({ min: "100", max: "100", unitId: "nF" })],
     });
-    expect(exact).toBe(3);
+    expect(exact).toBe(11);
   });
 
   test("every stored capacitance is findable by its own displayed value", () => {
@@ -204,15 +206,15 @@ describe("range filters use the spec's unit maths", () => {
   });
 
   test("parts with no value for the column are excluded, not passed through", () => {
-    // 198 of the 450 resistors have no parsed resistance. Letting them satisfy
-    // a bound would overstate the catalog to whoever is sourcing a part.
+    // One of the 425 resistors still has no parsed resistance. Letting it
+    // satisfy a bound would overstate the catalog to whoever is sourcing a part.
     const all = countMatching({ Category: ["Resistor"] });
     const bounded = countMatching({
       Category: ["Resistor"],
       Resistance: [encodeRange({ min: "0", max: "999999999", unitId: "ohm" })],
     });
-    expect(all).toBe(450);
-    expect(bounded).toBe(252);
+    expect(all).toBe(425);
+    expect(bounded).toBe(424);
   });
 
   test("quantity is a plain range with no unit dropdown", () => {
@@ -255,7 +257,7 @@ describe("the spec's per-category value filters", () => {
 
     const th = countMatching({ Category: ["Resistor"], Mount: ["TH"] });
     const smd = countMatching({ Category: ["Resistor"], Mount: ["SMD"] });
-    expect(th + smd).toBe(450);
+    expect(th + smd).toBe(425);
   });
 
   test("Group is the primary filter on the material list", () => {

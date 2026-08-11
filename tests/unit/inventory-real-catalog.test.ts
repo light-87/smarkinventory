@@ -61,13 +61,13 @@ describe("Inventory facets over the real catalog", () => {
   const groups = buildFacetGroups(catalog, "", {});
   const group = (name: string) => groups.find((g) => g.name === name);
 
-  test("Category offers all 28 imported categories, and the counts add up", () => {
+  test("Category offers all 30 imported categories, and the counts add up", () => {
     const category = group("Category");
-    expect(category?.values).toHaveLength(28);
-    expect(category!.values.reduce((sum, v) => sum + v.count, 0)).toBe(1999);
+    expect(category?.values).toHaveLength(30);
+    expect(category!.values.reduce((sum, v) => sum + v.count, 0)).toBe(2005);
 
     const resistor = category!.values.find((v) => v.value === "Resistor");
-    expect(resistor?.count).toBe(450);
+    expect(resistor?.count).toBe(425);
   });
 
   test("Distributor is populated from the part's own distributor, not order history", () => {
@@ -84,10 +84,10 @@ describe("Inventory facets over the real catalog", () => {
     expect(values.Digikey).toBe(59);
   });
 
-  test("Stock reads honestly — 1,855 in stock, the rest genuinely out", () => {
+  test("Stock reads honestly — 1,857 in stock, the rest genuinely out", () => {
     const stock = Object.fromEntries(group("Stock")!.values.map((v) => [v.value, v.count]));
-    expect(stock["In stock"]).toBe(1855);
-    expect(stock.Out).toBe(1999 - 1855);
+    expect(stock["In stock"]).toBe(1857);
+    expect(stock.Out).toBe(2005 - 1857);
   });
 
   test("Shelf stays hidden while the whole catalog sits in one staging box", () => {
@@ -103,16 +103,16 @@ describe("Inventory facets over the real catalog", () => {
     const values = packages.values.map((v) => v.value);
     const countOf = (v: string) => packages.values.find((x) => x.value === v)?.count;
 
-    // The sheet writes 0603 both as "0603 (1608 Metric)" (157 parts) and as
+    // The sheet writes 0603 both as "0603 (1608 Metric)" (183 parts) and as
     // "603" (13). Two checkboxes meant ticking the big one silently missed 13
-    // items, so they are one option carrying the full 170.
+    // items, so they are one option carrying the full 196.
     expect(values).toContain("0603");
     expect(values).not.toContain("0603 (1608 Metric)");
     expect(values).not.toContain("603");
-    expect(countOf("0603")).toBe(170);
+    expect(countOf("0603")).toBe(183 + 13);
 
-    expect(countOf("0805")).toBe(194 + 17);
-    expect(countOf("1206")).toBe(106 + 9);
+    expect(countOf("0805")).toBe(225 + 17);
+    expect(countOf("1206")).toBe(123 + 9);
 
     // SMA was split four ways by parenthetical restatements of the same case.
     expect(countOf("SMA")).toBe(4 + 2 + 5 + 1);
@@ -120,7 +120,7 @@ describe("Inventory facets over the real catalog", () => {
   });
 
   test("facet options are ranked by count, not alphabetically", () => {
-    // Alphabetical order buried "0805" (194 parts) beneath one-offs like
+    // Alphabetical order buried "0805" (242 parts) beneath one-offs like
     // "10.3x10.4x4mm". The first option should be the commonest.
     const counts = group("Package")!.values.map((v) => v.count);
     expect(counts).toEqual([...counts].sort((a, b) => b - a));

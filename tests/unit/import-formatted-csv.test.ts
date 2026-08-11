@@ -192,13 +192,18 @@ describe("parseFormattedCsvFile — mapping", () => {
 describe("the real client fixture", () => {
   const result = parseFormattedCsvFolder(FIXTURE_DIR);
 
-  test("imports 1,999 stock rows from 31 files", () => {
-    expect(result.fileSummary).toHaveLength(31);
-    expect(result.parts).toHaveLength(1999);
+  test("imports 2,005 stock rows from 33 files", () => {
+    // The client's v2 drop (2026-08-11) plus the four connector files carried
+    // over from v1. v2 deliberately omits connectors — Krunal Sir is reworking
+    // them for "proper differentiation" and will send them separately — so they
+    // are kept here at their v1 content rather than dropped from the catalog.
+    expect(result.fileSummary).toHaveLength(33);
+    expect(result.parts).toHaveLength(2005);
   });
 
   test("skips the manifest, the guide and stencils", () => {
     expect(result.skippedFiles.map((s) => s.file).sort()).toEqual([
+      "Filter_Specification.md",
       "Import_Guide.md",
       "category_index.csv",
       "stencils.csv",
@@ -208,23 +213,25 @@ describe("the real client fixture", () => {
   test("per-file counts match the client's own category_index.csv", () => {
     const counts = Object.fromEntries(result.fileSummary.map((f) => [f.file, f.rowCount]));
     expect(counts).toMatchObject({
-      "resistors.csv": 450,
-      "capacitors.csv": 275,
+      "resistors.csv": 425,
+      "resistor_networks.csv": 23,
+      "capacitors.csv": 277,
       "ic_smd.csv": 505,
       "connectors.csv": 176,
       "diodes.csv": 136,
-      "inductors.csv": 86,
+      "inductors.csv": 79,
+      "ferrites.csv": 7,
       "modules.csv": 54,
       "ffc_fpc_connectors.csv": 51,
       "ic_th.csv": 32,
       "misc_led.csv": 32,
       "misc_switch.csv": 30,
-      "material_list.csv": 28,
-      "misc_fuse.csv": 23,
+      "material_list.csv": 31,
+      "misc_fuse.csv": 24,
       "spring_terminal_blocks.csv": 21,
       "misc_crystal.csv": 17,
       "cable_assemblies.csv": 12,
-      "misc_thermistor_varistor.csv": 10,
+      "misc_thermistor_varistor.csv": 12,
       "smps.csv": 10,
       "dev_kits.csv": 8,
       "misc_transformer.csv": 8,
@@ -247,55 +254,55 @@ describe("the real client fixture", () => {
     for (const part of result.parts) {
       expect(allowed.has(part.category)).toBe(true);
     }
-    // 31 files collapse to 28 categories: ic_smd+ic_th → IC, misc_switch +
+    // 33 files collapse to 30 categories: ic_smd+ic_th → IC, misc_switch +
     // misc_rocker_switch → Switch, misc_lcd+misc_oled → Display.
-    expect(new Set(result.parts.map((p) => p.category)).size).toBe(28);
+    expect(new Set(result.parts.map((p) => p.category)).size).toBe(30);
   });
 
   test("data-quality flags match the counts reported to the client", () => {
     expect(summarizeDataFlags(result.parts)).toEqual({
-      no_identity: 484,
-      qty_unparsed: 17,
-      qty_missing: 50,
-      unidentifiable: 265,
+      no_identity: 482,
+      qty_unparsed: 18,
+      qty_missing: 53,
+      unidentifiable: 79,
     });
   });
 
-  test("1,855 rows carry a usable positive quantity", () => {
-    // 1,838 plain numbers plus the 17 text quantities, each of which still
-    // yields a leading count ("16 strip" → 16). 94 rows are a genuine 0 and
-    // 50 are blank.
-    expect(result.parts.filter((p) => (p.qty ?? 0) > 0)).toHaveLength(1855);
+  test("1,857 rows carry a usable positive quantity", () => {
+    // Plain numbers plus the 18 text quantities, each of which still yields a
+    // leading count ("16 strip" → 16). The remaining 148 are a genuine 0 or
+    // blank, and blank means unknown rather than zero.
+    expect(result.parts.filter((p) => (p.qty ?? 0) > 0)).toHaveLength(1857);
   });
 
   test("repeated MPNs are reported for a human call, not merged away", () => {
-    // 38 collisions, and only 22 of them sit inside a single file — the rest
-    // are the same part number typed into two different sheets. Exactly the
-    // case that makes MPN the wrong dedupe key for this import.
+    // 50 collisions across the merged catalog — the same part number typed
+    // into two different sheets, or onto two genuinely different rows. Exactly
+    // the case that makes MPN the wrong dedupe key for this import.
     const duplicates = collectDuplicateMpns(result.parts);
-    expect(duplicates).toHaveLength(38);
+    expect(duplicates).toHaveLength(50);
     // XY-128 is the archetype: the same part number on the 2-pin and the
     // 3-pin green connector. Merging them would lose a real distinction.
     const xy128 = duplicates.find((d) => d.mpn === "XY-128");
     expect(xy128?.occurrences).toHaveLength(2);
   });
 
-  test("the provenance key is unique across all 1,999 rows", () => {
+  test("the provenance key is unique across all 2,005 rows", () => {
     // The import's idempotency rests entirely on this. Both simpler keys are
     // genuinely ambiguous in this drop, which is why all three parts are used:
-    //   sheet#row  — 64 collisions (side-by-side tables share row numbers)
+    //   sheet#row  — 65 collisions (side-by-side tables share row numbers)
     //   file|row   — 43 collisions (connectors.csv merges two sheets)
     const keys = result.parts.map((p) => provenanceKeyOf(p.source_file, p.source_sheet, p.source_row));
     expect(keys.filter((k) => k === null)).toHaveLength(0);
-    expect(new Set(keys).size).toBe(1999);
+    expect(new Set(keys).size).toBe(2005);
   });
 
   test("the two simpler keys really do collide — this is why the full key exists", () => {
     const sheetRow = result.parts.map((p) => `${p.source_sheet}#${p.source_row}`);
-    expect(new Set(sheetRow).size).toBe(1999 - 64);
+    expect(new Set(sheetRow).size).toBe(2005 - 65);
 
     const fileRow = result.parts.map((p) => `${p.source_file}|${p.source_row}`);
-    expect(new Set(fileRow).size).toBe(1999 - 43);
+    expect(new Set(fileRow).size).toBe(2005 - 43);
   });
 
   test("every row carries its source file for that key to be rebuildable from the DB", () => {
