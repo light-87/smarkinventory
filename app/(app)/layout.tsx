@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth/session";
 import { isOwner } from "@/lib/auth/roles";
@@ -58,8 +58,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     navBadges = { attendance: attendancePending > 0, ai_memory: rulesPending > 0 };
   }
 
+  // Rail width is a per-person preference, read server-side so the first paint
+  // is already the width they chose (components/shell/app-shell.tsx writes it).
+  const railCollapsed = (await cookies()).get("smark_rail")?.value === "collapsed";
+
   return (
-    <AppShell user={user} navBadges={navBadges}>
+    <AppShell user={user} navBadges={navBadges} defaultRailCollapsed={railCollapsed}>
       {children}
     </AppShell>
   );

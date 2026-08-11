@@ -10,6 +10,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { BomLineRow, BomRow, BomSourcingStatus, Database } from "@/types/db";
 import { TABLES, VIEWS } from "@/types/db";
 import { fetchExistingPartIdentities } from "@/lib/import/existing-parts";
+import { selectByIds } from "@/lib/supabase/select-all";
 import type { ReconcileCatalogPart } from "./reconcile";
 
 type DB = SupabaseClient<Database>;
@@ -139,9 +140,13 @@ export async function getShortfallByPartId(supabase: DB, partIds: readonly strin
   const map = new Map<string, number>();
   if (partIds.length === 0) return map;
 
-  const { data, error } = await supabase.from(VIEWS.part_demand).select("part_id, shortfall").in("part_id", partIds);
-  assertNoError(error, "v_part_demand");
-  for (const row of data ?? []) {
+  // Chunked: `.in()` rides in the query string, and a large BOM's part list is
+  // long enough to push the URL past what PostgREST accepts (it answers a bare
+  // 400). Same failure that took `/shelves` down on 2026-08-11.
+  const data = await selectByIds(partIds, (idChunk) =>
+    supabase.from(VIEWS.part_demand).select("part_id, shortfall").in("part_id", idChunk),
+  );
+  for (const row of data) {
     if (row.shortfall > 0) map.set(row.part_id, row.shortfall);
   }
   return map;
@@ -161,23 +166,23 @@ export async function getPrimaryLocationsByPartId(
   const map = new Map<string, PrimaryLocation>();
   if (partIds.length === 0) return map;
 
-  const { data: locations, error } = await supabase
-    .from(TABLES.stock_locations)
-    .select("part_id, big_box_id, qty")
-    .in("part_id", partIds);
-  assertNoError(error, "smark_stock_locations");
-  if (!locations || locations.length === 0) return map;
+  const locations = await selectByIds(partIds, (idChunk) =>
+    supabase.from(TABLES.stock_locations).select("part_id, big_box_id, qty").in("part_id", idChunk),
+  );
+  if (locations.length === 0) return map;
 
   const boxIds = Array.from(new Set(locations.map((l) => l.big_box_id)));
-  const { data: boxes, error: boxesError } = await supabase.from(TABLES.big_boxes).select("id, name, shelf_id").in("id", boxIds);
-  assertNoError(boxesError, "smark_big_boxes");
+  const boxes = await selectByIds(boxIds, (idChunk) =>
+    supabase.from(TABLES.big_boxes).select("id, name, shelf_id").in("id", idChunk),
+  );
 
-  const shelfIds = Array.from(new Set((boxes ?? []).map((b) => b.shelf_id)));
-  const { data: shelves, error: shelvesError } = await supabase.from(TABLES.shelves).select("id, code").in("id", shelfIds);
-  assertNoError(shelvesError, "smark_shelves");
+  const shelfIds = Array.from(new Set(boxes.map((b) => b.shelf_id)));
+  const shelves = await selectByIds(shelfIds, (idChunk) =>
+    supabase.from(TABLES.shelves).select("id, code").in("id", idChunk),
+  );
 
-  const boxById = new Map((boxes ?? []).map((b) => [b.id, b]));
-  const shelfById = new Map((shelves ?? []).map((s) => [s.id, s]));
+  const boxById = new Map(boxes.map((b) => [b.id, b]));
+  const shelfById = new Map(shelves.map((s) => [s.id, s]));
 
   const bestByPart = new Map<string, { qty: number; big_box_id: string }>();
   for (const loc of locations) {

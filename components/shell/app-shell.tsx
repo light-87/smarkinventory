@@ -24,14 +24,32 @@ export type NavBadges = Record<string, boolean>;
 export function AppShell({
   user,
   navBadges = {},
+  defaultRailCollapsed = false,
   children,
 }: {
   user: SessionUser;
   navBadges?: NavBadges;
+  /** Read from the `smark_rail` cookie in the layout — see `toggleRail`. */
+  defaultRailCollapsed?: boolean;
   children: ReactNode;
 }) {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
+  const [railCollapsed, setRailCollapsed] = useState(defaultRailCollapsed);
+
+  /**
+   * Persisted in a cookie rather than localStorage so the server renders the
+   * rail at the width the user last chose. localStorage is only readable after
+   * hydration, which would flash a 236px rail on every page load for someone
+   * who collapsed it — the opposite of the point.
+   */
+  function toggleRail() {
+    setRailCollapsed((previous) => {
+      const next = !previous;
+      document.cookie = `smark_rail=${next ? "collapsed" : "expanded"}; path=/; max-age=31536000; samesite=lax`;
+      return next;
+    });
+  }
   // On mobile, attendance + AI-memory live inside "More" — surface an aggregate
   // dot on the More tab so a pending approval is still visible there.
   const anyBadge = Object.values(navBadges).some(Boolean);
@@ -56,7 +74,14 @@ export function AppShell({
     <NavigationProgressProvider>
       <div className="flex h-dvh overflow-hidden bg-canvas-grid">
         <TopProgressBar />
-        <Rail role={user.role} pathname={pathname} grantedModules={user.grantedModules} navBadges={navBadges} />
+        <Rail
+          role={user.role}
+          pathname={pathname}
+          grantedModules={user.grantedModules}
+          navBadges={navBadges}
+          collapsed={railCollapsed}
+          onToggle={toggleRail}
+        />
         <div className="flex min-w-0 flex-1 flex-col">
           <Header user={user} pathname={pathname} />
           {/* id targeted by the scroll-lock effect every modal/drawer/sheet

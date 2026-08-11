@@ -16,6 +16,9 @@ interface DraftState {
   bank_name: string;
 }
 
+/** Mirrors `OnboardingFormSchema`'s IFSC rule (lib/onboarding/helpers.ts). */
+const IFSC_PATTERN = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+
 const EMPTY_DRAFT: DraftState = {
   birth_date: "",
   date_of_joining: "",
@@ -47,6 +50,11 @@ export function OnboardingForm() {
     if (!draft.bank_account_name.trim()) return push({ msg: "Account holder name is required" });
     if (!draft.bank_account_number.trim()) return push({ msg: "Account number is required" });
     if (!draft.bank_ifsc.trim()) return push({ msg: "IFSC code is required" });
+    // Checked here as well as server-side so the correction lands next to the
+    // field instantly, rather than after a round trip.
+    if (!IFSC_PATTERN.test(draft.bank_ifsc.trim().toUpperCase())) {
+      return push({ msg: "IFSC is 11 characters — 4 letters, then 0, then 6 more (e.g. HDFC0001234)" });
+    }
     if (!draft.bank_name.trim()) return push({ msg: "Bank name is required" });
 
     startTransition(async () => {

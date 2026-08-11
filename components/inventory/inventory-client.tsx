@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Drawer, DrawerCloseButton, DrawerHeader } from "@/components/ui/drawer";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -16,12 +17,33 @@ export interface InventoryClientProps {
   /** `?pid=` from the URL — non-null opens the drawer (tab-inventory.md §2, tab-part-detail.md). */
   drawerPid: string | null;
   drawerResult: PartDetailResult | null;
+  /** Read from the `smark_facets` cookie in the page. */
+  defaultFiltersCollapsed?: boolean;
 }
 
-export function InventoryClient({ listResult, drawerPid, drawerResult }: InventoryClientProps) {
+export function InventoryClient({
+  listResult,
+  drawerPid,
+  drawerResult,
+  defaultFiltersCollapsed = false,
+}: InventoryClientProps) {
   const router = useRouter();
   const parts = listResult.ok ? listResult.parts : [];
   const filters = useInventoryFilters(parts);
+  const [filtersCollapsed, setFiltersCollapsed] = useState(defaultFiltersCollapsed);
+
+  /**
+   * The filter panel is another 250px of a 1280px laptop. On a screen that
+   * narrow the client was seeing the grid cut off mid-column, so both side
+   * panels now fold away and the table takes the space back.
+   */
+  function toggleFilters() {
+    setFiltersCollapsed((previous) => {
+      const next = !previous;
+      document.cookie = `smark_facets=${next ? "collapsed" : "expanded"}; path=/; max-age=31536000; samesite=lax`;
+      return next;
+    });
+  }
 
   const closeDrawer = () => router.push("/inventory");
 
@@ -55,6 +77,8 @@ export function InventoryClient({ listResult, drawerPid, drawerResult }: Invento
         onSetRange={filters.setRange}
         onClearAll={filters.clearAll}
         hasFilters={filters.hasFilters}
+        collapsed={filtersCollapsed}
+        onToggleCollapsed={toggleFilters}
       />
       <div className="flex min-w-0 flex-1 flex-col">
         <InventoryToolbar

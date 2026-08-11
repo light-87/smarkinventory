@@ -79,7 +79,15 @@ export function OnboardingQueue({ rows, boxes }: OnboardingQueueProps) {
         esdNote: esdNote || undefined,
       });
       if (result.ok) {
-        push({ msg: `${result.internalPid} assigned${result.labelQueued ? " — label queued" : ""}` });
+        // "Assign & print" queues the label; the sheet is rendered from the
+        // Print queue card above. Saying so avoids the client's reasonable
+        // reading of the button — that something should now be coming out of a
+        // printer (report, 2026-08-11: "does not give any output for printing").
+        push({
+          msg: result.labelQueued
+            ? `${result.internalPid} assigned — label added to the print queue above`
+            : `${result.internalPid} assigned`,
+        });
         setDone((prev) => new Set(prev).add(partId));
         setOpenRowId(null);
       } else {

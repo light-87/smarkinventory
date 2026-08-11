@@ -18,6 +18,22 @@ export interface FacetSidebarProps {
   onSetRange: (group: FacetGroupName, range: RangeSelection | null) => void;
   onClearAll: () => void;
   hasFilters: boolean;
+  /** Folded to a 44px strip so the grid gets the width back. */
+  collapsed?: boolean;
+  onToggleCollapsed?: () => void;
+}
+
+function FunnelIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" className="size-[18px]" aria-hidden>
+      <path
+        d="M3.5 4.5h13l-5 5.6v4.6l-3 1.8v-6.4l-5-5.6z"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
 }
 
 /** How many options a group shows before collapsing the rest behind "show all". */
@@ -69,20 +85,72 @@ export function FacetSidebar({
   onSetRange,
   onClearAll,
   hasFilters,
+  collapsed = false,
+  onToggleCollapsed,
 }: FacetSidebarProps) {
+  if (collapsed) {
+    return (
+      <aside className="hidden w-[44px] flex-none flex-col items-center border-r border-charcoal py-4 lg:flex">
+        <button
+          type="button"
+          onClick={onToggleCollapsed}
+          aria-label="Show filters"
+          aria-expanded={false}
+          title="Show filters"
+          className="relative grid size-[30px] cursor-pointer place-items-center rounded-lg text-smoke transition-colors hover:bg-surface-raised hover:text-snow"
+        >
+          <FunnelIcon />
+          {/* A folded panel must still admit that filters are in force, or the
+              row count looks wrong for no visible reason. */}
+          {hasFilters && (
+            <span className="absolute -top-0.5 -right-0.5 size-2 rounded-full border border-surface bg-smark-orange" />
+          )}
+        </button>
+        <span
+          className="mt-3 text-[12px] tracking-[0.1em] text-smoke uppercase"
+          style={{ writingMode: "vertical-rl" }}
+        >
+          Filters
+        </span>
+      </aside>
+    );
+  }
+
   return (
     <aside className="hidden w-[250px] flex-none overflow-y-auto border-r border-charcoal px-3.5 py-4 lg:block">
-      <div className="mb-1.5 flex items-center justify-between px-1">
+      <div className="mb-1.5 flex items-center justify-between gap-2 px-1">
         <span className="text-[13px] tracking-[0.08em] text-smoke uppercase">Filters</span>
-        {hasFilters && (
-          <button
-            type="button"
-            onClick={onClearAll}
-            className="cursor-pointer text-xs text-smark-orange hover:underline"
-          >
-            Clear all
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {hasFilters && (
+            <button
+              type="button"
+              onClick={onClearAll}
+              className="cursor-pointer text-xs text-smark-orange hover:underline"
+            >
+              Clear all
+            </button>
+          )}
+          {onToggleCollapsed && (
+            <button
+              type="button"
+              onClick={onToggleCollapsed}
+              aria-label="Hide filters"
+              aria-expanded
+              title="Hide filters"
+              className="grid size-[24px] cursor-pointer place-items-center rounded-md text-smoke transition-colors hover:bg-surface-raised hover:text-snow"
+            >
+              <svg viewBox="0 0 20 20" fill="none" className="size-[16px]" aria-hidden>
+                <path
+                  d="M12 5.5L7.5 10l4.5 4.5"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
       {groups.map((group) => (
         <FacetGroup

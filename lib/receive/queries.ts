@@ -11,7 +11,7 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { CartDescriptor, Database, PartRow } from "@/types/db";
+import type { CartDescriptor, Database } from "@/types/db";
 import { TABLES } from "@/types/db";
 import { selectAllRows } from "@/lib/supabase/select-all";
 import type { MatchCatalogEntry } from "@/lib/matcher";
@@ -169,8 +169,31 @@ export async function getQueuedLabelCount(supabase: DB): Promise<number> {
  * Onboarding queue — imported parts with no location yet, or flagged [R2-31]
  * ──────────────────────────────────────────────────────────────────────────── */
 
+/**
+ * The columns the onboarding queue actually reads.
+ *
+ * It used to carry a whole `PartRow` — every column including the `attributes`
+ * JSON — for all ~1,750 imported parts, which made `/receive` a 1.25 MB
+ * server-rendered payload to draw six fields per row (client report,
+ * 2026-08-11: "takes too long to load anything"). The screen shows an MPN, a
+ * value, a package and a quantity; nothing else needs to cross the wire.
+ */
+export interface OnboardingPart {
+  id: string;
+  internal_pid: string;
+  mpn: string | null;
+  value: string | null;
+  package: string | null;
+  category: string | null;
+  total_qty: number;
+  needs_review: boolean;
+}
+
+/** Columns for `OnboardingPart`, as a PostgREST select list. */
+const ONBOARDING_PART_COLUMNS = "id, internal_pid, mpn, value, package, category, total_qty, needs_review";
+
 export interface OnboardingRow {
-  part: PartRow;
+  part: OnboardingPart;
   suggestion: BoxOption | null;
   /**
    * Part's stock sits in the import staging box (shelf U / `U-IMPORT`) and still
@@ -200,7 +223,7 @@ export interface PartLocationRef {
  * the assign form for every row) was invisible to every test we had.
  */
 export function classifyOnboardingRows(
-  parts: readonly PartRow[],
+  parts: readonly OnboardingPart[],
   locatedRows: readonly PartLocationRef[],
   boxes: readonly BoxOption[],
 ): OnboardingRow[] {
@@ -249,8 +272,13 @@ export async function getOnboardingQueue(supabase: DB, boxes: readonly BoxOption
   // catalog (~2000 rows, every one `needs_review`). `.limit(5000)` did not
   // help — PostgREST's `max_rows` clamps it, so half the queue just vanished.
   const [parts, locatedRows] = await Promise.all([
-    selectAllRows((from, to) =>
-      supabase.from(TABLES.parts).select("*").order("created_at", { ascending: true }).order("id").range(from, to),
+    selectAllRows<OnboardingPart>((from, to) =>
+      supabase
+        .from(TABLES.parts)
+        .select(ONBOARDING_PART_COLUMNS)
+        .order("created_at", { ascending: true })
+        .order("id")
+        .range(from, to),
     ),
     selectAllRows((from, to) =>
       supabase.from(TABLES.stock_locations).select("part_id, big_box_id").order("id").range(from, to),

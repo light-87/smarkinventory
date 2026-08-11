@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Chip, type ChipTone } from "@/components/ui/chip";
 import { TableBody, TableHead, TableShell, Td, Th, Tr } from "@/components/ui/table";
@@ -47,27 +47,76 @@ export interface InventoryTableProps {
  * to IC swaps Value/V for the columns `ic_smd.csv` actually has; filtering to
  * Resistor brings in resistance, tolerance and power.
  */
+/**
+ * Rows put into the DOM before the reader has scrolled anywhere.
+ *
+ * The unfiltered catalog is 1,745 parts and every row is ~10 cells, so
+ * rendering the lot is ~17,000 elements built on the main thread before the
+ * page can respond — the client's "takes too long to load anything"
+ * (2026-08-11). Nothing below the fold is worth that: the rest is appended as
+ * it is scrolled towards, which is invisible in use and takes first paint back
+ * to a fixed, small cost no matter how big the catalog grows.
+ */
+const INITIAL_ROWS = 60;
+const ROWS_PER_STEP = 120;
+
 export function InventoryTable({ parts, selectedCategories }: InventoryTableProps) {
   const router = useRouter();
   const columns = useMemo(() => visibleColumns(parts, selectedCategories), [parts, selectedCategories]);
   const minWidth = useMemo(() => minWidthFor(columns), [columns]);
 
+  const [renderCount, setRenderCount] = useState(INITIAL_ROWS);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+
+  // A new filter or search term is a new list — start from the top again,
+  // otherwise narrowing to 3 parts would still be carrying a 900-row window.
+  // Adjusted during render rather than in an effect (the React-recommended
+  // shape for "reset state when a prop changes"): an effect would paint the
+  // long window once and then immediately re-render.
+  const [renderedFor, setRenderedFor] = useState(parts);
+  if (renderedFor !== parts) {
+    setRenderedFor(parts);
+    setRenderCount(INITIAL_ROWS);
+  }
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel || renderCount >= parts.length) return;
+
+    // rootMargin so the next slice is already in place by the time it would
+    // have been reached — the growth is never seen as a pause.
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setRenderCount((current) => Math.min(current + ROWS_PER_STEP, parts.length));
+        }
+      },
+      { rootMargin: "800px" },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [renderCount, parts.length]);
+
+  const visibleParts = renderCount >= parts.length ? parts : parts.slice(0, renderCount);
+
   return (
+    <>
     <TableShell minWidth={minWidth}>
       <TableHead>
         <Tr>
-          {columns.map((column) => (
-            <Th key={column.id} align={column.align}>
+          {columns.map((column, index) => (
+            <Th key={column.id} align={column.align} className={index === 0 ? STICKY_HEAD_CLASS : undefined}>
               {column.label}
             </Th>
           ))}
         </Tr>
       </TableHead>
       <TableBody>
-        {parts.map((part) => (
+        {visibleParts.map((part) => (
           <Tr
             key={part.id}
             interactive
+            className="group"
             onClick={() => router.push(`/inventory?pid=${encodeURIComponent(part.internal_pid)}`)}
           >
             {columns.map((column) => (
@@ -77,14 +126,37 @@ export function InventoryTable({ parts, selectedCategories }: InventoryTableProp
         ))}
       </TableBody>
     </TableShell>
+    {/* Outside the horizontal scroller, so it stays put while the grid scrolls. */}
+    <div ref={sentinelRef} aria-hidden className="h-px" />
+    {renderCount < parts.length && (
+      <div className="px-3.5 py-3 text-caption text-smoke" role="status">
+        Showing {formatNumber(renderCount)} of {formatNumber(parts.length)} — keep scrolling for more
+      </div>
+    )}
+    </>
   );
 }
+
+/**
+ * The first column stays put while the rest scrolls sideways.
+ *
+ * The grid is wider than a laptop (client report, 2026-08-11: "Many things are
+ * clipped on a smaller desktop or laptop"), so reading a package or a quantity
+ * means scrolling right — and without this, the PID that says WHICH part you
+ * are reading scrolls away first. `z-[3]` puts the header's own corner cell
+ * above the sticky body cells and the sticky header row (`z-[2]`) both.
+ *
+ * The background is repeated on the cell because a sticky cell paints over the
+ * columns passing underneath it: transparent would let them show through.
+ */
+const STICKY_HEAD_CLASS = "sticky left-0 z-[3] bg-canvas";
+const STICKY_CELL_CLASS = "sticky left-0 z-[1] bg-surface group-hover:bg-ash";
 
 function Cell({ column, part }: { column: InventoryColumn; part: InventoryPart }) {
   switch (column.render) {
     case "pid":
       return (
-        <Td mono className={cn("border-l-2", TICK_CLASS[part.stockState])}>
+        <Td mono className={cn("border-l-2", TICK_CLASS[part.stockState], STICKY_CELL_CLASS)}>
           {part.internal_pid}
         </Td>
       );

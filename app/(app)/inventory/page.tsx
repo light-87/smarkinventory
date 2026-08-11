@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { InventoryClient } from "@/components/inventory/inventory-client";
 import { getInventoryList } from "@/lib/inventory/query";
 import { getPartDetailData } from "@/lib/part-events/query";
@@ -32,6 +33,16 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
 
   const listResult = await getInventoryList();
   const drawerResult = pid ? await getPartDetailData(pid) : null;
+  // Same trick as the nav rail's `smark_rail` cookie: remembered server-side so
+  // the first paint is the width the user last chose, with no collapse flash.
+  const filtersCollapsed = (await cookies()).get("smark_facets")?.value === "collapsed";
 
-  return <InventoryClient listResult={listResult} drawerPid={pid ?? null} drawerResult={drawerResult} />;
+  return (
+    <InventoryClient
+      listResult={listResult}
+      drawerPid={pid ?? null}
+      drawerResult={drawerResult}
+      defaultFiltersCollapsed={filtersCollapsed}
+    />
+  );
 }

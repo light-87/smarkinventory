@@ -38,5 +38,10 @@ export async function POST() {
     return NextResponse.json({ error: result.error }, { status: 400 });
   }
 
-  return NextResponse.json({ url: result.url, count: result.count, batchId: result.batchId });
+  return NextResponse.json({
+    url: result.url,
+    count: result.count,
+    remaining: result.remaining,
+    batchId: result.batchId,
+  });
 }

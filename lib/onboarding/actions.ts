@@ -34,7 +34,18 @@ export interface OnboardingResult {
 }
 
 export async function completeOnboardingAction(input: OnboardingFormInput): Promise<OnboardingResult> {
-  const parsed = OnboardingFormSchema.parse(input);
+  // safeParse, NOT parse. A thrown ZodError inside a Server Action is not a
+  // form error — it escapes to the nearest error boundary and replaces the
+  // whole screen with "Something went wrong", with the real message hidden
+  // behind a digest. That is what a mistyped IFSC did to the client on
+  // 2026-08-11: the first screen a new employee ever sees, dead, on the first
+  // thing they type. A validation failure has to come back as a sentence next
+  // to the field.
+  const result = OnboardingFormSchema.safeParse(input);
+  if (!result.success) {
+    return { ok: false, error: result.error.issues[0]?.message ?? "Please check the details you entered." };
+  }
+  const parsed = result.data;
 
   const supabase = await createClient();
   const {

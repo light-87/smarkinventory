@@ -24,6 +24,54 @@
 /** PostgREST's own default page size, and the cap we page around. */
 export const SELECT_PAGE_SIZE = 1000;
 
+/**
+ * How many ids to put in one `.in("id", […])` filter.
+ *
+ * `.in()` is serialised into the query STRING, so a long id list becomes a long
+ * URL and PostgREST answers `400 Bad Request` — no hint that length was the
+ * problem. `/shelves` did exactly that the day the real catalog landed: it
+ * collected the part id behind every stock location (~1,750 uuids, a ~65 KB
+ * URL) and the whole page died on an error boundary.
+ *
+ * 200 uuids is roughly a 7.5 KB query string — comfortably inside every proxy
+ * default, and few enough round trips to not matter.
+ */
+export const IN_FILTER_CHUNK = 200;
+
+/** Splits `items` into consecutive runs of at most `size`. */
+export function chunk<T>(items: readonly T[], size: number = IN_FILTER_CHUNK): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+}
+
+/**
+ * Runs `page(idChunk)` once per chunk of `ids` and concatenates the rows, so a
+ * lookup by id list is safe no matter how long the list is.
+ *
+ * Each chunk is capped at {@link IN_FILTER_CHUNK} ids — under PostgREST's
+ * 1000-row response cap too, so one chunk can never come back truncated.
+ *
+ * @example
+ * const parts = await selectByIds(partIds, (chunkIds) =>
+ *   supabase.from(TABLES.parts).select("id, internal_pid").in("id", chunkIds),
+ * );
+ */
+export async function selectByIds<T>(
+  ids: readonly string[],
+  page: (idChunk: string[]) => PromiseLike<PageResult<T>>,
+): Promise<T[]> {
+  if (ids.length === 0) return [];
+
+  const all: T[] = [];
+  for (const idChunk of chunk(ids)) {
+    const { data, error } = await page(idChunk);
+    if (error) throw new Error(error.message);
+    all.push(...(data ?? []));
+  }
+  return all;
+}
+
 interface PageResult<T> {
   data: T[] | null;
   error: { message: string } | null;
