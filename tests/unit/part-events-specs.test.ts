@@ -53,7 +53,11 @@ describe("buildPartSpecs", () => {
       makePart({ attributes: { dielectric: "X7R", tolerance: "10%" } as PartAttributes }),
     );
     const labels = specs.map((s) => s.label);
+    // Populated fields first in declared order, then the long-tail attributes,
+    // then blank placeholders for the core fields this part has no value for
+    // (2026-08-11 — see ALWAYS_SHOWN), and the money rows last.
     expect(labels).toEqual([
+      "MPN",
       "Value",
       "Voltage",
       "Package",
@@ -62,6 +66,10 @@ describe("buildPartSpecs", () => {
       "LCSC PN",
       "Dielectric",
       "Tolerance",
+      "Description",
+      "Sub-category",
+      "Distributor",
+      "Mount type",
       "Last price",
       "Stock value",
     ]);
@@ -71,12 +79,15 @@ describe("buildPartSpecs", () => {
     expect(specs.find((s) => s.label === "Stock value")!.value).toContain("3,000.00");
   });
 
-  test("skips null/empty fields entirely rather than showing a blank row", () => {
+  test("core fields render as a blank row when unset, so the gap is visible", () => {
+    // Reversed on 2026-08-11. This used to assert the opposite, and hiding the
+    // gaps was wrong for the job the client is actually doing: "Empty fields
+    // are just not shown at all on part page… this way I am unable to add
+    // details that are not already in it."
     const specs = buildPartSpecs(makePart({ voltage: null, manufacturer: null, lcsc_pn: "" }));
-    const labels = specs.map((s) => s.label);
-    expect(labels).not.toContain("Voltage");
-    expect(labels).not.toContain("Manufacturer");
-    expect(labels).not.toContain("LCSC PN");
+    for (const label of ["Voltage", "Manufacturer", "LCSC PN"]) {
+      expect(specs.find((s) => s.label === label)?.value).toBe("—");
+    }
   });
 
   test("an unpriced part gets honest fallback text, not a blank/zero", () => {

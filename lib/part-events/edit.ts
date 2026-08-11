@@ -19,6 +19,7 @@
  *     `updated_at` and the logged note only move when something really changed.
  */
 
+import { joinDistributor, splitDistributor, type DistributorSelection } from "./distributor";
 import type { PartAttributes, PartRow, PartStatus } from "@/types/db";
 
 /** Columns on `smark_parts` this form can write, with their display labels. */
@@ -50,6 +51,8 @@ export type EditableAttributeField = (typeof EDITABLE_ATTRIBUTE_FIELDS)[number][
 
 export const PART_STATUSES: readonly PartStatus[] = ["active", "nrnd", "eol"];
 
+export { splitDistributor };
+
 export interface PartEditInput {
   partId: string;
   fields: Partial<Record<EditableTextField, string>>;
@@ -57,6 +60,8 @@ export interface PartEditInput {
   /** Blank clears the per-part threshold and falls back to the global default. */
   reorderPoint: string;
   status: PartStatus;
+  /** Dropdown + free text; see ./distributor for why it is a closed list with an escape hatch. */
+  distributor: DistributorSelection;
 }
 
 export interface PartEditPatch {
@@ -130,6 +135,13 @@ export function buildPartEdit(part: PartRow, input: PartEditInput): PartEditVali
   if (nextReorder !== (part.reorder_point ?? null)) {
     patch.reorder_point = nextReorder;
     changes.push(describe("Reorder point", part.reorder_point, nextReorder));
+  }
+
+  const nextDistributor = joinDistributor(input.distributor);
+  const currentDistributor = part.default_distributor ?? null;
+  if (nextDistributor !== currentDistributor) {
+    patch.default_distributor = nextDistributor;
+    changes.push(describe("Distributor", currentDistributor, nextDistributor));
   }
 
   if (!PART_STATUSES.includes(input.status)) {

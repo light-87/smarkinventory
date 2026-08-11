@@ -9,9 +9,15 @@ import {
   EDITABLE_ATTRIBUTE_FIELDS,
   EDITABLE_TEXT_FIELDS,
   PART_STATUSES,
+  splitDistributor,
   type EditableAttributeField,
   type EditableTextField,
 } from "@/lib/part-events/edit";
+import {
+  DISTRIBUTOR_CHOICES,
+  DISTRIBUTOR_OTHER,
+  type DistributorChoice,
+} from "@/lib/part-events/distributor";
 import { PART_CATEGORIES, type PartAttributes, type PartRow, type PartStatus } from "@/types/db";
 
 export interface EditPartDialogProps {
@@ -48,6 +54,8 @@ export function EditPartDialog({ open, onClose, part, onSaved }: EditPartDialogP
   const [attributes, setAttributes] = useState<Record<string, string>>({});
   const [reorderPoint, setReorderPoint] = useState("");
   const [status, setStatus] = useState<PartStatus>(part.part_status);
+  const [distributor, setDistributor] = useState<DistributorChoice>("");
+  const [distributorOther, setDistributorOther] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -61,6 +69,9 @@ export function EditPartDialog({ open, onClose, part, onSaved }: EditPartDialogP
       setAttributes(Object.fromEntries(EDITABLE_ATTRIBUTE_FIELDS.map((f) => [f.key, attributeOf(part, f.key)])));
       setReorderPoint(part.reorder_point === null ? "" : String(part.reorder_point));
       setStatus(part.part_status);
+      const d = splitDistributor(part.default_distributor);
+      setDistributor(d.choice);
+      setDistributorOther(d.other);
       setError(null);
     }
   }
@@ -75,6 +86,7 @@ export function EditPartDialog({ open, onClose, part, onSaved }: EditPartDialogP
         attributes: attributes as Partial<Record<EditableAttributeField, string>>,
         reorderPoint,
         status,
+        distributor: { choice: distributor, other: distributorOther },
       });
       if (result.ok) onSaved(result);
       else setError(result.error);
@@ -122,6 +134,37 @@ export function EditPartDialog({ open, onClose, part, onSaved }: EditPartDialogP
                 />
               </Field>
             ))}
+
+            {/* Where the part was sourced. A closed list with an "Other" escape
+                hatch — see lib/part-events/distributor.ts for why. */}
+            <Field label="Distributor">
+              <select
+                value={distributor}
+                onChange={(e) => setDistributor(e.target.value as DistributorChoice)}
+                className="h-10 w-full rounded-lg border border-charcoal bg-surface-well px-3.5 text-sm text-snow outline-none focus:border-smark-orange"
+              >
+                <option value="">— none —</option>
+                {DISTRIBUTOR_CHOICES.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+                <option value={DISTRIBUTOR_OTHER}>{DISTRIBUTOR_OTHER}</option>
+              </select>
+            </Field>
+
+            {distributor === DISTRIBUTOR_OTHER ? (
+              <Field label="Distributor name" hint="Typed in because it is not one of the five above.">
+                <Input
+                  value={distributorOther}
+                  onChange={(e) => setDistributorOther(e.target.value)}
+                  placeholder="e.g. RS, Arrow, Robu"
+                  autoFocus
+                />
+              </Field>
+            ) : (
+              <div aria-hidden />
+            )}
 
             <Field label="Reorder point" hint="Blank uses the global low-stock default.">
               <Input

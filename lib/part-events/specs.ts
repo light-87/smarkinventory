@@ -72,6 +72,21 @@ export function computeStockValue(part: PartRow): number | null {
   return Math.round(part.total_qty * part.last_unit_price * 100) / 100;
 }
 
+/**
+ * Fields the grid always renders, blank or not.
+ *
+ * Client report, 2026-08-11: "Empty fields are just not shown at all on part
+ * page… this way I am unable to add details that are not already in it." A grid
+ * that hides what is missing is exactly backwards during a verification pass:
+ * the gaps are the thing he is looking for. These render "—" when unset, which
+ * both shows the gap and tells him the field is available to fill in.
+ *
+ * Only this core set is forced. The long tail of per-category attributes still
+ * appears only when populated, or a resistor would carry a dozen blank rows for
+ * columns its source file has never heard of.
+ */
+const ALWAYS_SHOWN = ["MPN", "Description", "Value", "Voltage", "Package", "Category", "Sub-category", "Manufacturer", "Distributor", "LCSC PN", "Mount type"] as const;
+
 export function buildPartSpecs(part: PartRow): SpecEntry[] {
   const specs: SpecEntry[] = [];
   const push = (label: string, value: unknown) => {
@@ -84,9 +99,14 @@ export function buildPartSpecs(part: PartRow): SpecEntry[] {
   // For much of the real catalog (ICs, fuses, displays) the description is the
   // only human-readable handle on the part, so it leads the grid rather than
   // being left off it as it was while the demo catalog set the shape here.
+  push("MPN", part.mpn);
   push("Description", part.description);
   push("Value", part.value);
   push("Voltage", part.voltage);
+  // Where the part was sourced from — "it gives us idea from where we sourced
+  // that item". Read off the part itself rather than order history, which is
+  // empty for the whole imported catalog.
+  push("Distributor", part.default_distributor);
   push("Package", part.package);
   push("Category", part.category);
   push("Manufacturer", part.manufacturer);
@@ -97,9 +117,19 @@ export function buildPartSpecs(part: PartRow): SpecEntry[] {
     push(attributeLabel(key), value);
   }
 
-  push("Last price", part.last_unit_price != null ? formatINR(part.last_unit_price) : "Not yet priced");
-  const stockValue = computeStockValue(part);
-  push("Stock value", stockValue != null ? formatINR(stockValue) : "— (unpriced)");
+  // Anything in the core set that had no value follows as a blank row, in the
+  // declared order, so the gaps are visible and obviously fillable.
+  const present = new Set(specs.map((s) => s.label));
+  const blanks: SpecEntry[] = ALWAYS_SHOWN.filter((label) => !present.has(label)).map((label) => ({
+    label,
+    value: "—",
+  }));
 
-  return specs;
+  const stockValue = computeStockValue(part);
+  const money: SpecEntry[] = [
+    { label: "Last price", value: part.last_unit_price != null ? formatINR(part.last_unit_price) : "Not yet priced" },
+    { label: "Stock value", value: stockValue != null ? formatINR(stockValue) : "— (unpriced)" },
+  ];
+
+  return [...specs, ...blanks, ...money];
 }

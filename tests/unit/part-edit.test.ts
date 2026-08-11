@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { buildPartEdit, type PartEditInput } from "@/lib/part-events/edit";
+import { joinDistributor, splitDistributor } from "@/lib/part-events/distributor";
 import { buildPartSpecs } from "@/lib/part-events/specs";
 import type { PartAttributes, PartRow } from "@/types/db";
 
@@ -58,6 +59,7 @@ function inputFor(part: PartRow, overrides: Partial<PartEditInput> = {}): PartEd
     attributes: { sub_category: "", mount_type: String(part.attributes.mount_type ?? "") },
     reorderPoint: part.reorder_point === null ? "" : String(part.reorder_point),
     status: part.part_status,
+    distributor: splitDistributor(part.default_distributor),
     ...overrides,
   };
 }
@@ -165,6 +167,42 @@ describe("buildPartEdit", () => {
   });
 });
 
+describe("distributor", () => {
+  test("a known distributor opens on its own option, not Other", () => {
+    expect(splitDistributor("LCSC")).toEqual({ choice: "LCSC", other: "" });
+    // Case differences must not fall through to Other and create a duplicate.
+    expect(splitDistributor("digikey")).toEqual({ choice: "Digikey", other: "" });
+  });
+
+  test("an imported value outside the list opens as Other, preserved", () => {
+    // The sheet holds RS, Arrow, Robu, China and worse. None are rewritten.
+    expect(splitDistributor("RS")).toEqual({ choice: "Other", other: "RS" });
+    expect(joinDistributor({ choice: "Other", other: "RS" })).toBe("RS");
+  });
+
+  test("blank means not set, both ways", () => {
+    expect(splitDistributor(null)).toEqual({ choice: "", other: "" });
+    expect(joinDistributor({ choice: "", other: "" })).toBeNull();
+    // Choosing Other and typing nothing clears rather than storing "Other".
+    expect(joinDistributor({ choice: "Other", other: "  " })).toBeNull();
+  });
+
+  test("changing the distributor is patched and described", () => {
+    const part = makePart({ default_distributor: "RS" });
+    const built = buildPartEdit(part, inputFor(part, { distributor: { choice: "Mouser", other: "" } }));
+    expect(built.ok).toBe(true);
+    if (!built.ok) return;
+    expect(built.result.patch.default_distributor).toBe("Mouser");
+    expect(built.result.changes).toContain("Distributor: RS → Mouser");
+  });
+
+  test("reopening and saving an Other distributor untouched changes nothing", () => {
+    const part = makePart({ default_distributor: "Robu" });
+    const built = buildPartEdit(part, inputFor(part));
+    expect(built.ok && built.result.changes).toEqual([]);
+  });
+});
+
 describe("the Specifications grid hides internal fields", () => {
   const specs = buildPartSpecs(makePart());
   const labels = specs.map((s) => s.label);
@@ -189,5 +227,42 @@ describe("the Specifications grid hides internal fields", () => {
     expect(labels).toContain("Package");
     expect(labels).toContain("Mount type");
     expect(specs.find((s) => s.label === "Description")?.value).toBe("0.1uF/100nF");
+  });
+
+  test("distributor is on the part page", () => {
+    // "It should be visible on Part page. It gives us idea from where we
+    // sourced that item."
+    expect(specs.find((s) => s.label === "Distributor")?.value).toBe("LCSC");
+  });
+});
+
+describe("empty core fields still render, so gaps are visible", () => {
+  // "Empty fields are just not shown at all on part page… this way I am unable
+  // to add details that are not already in it."
+  const bare = buildPartSpecs(makePart({ mpn: null, manufacturer: null, voltage: null, default_distributor: null }));
+  const labels = bare.map((s) => s.label);
+
+  test("a part with no MPN, manufacturer, voltage or distributor still shows those rows", () => {
+    for (const label of ["MPN", "Manufacturer", "Voltage", "Distributor"]) {
+      expect(labels).toContain(label);
+      expect(bare.find((s) => s.label === label)?.value).toBe("—");
+    }
+  });
+
+  test("a populated field is not duplicated by its blank placeholder", () => {
+    const full = buildPartSpecs(makePart()).map((s) => s.label);
+    expect(full.filter((l) => l === "Description")).toHaveLength(1);
+    expect(full.filter((l) => l === "Distributor")).toHaveLength(1);
+  });
+
+  test("price rows stay last", () => {
+    expect(labels.slice(-2)).toEqual(["Last price", "Stock value"]);
+  });
+
+  test("the long tail of attributes is not forced when empty", () => {
+    // Only the core set gets a blank row; a resistor does not sprout a dozen
+    // empty IC columns.
+    expect(labels).not.toContain("Diode type");
+    expect(labels).not.toContain("Cost price (₹)");
   });
 });
