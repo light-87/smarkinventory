@@ -123,8 +123,13 @@ export interface FormattedCsvParseResult {
 
 export const FILE_CATEGORY: Record<string, string> = {
   "resistors.csv": "Resistor",
+  // Added in the client's v2 drop (2026-08-11): resistor arrays and ferrite
+  // beads were pulled out of resistors.csv and inductors.csv into files of
+  // their own, which is why those two shrank by 25 and 7 rows.
+  "resistor_networks.csv": "Resistor Network",
   "capacitors.csv": "Capacitor",
   "inductors.csv": "Inductor",
+  "ferrites.csv": "Ferrite Bead",
   "diodes.csv": "Diode",
   "ic_smd.csv": "IC",
   "ic_th.csv": "IC",
@@ -160,6 +165,7 @@ export const SKIPPED_FILES: Record<string, string> = {
   "category_index.csv": "manifest, not stock",
   "stencils.csv": "PCB project/version reference — no MPN, distributor or quantity (Import_Guide §3)",
   "Import_Guide.md": "documentation",
+  "Filter_Specification.md": "documentation (v2) — the per-category filter spec",
 };
 
 /**

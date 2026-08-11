@@ -1,10 +1,10 @@
 ﻿MPN,Description,Package,Distributor,LCSC_Part,Qty_In_Stock,Source_Sheet,Source_Row
 LED GREEN,,603,,,100,S6-MiscElec,59
-,,805,,,830,S6-MiscElec,60
-,,1206,,,85,S6-MiscElec,61
+LED GREEN,,805,,,830,S6-MiscElec,60
+LED GREEN,,1206,,,85,S6-MiscElec,61
 LED RED,,603,,,4373,S6-MiscElec,62
-Reel,,805,China,,3000,S6-MiscElec,63
-,,1206,,,1,S6-MiscElec,64
+LED RED,,805,China,,3000,S6-MiscElec,63
+LED RED,,1206,,,1,S6-MiscElec,64
 LED BLUE,,603,,,100,S6-MiscElec,65
 45-21UMC/404589E/TR8-T,White - SMD LED,,LCSC,C282154,5,S6-MiscElec,67
 42-21SURC/S530-A3/TR8,,1210,LCSC,C264571,500,S6-MiscElec,68

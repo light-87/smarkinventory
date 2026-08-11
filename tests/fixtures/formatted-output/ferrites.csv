@@ -1,0 +1,8 @@
+﻿MPN,Description,Current_Rating,Package_Size,Manufacturer,Distributor,LCSC_Part,Qty_In_Stock,Source_Sheet,Source_Row
+FERRITE BEAD,FERRITE BEAD,,,,,,,S5-Ind+Diode,92
+BLM21PG300SN1D,30Ω @ 100MHz 4A 14mΩ,4A,805,Murata Electronics,LCSC,C16903,21,S5-Ind+Diode,93
+MI0805K110R-10,11Ω @ 100MHz 1.5A 60mΩ,1.5A,805,,Element14,,30,S5-Ind+Diode,94
+MMZ2012R600AT000,60Ω @ 100MHz 1A 10mΩ,1A,805,,Arrow,,6,S5-Ind+Diode,95
+,600Ω 2A,2A,1206,,,,100,S5-Ind+Diode,96
+BL02RN2R1M2B,Radial Ferrite bead,,TH 2 pin,,Element14,,20,S5-Ind+Diode,97
+MPZ1608S601ATA00,600Ω @ 100MHz 150mΩ,,603,,LCSC,,4,S5-Ind+Diode,98
