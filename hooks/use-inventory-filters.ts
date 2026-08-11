@@ -6,9 +6,11 @@ import {
   buildFacetGroups,
   DEFAULT_OPEN_GROUPS,
   encodeFiltersToSearchParams,
+  encodeRange,
   filterInventoryParts,
   type FacetGroupName,
   type InventoryFilters,
+  type RangeSelection,
 } from "@/lib/inventory/filter";
 import type { InventoryPart } from "@/lib/inventory/types";
 
@@ -43,6 +45,16 @@ export function useInventoryFilters(parts: readonly InventoryPart[]) {
     });
   }
 
+  /** A range facet holds at most one encoded value; `null` clears it. */
+  function setRange(group: FacetGroupName, range: RangeSelection | null) {
+    setFilters((prev) => {
+      const next = { ...prev };
+      if (range) next[group] = [encodeRange(range)];
+      else delete next[group];
+      return next;
+    });
+  }
+
   function clearAll() {
     setFilters({});
     setSearch("");
@@ -66,6 +78,7 @@ export function useInventoryFilters(parts: readonly InventoryPart[]) {
     hasFilters: activeChips.length > 0 || search.trim().length > 0,
     exportHref,
     toggleValue,
+    setRange,
     clearAll,
     isGroupOpen,
     toggleGroupOpen,

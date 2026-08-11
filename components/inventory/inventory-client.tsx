@@ -52,6 +52,7 @@ export function InventoryClient({ listResult, drawerPid, drawerResult }: Invento
         isGroupOpen={filters.isGroupOpen}
         onToggleGroupOpen={filters.toggleGroupOpen}
         onToggleValue={filters.toggleValue}
+        onSetRange={filters.setRange}
         onClearAll={filters.clearAll}
         hasFilters={filters.hasFilters}
       />

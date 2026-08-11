@@ -7,6 +7,7 @@ import {
   type FacetGroupName,
   type FacetGroupViewModel,
   type FacetValueCount,
+  type RangeSelection,
 } from "@/lib/inventory/filter";
 
 export interface FacetSidebarProps {
@@ -14,6 +15,7 @@ export interface FacetSidebarProps {
   isGroupOpen: (group: FacetGroupName) => boolean;
   onToggleGroupOpen: (group: FacetGroupName) => void;
   onToggleValue: (group: FacetGroupName, value: string) => void;
+  onSetRange: (group: FacetGroupName, range: RangeSelection | null) => void;
   onClearAll: () => void;
   hasFilters: boolean;
 }
@@ -23,15 +25,6 @@ const VISIBLE_LIMIT = 8;
 
 /** Above this many options, the group gets its own search box. */
 const SEARCHABLE_FROM = 12;
-
-/**
- * Groups that always show every option. Category is how people actually enter
- * the catalog — you pick the kind of part first and narrow from there — so
- * hiding two thirds of it behind "Show 20 more" puts a click in front of the
- * one decision the sidebar exists to serve. It is also bounded and slow-moving
- * (28 values, one per category the importer maps), unlike Package's 315.
- */
-const UNCAPPED_GROUPS: ReadonlySet<FacetGroupName> = new Set<FacetGroupName>(["Category"]);
 
 /**
  * Desktop-only facet sidebar (tab-inventory.md §2: "Mobile: sidebar hidden —
@@ -55,6 +48,7 @@ export function FacetSidebar({
   isGroupOpen,
   onToggleGroupOpen,
   onToggleValue,
+  onSetRange,
   onClearAll,
   hasFilters,
 }: FacetSidebarProps) {
@@ -79,6 +73,7 @@ export function FacetSidebar({
           open={isGroupOpen(group.name)}
           onToggleOpen={() => onToggleGroupOpen(group.name)}
           onToggleValue={(value) => onToggleValue(group.name, value)}
+          onSetRange={(range) => onSetRange(group.name, range)}
         />
       ))}
     </aside>
@@ -90,14 +85,15 @@ interface FacetGroupProps {
   open: boolean;
   onToggleOpen: () => void;
   onToggleValue: (value: string) => void;
+  onSetRange: (range: RangeSelection | null) => void;
 }
 
-function FacetGroup({ group, open, onToggleOpen, onToggleValue }: FacetGroupProps) {
+function FacetGroup({ group, open, onToggleOpen, onToggleValue, onSetRange }: FacetGroupProps) {
   const [showAll, setShowAll] = useState(false);
   const [query, setQuery] = useState("");
 
   const searchable = group.values.length >= SEARCHABLE_FROM;
-  const capped = !UNCAPPED_GROUPS.has(group.name);
+  const capped = !group.uncapped;
 
   const visible = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -123,21 +119,25 @@ function FacetGroup({ group, open, onToggleOpen, onToggleValue }: FacetGroupProp
         aria-expanded={open}
         className="flex w-full cursor-pointer items-center justify-between px-1 py-2.5 text-left"
       >
-        <span className="text-[15px] text-snow">{group.name}</span>
+        <span className="text-[15px] text-snow">{group.label}</span>
         <span aria-hidden className={cn("text-[12px] text-faint transition-transform", open ? "rotate-90" : "rotate-0")}>
           ▶
         </span>
       </button>
 
-      {open && (
+      {open && group.hint && <p className="px-1.5 pb-1.5 text-[13px] leading-snug text-faint">{group.hint}</p>}
+
+      {open && group.kind === "range" && <RangeFilter group={group} onSetRange={onSetRange} />}
+
+      {open && group.kind === "multi" && (
         <div className="flex flex-col gap-px pb-2">
           {searchable && (
             <input
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder={`Search ${group.name.toLowerCase()}…`}
-              aria-label={`Search ${group.name} options`}
+              placeholder={`Search ${group.label.toLowerCase()}…`}
+              aria-label={`Search ${group.label} options`}
               className="mb-1 w-full rounded-lg border border-charcoal bg-transparent px-2 py-1.5 text-[14px] text-snow placeholder:text-faint focus:border-graphite focus:outline-none"
             />
           )}
@@ -168,6 +168,105 @@ function FacetGroup({ group, open, onToggleOpen, onToggleValue }: FacetGroupProp
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Min/Max boxes plus a unit dropdown, per `Import_Guide.md` §2: "Do not filter
+ * directly against these raw numbers in the UI — 0.0000001 is unreadable. Build
+ * the filter the way Digikey does." The typed numbers are multiplied by the
+ * chosen unit's factor at match time, so what the user sees is 4.7 kΩ while the
+ * column holds 4700.
+ *
+ * Bounds are applied on blur/Enter rather than per keystroke: re-filtering 1,999
+ * parts on every character typed into "0.0000001" is wasted work, and a
+ * half-typed bound ("1" on the way to "100") briefly shows the wrong rows.
+ */
+function RangeFilter({
+  group,
+  onSetRange,
+}: {
+  group: FacetGroupViewModel;
+  onSetRange: (range: RangeSelection | null) => void;
+}) {
+  const units = group.units;
+  const applied = group.range;
+  const [min, setMin] = useState(applied?.min ?? "");
+  const [max, setMax] = useState(applied?.max ?? "");
+  const [unitId, setUnitId] = useState(applied?.unitId ?? units?.[0]?.id ?? "");
+
+  function apply(next: { min?: string; max?: string; unitId?: string }) {
+    const value: RangeSelection = {
+      min: next.min ?? min,
+      max: next.max ?? max,
+      unitId: next.unitId ?? unitId,
+    };
+    onSetRange(value.min.trim() === "" && value.max.trim() === "" ? null : value);
+  }
+
+  return (
+    <div className="flex flex-col gap-2 pb-3">
+      <div className="flex items-center gap-1.5">
+        <input
+          type="text"
+          inputMode="decimal"
+          value={min}
+          onChange={(e) => setMin(e.target.value)}
+          onBlur={() => apply({})}
+          onKeyDown={(e) => e.key === "Enter" && apply({})}
+          placeholder="Min"
+          aria-label={`${group.label} minimum`}
+          className="w-full min-w-0 rounded-lg border border-charcoal bg-transparent px-2 py-1.5 text-[14px] text-snow placeholder:text-faint focus:border-graphite focus:outline-none"
+        />
+        <span aria-hidden className="text-[13px] text-faint">
+          –
+        </span>
+        <input
+          type="text"
+          inputMode="decimal"
+          value={max}
+          onChange={(e) => setMax(e.target.value)}
+          onBlur={() => apply({})}
+          onKeyDown={(e) => e.key === "Enter" && apply({})}
+          placeholder="Max"
+          aria-label={`${group.label} maximum`}
+          className="w-full min-w-0 rounded-lg border border-charcoal bg-transparent px-2 py-1.5 text-[14px] text-snow placeholder:text-faint focus:border-graphite focus:outline-none"
+        />
+        {units && units.length > 0 && (
+          <select
+            value={unitId}
+            aria-label={`${group.label} unit`}
+            onChange={(e) => {
+              setUnitId(e.target.value);
+              apply({ unitId: e.target.value });
+            }}
+            className="flex-none rounded-lg border border-charcoal bg-canvas px-1.5 py-1.5 text-[14px] text-snow focus:border-graphite focus:outline-none"
+          >
+            {units.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.label}
+              </option>
+            ))}
+          </select>
+        )}
+      </div>
+      <div className="flex items-center justify-between px-1">
+        <span className="text-[13px] text-faint">{group.rangeCount ?? 0} with a value</span>
+        {(min || max) && (
+          <button
+            type="button"
+            onClick={() => {
+              setMin("");
+              setMax("");
+              onSetRange(null);
+            }}
+            className="cursor-pointer text-[13px] text-smark-orange hover:underline"
+          >
+            Clear
+          </button>
+        )}
+      </div>
     </div>
   );
 }

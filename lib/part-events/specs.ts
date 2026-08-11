@@ -16,6 +16,9 @@ const KNOWN_ATTRIBUTE_LABELS: Record<string, string> = {
   pin_count: "Pin count",
   esr: "ESR",
   inductance: "Inductance",
+  // The title-case fallback would render this "Sub Category", which reads as a
+  // different field from the "Sub-category" column on the inventory grid.
+  sub_category: "Sub-category",
 };
 
 function attributeLabel(key: string): string {
@@ -37,6 +40,10 @@ export function buildPartSpecs(part: PartRow): SpecEntry[] {
     specs.push({ label, value: str });
   };
 
+  // For much of the real catalog (ICs, fuses, displays) the description is the
+  // only human-readable handle on the part, so it leads the grid rather than
+  // being left off it as it was while the demo catalog set the shape here.
+  push("Description", part.description);
   push("Value", part.value);
   push("Voltage", part.voltage);
   push("Package", part.package);
