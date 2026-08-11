@@ -174,7 +174,10 @@ export function InventoryTable({ parts, selectedCategories }: InventoryTableProp
       // guarantees a way forward when the list is too short to scroll at all.
       <div
         role="status"
-        className="sticky bottom-0 flex flex-wrap items-center gap-3 border-t border-border-divider bg-surface/95 px-3.5 py-2.5 backdrop-blur-sm"
+        // z-[4] clears the sticky PID column (z-[1]) and the sticky header's
+        // corner cell (z-[3]) — without it the pinned first column paints over
+        // this bar's left end and eats the "Showing 60" it starts with.
+        className="sticky bottom-0 z-[4] flex flex-wrap items-center gap-3 border-t border-border-divider bg-surface px-3.5 py-2.5"
       >
         <span className="text-caption text-smoke">
           Showing {formatNumber(renderCount)} of {formatNumber(parts.length)} — scroll for more
