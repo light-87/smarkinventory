@@ -14,7 +14,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/db";
 import { TABLES } from "@/types/db";
-import { selectAllRows } from "@/lib/supabase/select-all";
+import { selectAllRows, selectByIds } from "@/lib/supabase/select-all";
 import type { TakeoutCatalogPart, TakeoutLocationRow } from "./resolve";
 import type { TakeoutRawLine } from "./types";
 
@@ -138,25 +138,25 @@ export async function getTakeoutLocations(
   const map = new Map<string, TakeoutLocationRow[]>();
   if (partIds.length === 0) return map;
 
-  const { data: locations, error } = await supabase
-    .from(TABLES.stock_locations)
-    .select("id, part_id, big_box_id, qty")
-    .in("part_id", partIds);
-  if (error) throw error;
-  if (!locations || locations.length === 0) return map;
+  // Chunked: a long id list becomes a long URL, and PostgREST rejects it with
+  // a bare 400 (see lib/supabase/select-all.ts).
+  const locations = await selectByIds(partIds, (idChunk) =>
+    supabase.from(TABLES.stock_locations).select("id, part_id, big_box_id, qty").in("part_id", idChunk),
+  );
+  if (locations.length === 0) return map;
 
   const boxIds = Array.from(new Set(locations.map((l) => l.big_box_id)));
-  const { data: boxes, error: boxesError } = await supabase.from(TABLES.big_boxes).select("id, name, shelf_id").in("id", boxIds);
-  if (boxesError) throw boxesError;
+  const boxes = await selectByIds(boxIds, (idChunk) =>
+    supabase.from(TABLES.big_boxes).select("id, name, shelf_id").in("id", idChunk),
+  );
 
-  const shelfIds = Array.from(new Set((boxes ?? []).map((b) => b.shelf_id)));
-  const { data: shelves, error: shelvesError } = shelfIds.length
-    ? await supabase.from(TABLES.shelves).select("id, code").in("id", shelfIds)
-    : { data: [], error: null };
-  if (shelvesError) throw shelvesError;
+  const shelfIds = Array.from(new Set(boxes.map((b) => b.shelf_id)));
+  const shelves = await selectByIds(shelfIds, (idChunk) =>
+    supabase.from(TABLES.shelves).select("id, code").in("id", idChunk),
+  );
 
-  const boxById = new Map((boxes ?? []).map((b) => [b.id, b]));
-  const shelfById = new Map((shelves ?? []).map((s) => [s.id, s]));
+  const boxById = new Map(boxes.map((b) => [b.id, b]));
+  const shelfById = new Map(shelves.map((s) => [s.id, s]));
 
   for (const loc of locations) {
     const box = boxById.get(loc.big_box_id);

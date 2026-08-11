@@ -16,6 +16,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/db";
 import { TABLES } from "@/types/db";
+import { selectAllRows, selectByIds } from "@/lib/supabase/select-all";
 import { buildBigBoxHumanText } from "@/lib/labels/queue";
 import { renderQrPngDataUrl } from "@/lib/labels/qr";
 import { deriveBoxLastAuditedAt, type AuditContentItem } from "@/lib/audit";
@@ -51,21 +52,35 @@ async function fetchLocationsByBox(
 ): Promise<Map<string, LocationWithPart[]>> {
   if (boxIds.length === 0) return new Map();
 
-  const { data: locations, error: locationsError } = await supabase
-    .from(TABLES.stock_locations)
-    .select("id, big_box_id, part_id, qty, last_counted_at")
-    .in("big_box_id", boxIds);
-  assertNoError(locationsError, "stock_locations");
-  if (!locations || locations.length === 0) return new Map();
+  // Both reads are sized by the CATALOG, not by how many boxes were asked for:
+  // the stock-list import parks every part in one staging box, so a single box
+  // can hold ~1,750 locations. That breaks a naive read in two different ways,
+  // and this page hit both — it died on an error boundary for every user until
+  // 2026-08-11.
+  //
+  //  - Rows out: >1000 locations silently truncate at PostgREST's `max_rows`,
+  //    so the rack would quietly under-count its boxes. Hence `selectAllRows`.
+  //  - Ids in: ~1,750 uuids in one `.in()` is a ~65 KB URL, which comes back
+  //    `400 Bad Request`. Hence `selectByIds`, which chunks the list.
+  const locations = await selectAllRows((from, to) =>
+    supabase
+      .from(TABLES.stock_locations)
+      .select("id, big_box_id, part_id, qty, last_counted_at")
+      .in("big_box_id", boxIds)
+      .order("id")
+      .range(from, to),
+  );
+  if (locations.length === 0) return new Map();
 
   const partIds = Array.from(new Set(locations.map((location) => location.part_id)));
-  const { data: parts, error: partsError } = await supabase
-    .from(TABLES.parts)
-    .select("id, internal_pid, mpn, value, total_qty, reorder_point")
-    .in("id", partIds);
-  assertNoError(partsError, "smark_parts");
+  const parts = await selectByIds(partIds, (idChunk) =>
+    supabase
+      .from(TABLES.parts)
+      .select("id, internal_pid, mpn, value, total_qty, reorder_point")
+      .in("id", idChunk),
+  );
 
-  const partById = new Map((parts ?? []).map((part) => [part.id, part]));
+  const partById = new Map(parts.map((part) => [part.id, part]));
   const grouped = new Map<string, LocationWithPart[]>();
 
   for (const location of locations) {
