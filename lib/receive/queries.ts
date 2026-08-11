@@ -16,6 +16,7 @@ import { TABLES } from "@/types/db";
 import { selectAllRows } from "@/lib/supabase/select-all";
 import type { MatchCatalogEntry } from "@/lib/matcher";
 import type { BoxOption } from "./storage-suggestion";
+import { FALLBACK_SHELF_CODE, IMPORT_STAGING_BOX_NAME } from "./storage-suggestion";
 
 type DB = SupabaseClient<Database>;
 
@@ -171,8 +172,76 @@ export async function getQueuedLabelCount(supabase: DB): Promise<number> {
 export interface OnboardingRow {
   part: PartRow;
   suggestion: BoxOption | null;
-  /** Part already has a location but is `needs_review` (e.g. duplicate-guard "Create anyway") — assign is not the fix, reviewing it is. */
-  hasLocation: boolean;
+  /**
+   * Part's stock sits in the import staging box (shelf U / `U-IMPORT`) and still
+   * needs a real home. Assigning IS the fix here — `assignOnboardingLocation`
+   * re-points the existing location row rather than adding a second one, so the
+   * imported quantity travels with it.
+   */
+  inStaging: boolean;
+  /**
+   * Part is already properly put away somewhere real, but is still flagged
+   * `needs_review` (e.g. the duplicate-guard's "Create anyway") — assigning is
+   * not the fix, reviewing it is.
+   */
+  placedElsewhere: boolean;
+}
+
+/** Which big box a part's stock sits in — the shape `classifyOnboardingRows` needs. */
+export interface PartLocationRef {
+  part_id: string;
+  big_box_id: string;
+}
+
+/**
+ * Splits the catalog into the onboarding queue. Kept pure and exported so the
+ * staging/put-away distinction is unit-testable without a database — the bug it
+ * replaces (the whole imported catalog counting as "already located", which shut
+ * the assign form for every row) was invisible to every test we had.
+ */
+export function classifyOnboardingRows(
+  parts: readonly PartRow[],
+  locatedRows: readonly PartLocationRef[],
+  boxes: readonly BoxOption[],
+): OnboardingRow[] {
+  // The import parks EVERY part in one staging box so the catalog reads with
+  // true quantities from day one. That makes "has a location" useless on its
+  // own for this queue — it's true for the entire backlog. What matters is
+  // whether that location is still the staging box.
+  const stagingBoxIds = new Set(
+    boxes.filter((b) => b.name === IMPORT_STAGING_BOX_NAME && b.shelfCode === FALLBACK_SHELF_CODE).map((b) => b.id),
+  );
+
+  const boxIdsByPart = new Map<string, string[]>();
+  for (const row of locatedRows) {
+    const list = boxIdsByPart.get(row.part_id) ?? [];
+    list.push(row.big_box_id);
+    boxIdsByPart.set(row.part_id, list);
+  }
+
+  return parts
+    .filter((p) => p.needs_review || !boxIdsByPart.has(p.id))
+    .map((part) => {
+      const partBoxIds = boxIdsByPart.get(part.id) ?? [];
+      const inStaging = partBoxIds.length > 0 && partBoxIds.every((id) => stagingBoxIds.has(id));
+      const placedElsewhere = partBoxIds.length > 0 && !inStaging;
+
+      return {
+        part,
+        inStaging,
+        placedElsewhere,
+        // Unlocated and still-in-staging parts both want a real home suggested;
+        // one already put away doesn't. Never suggest the staging box itself —
+        // "move it from staging to staging" is not a put-away.
+        suggestion: placedElsewhere
+          ? null
+          : (boxes.find(
+              (b) =>
+                !stagingBoxIds.has(b.id) &&
+                (b.category ?? "").toLowerCase() === (part.category ?? "").toLowerCase(),
+            ) ?? null),
+      };
+    });
 }
 
 export async function getOnboardingQueue(supabase: DB, boxes: readonly BoxOption[]): Promise<OnboardingRow[]> {
@@ -183,23 +252,12 @@ export async function getOnboardingQueue(supabase: DB, boxes: readonly BoxOption
     selectAllRows((from, to) =>
       supabase.from(TABLES.parts).select("*").order("created_at", { ascending: true }).order("id").range(from, to),
     ),
-    selectAllRows((from, to) => supabase.from(TABLES.stock_locations).select("part_id").order("id").range(from, to)),
+    selectAllRows((from, to) =>
+      supabase.from(TABLES.stock_locations).select("part_id, big_box_id").order("id").range(from, to),
+    ),
   ]);
 
-  const locatedPartIds = new Set(locatedRows.map((r) => r.part_id));
-
-  return parts
-    .filter((p) => p.needs_review || !locatedPartIds.has(p.id))
-    .map((part) => ({
-      part,
-      hasLocation: locatedPartIds.has(part.id),
-      suggestion: locatedPartIds.has(part.id)
-        ? null
-        : (() => {
-            const match = boxes.find((b) => (b.category ?? "").toLowerCase() === (part.category ?? "").toLowerCase());
-            return match ?? null;
-          })(),
-    }));
+  return classifyOnboardingRows(parts, locatedRows, boxes);
 }
 
 /* ────────────────────────────────────────────────────────────────────────────

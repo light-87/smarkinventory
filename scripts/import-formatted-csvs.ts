@@ -53,6 +53,11 @@ import {
   type PartAttributeValue,
 } from "@/lib/import/formatted-csv";
 import { fetchExistingPartIdentities } from "@/lib/import/existing-parts";
+import {
+  FALLBACK_SHELF_CODE,
+  FALLBACK_SHELF_NAME,
+  IMPORT_STAGING_BOX_NAME,
+} from "@/lib/receive/storage-suggestion";
 import { selectAllRows } from "@/lib/supabase/select-all";
 import { normalizeLcsc, normalizeMpn } from "@/lib/matcher";
 import { TABLES, type PartRow } from "@/types/db";
@@ -68,10 +73,15 @@ const PID_DIGITS = 6;
  * existing convention rather than inventing a parallel one. It is honest about
  * the real world: the client's stock currently sits in one place, unlabelled
  * (docs/setup-decisions.md).
+ *
+ * The shelf code and box name come FROM `lib/receive/storage-suggestion.ts`
+ * rather than being repeated here: the onboarding queue decides "still in
+ * staging, so offer the assign form" by matching on exactly these two values,
+ * and a local copy drifting would take that whole screen out.
  */
-const STAGING_SHELF_CODE = "U";
-const STAGING_SHELF_NAME = "Unsorted";
-const STAGING_BOX_NAME = "U-IMPORT";
+const STAGING_SHELF_CODE = FALLBACK_SHELF_CODE;
+const STAGING_SHELF_NAME = FALLBACK_SHELF_NAME;
+const STAGING_BOX_NAME = IMPORT_STAGING_BOX_NAME;
 const STAGING_BOX_NOTE = "Imported stock awaiting put-away — assign a real shelf via Receive → onboarding queue.";
 
 type PartInsert = Partial<PartRow>;

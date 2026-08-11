@@ -9,6 +9,7 @@ import { useToast } from "@/components/ui/toast";
 import { assignOnboardingLocationAction } from "@/lib/receive/actions";
 import type { OnboardingRow } from "@/lib/receive/queries";
 import type { BoxOption } from "@/lib/receive/storage-suggestion";
+import { FALLBACK_SHELF_CODE, IMPORT_STAGING_BOX_NAME } from "@/lib/receive/storage-suggestion";
 import { NativeSelect } from "./native-select";
 
 export interface OnboardingQueueProps {
@@ -23,6 +24,14 @@ const PAGE_SIZE = 25;
  * "the source has zero location data"): parts with `needs_review` or no
  * stock location yet. "Assign & print" places the already-known imported
  * qty into a Shelf → Box and queues exactly one label.
+ *
+ * The assign form opens for anything NOT already put away — including the whole
+ * imported catalog, which sits in the `U-IMPORT` staging box. It used to gate on
+ * "has no location at all", which was right when import created no locations;
+ * once the importer started parking real quantities in staging, that gate
+ * matched every row and the form silently stopped opening for the entire queue.
+ * Only `placedElsewhere` (already on a real shelf, flagged for another reason)
+ * is review-only now.
  */
 export function OnboardingQueue({ rows, boxes }: OnboardingQueueProps) {
   const { push } = useToast();
@@ -35,7 +44,15 @@ export function OnboardingQueue({ rows, boxes }: OnboardingQueueProps) {
   const [isPending, startTransition] = useTransition();
   const [done, setDone] = useState<Set<string>>(new Set());
 
-  const boxOptions = useMemo(() => boxes.map((b) => ({ value: b.id, label: `${b.name} · Shelf ${b.shelfCode}` })), [boxes]);
+  // The import staging box is where these parts are coming FROM — offering it
+  // as a destination just looks like a working option that changes nothing.
+  const boxOptions = useMemo(
+    () =>
+      boxes
+        .filter((b) => !(b.name === IMPORT_STAGING_BOX_NAME && b.shelfCode === FALLBACK_SHELF_CODE))
+        .map((b) => ({ value: b.id, label: `${b.name} · Shelf ${b.shelfCode}` })),
+    [boxes],
+  );
 
   const pending = rows.filter((r) => !done.has(r.part.id));
   const visible = pending.slice(0, visibleCount);
@@ -91,19 +108,24 @@ export function OnboardingQueue({ rows, boxes }: OnboardingQueueProps) {
               <span className="text-caption text-smoke">
                 {[row.part.value, row.part.package].filter(Boolean).join(" · ") || "—"}
               </span>
-              {row.hasLocation && (
+              {row.inStaging && (
+                <Chip tone="accent" size="sm">
+                  in staging · {row.part.total_qty} pcs
+                </Chip>
+              )}
+              {row.placedElsewhere && (
                 <Chip tone="warn" size="sm">
                   flagged for review
                 </Chip>
               )}
-              {row.suggestion && !row.hasLocation && (
+              {row.suggestion && !row.placedElsewhere && (
                 <span className="font-mono text-caption text-silver-mist">
                   → {row.suggestion.name} · Shelf {row.suggestion.shelfCode}
                 </span>
               )}
             </button>
 
-            {isOpen && !row.hasLocation && (
+            {isOpen && !row.placedElsewhere && (
               <div className="bg-surface-panel border-t border-border-divider px-5 py-4">
                 <div className="flex flex-wrap items-end gap-3">
                   <div className="min-w-[200px] flex-1">
