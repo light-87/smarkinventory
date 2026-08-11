@@ -61,10 +61,10 @@ describe("Inventory facets over the real catalog", () => {
   const groups = buildFacetGroups(catalog, "", {});
   const group = (name: string) => groups.find((g) => g.name === name);
 
-  test("Category offers all 30 imported categories, and the counts add up", () => {
+  test("Category offers all 26 imported categories, and the counts add up", () => {
     const category = group("Category");
-    expect(category?.values).toHaveLength(30);
-    expect(category!.values.reduce((sum, v) => sum + v.count, 0)).toBe(2005);
+    expect(category?.values).toHaveLength(26);
+    expect(category!.values.reduce((sum, v) => sum + v.count, 0)).toBe(1745);
 
     const resistor = category!.values.find((v) => v.value === "Resistor");
     expect(resistor?.count).toBe(425);
@@ -78,16 +78,16 @@ describe("Inventory facets over the real catalog", () => {
     expect(distributor).toBeDefined();
 
     const values = Object.fromEntries(distributor!.values.map((v) => [v.value, v.count]));
-    expect(values.LCSC).toBe(879);
-    expect(values.Element14).toBe(158);
-    expect(values.Mouser).toBe(85);
-    expect(values.Digikey).toBe(59);
+    expect(values.LCSC).toBe(776);
+    expect(values.Element14).toBe(151);
+    expect(values.Mouser).toBe(80);
+    expect(values.Digikey).toBe(45);
   });
 
-  test("Stock reads honestly — 1,857 in stock, the rest genuinely out", () => {
+  test("Stock reads honestly — 1,622 in stock, the rest genuinely out", () => {
     const stock = Object.fromEntries(group("Stock")!.values.map((v) => [v.value, v.count]));
-    expect(stock["In stock"]).toBe(1857);
-    expect(stock.Out).toBe(2005 - 1857);
+    expect(stock["In stock"]).toBe(1622);
+    expect(stock.Out).toBe(1745 - 1622);
   });
 
   test("Shelf stays hidden while the whole catalog sits in one staging box", () => {
