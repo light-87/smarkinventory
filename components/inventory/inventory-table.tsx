@@ -61,6 +61,8 @@ const INITIAL_ROWS = 60;
 const ROWS_PER_STEP = 120;
 /** How close to the bottom counts as "about to need more rows". */
 const GROW_MARGIN_PX = 800;
+/** How long a row click stays ignored after "Show more" moved the page under the cursor. */
+const GROW_CLICK_GUARD_MS = 600;
 
 /** Nearest ancestor that actually scrolls — the element whose scroll position drives growth. */
 function scrollParentOf(node: HTMLElement | null): HTMLElement | null {
@@ -78,6 +80,22 @@ export function InventoryTable({ parts, selectedCategories }: InventoryTableProp
 
   const [renderCount, setRenderCount] = useState(INITIAL_ROWS);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
+  /**
+   * When "Show more" last inserted rows.
+   *
+   * Pressing it drops 120 rows in ABOVE the button, so the button leaps down a
+   * few thousand pixels and a part row lands exactly where the cursor still is.
+   * A second click — and people do click twice when they think the first didn't
+   * take — then opens a part they never chose. Row clicks are ignored for a
+   * moment afterwards so the pointer can't be ambushed by content that moved
+   * under it. Scroll-driven growth needs no guard: it appends below, nothing
+   * shifts beneath the cursor.
+   */
+  const grewAtRef = useRef(0);
+  const growBy = (step: number) => {
+    grewAtRef.current = performance.now();
+    setRenderCount((current) => Math.min(current + step, parts.length));
+  };
 
   // A new filter or search term is a new list — start from the top again,
   // otherwise narrowing to 3 parts would still be carrying a 900-row window.
@@ -128,7 +146,10 @@ export function InventoryTable({ parts, selectedCategories }: InventoryTableProp
             key={part.id}
             interactive
             className="group"
-            onClick={() => router.push(`/inventory?pid=${encodeURIComponent(part.internal_pid)}`)}
+            onClick={() => {
+              if (performance.now() - grewAtRef.current < GROW_CLICK_GUARD_MS) return;
+              router.push(`/inventory?pid=${encodeURIComponent(part.internal_pid)}`);
+            }}
           >
             {columns.map((column) => (
               <Cell key={column.id} column={column} part={part} />
@@ -150,14 +171,14 @@ export function InventoryTable({ parts, selectedCategories }: InventoryTableProp
         </span>
         <button
           type="button"
-          onClick={() => setRenderCount((current) => Math.min(current + ROWS_PER_STEP, parts.length))}
+          onClick={() => growBy(ROWS_PER_STEP)}
           className="cursor-pointer rounded-full border border-border-divider px-3 py-1 text-caption text-silver-mist transition-colors hover:bg-surface-raised hover:text-snow"
         >
           Show {formatNumber(Math.min(ROWS_PER_STEP, parts.length - renderCount))} more
         </button>
         <button
           type="button"
-          onClick={() => setRenderCount(parts.length)}
+          onClick={() => growBy(parts.length)}
           className="cursor-pointer text-caption text-smark-orange hover:underline"
         >
           Show all {formatNumber(parts.length)}
