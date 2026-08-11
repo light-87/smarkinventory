@@ -42,12 +42,59 @@ export type EditableTextField = (typeof EDITABLE_TEXT_FIELDS)[number]["key"];
  * sidebar) rather than every key the importer happens to write — the long tail
  * is per-category and belongs in a category-aware form, not this one.
  */
+/**
+ * Attribute fields the form can write, and which categories each belongs to.
+ *
+ * Scoped the same way the grid columns and the filters are, so the three agree:
+ * if a column is shown for a category, that category's form can edit it. The
+ * first version of this form offered only sub-category and mount type, which
+ * meant the client could SEE a resistor's tolerance in the table and have no way
+ * to correct it — the exact frustration this whole editing feature exists to
+ * remove.
+ *
+ * `categories: null` = offered on every part.
+ */
 export const EDITABLE_ATTRIBUTE_FIELDS = [
-  { key: "sub_category", label: "Sub-category" },
-  { key: "mount_type", label: "Mount type" },
-] as const;
+  { key: "sub_category", label: "Sub-category", categories: null },
+  { key: "mount_type", label: "Mount type", categories: null },
+  { key: "tolerance_percent", label: "Tolerance (%)", categories: ["Resistor", "Resistor Network"] },
+  { key: "power_watts", label: "Power rating", categories: ["Resistor", "Resistor Network"] },
+  { key: "color", label: "Case size", categories: ["Capacitor"] },
+  { key: "current_rating", label: "Current rating", categories: ["Inductor", "Ferrite Bead", "Fuse"] },
+  { key: "diode_type", label: "Diode type", categories: ["Diode"] },
+  { key: "rating", label: "Rating", categories: ["Diode", "Thermistor/Varistor", "Battery"] },
+  { key: "project", label: "Project", categories: ["IC"] },
+  // misc_relay.csv / misc_transformer.csv carry their own Voltage and Current
+  // columns, distinct from the part's `voltage` column.
+  { key: "voltage", label: "Voltage rating", categories: ["Relay", "Transformer"] },
+  { key: "current", label: "Current", categories: ["Relay", "Transformer"] },
+  { key: "group", label: "Group", categories: ["Hardware"] },
+  { key: "cp", label: "Cost price (₹)", categories: ["Hardware"] },
+  { key: "sp_moq100", label: "Sell price @ MOQ 100 (₹)", categories: ["Hardware"] },
+  { key: "sp_moq25", label: "Sell price @ MOQ 25 (₹)", categories: ["Hardware"] },
+  { key: "dimension", label: "Dimension", categories: ["SMPS"] },
+  { key: "height", label: "Height", categories: ["SMPS"] },
+  { key: "status", label: "Build status", categories: ["SMPS"] },
+  { key: "pin_count", label: "Pin count", categories: ["Terminal Block", "FFC/FPC Connector", "Connector"] },
+  { key: "pitch", label: "Pitch", categories: ["Terminal Block", "FFC/FPC Connector", "Connector"] },
+  { key: "contact_type", label: "Contact type", categories: ["FFC/FPC Connector"] },
+] as const satisfies readonly { key: string; label: string; categories: readonly string[] | null }[];
 
 export type EditableAttributeField = (typeof EDITABLE_ATTRIBUTE_FIELDS)[number]["key"];
+
+/**
+ * The attribute fields to offer for one part: the always-on ones, those scoped
+ * to its category, and any it already carries a value for — so a field can
+ * never become uneditable just because the category map does not mention it.
+ */
+export function attributeFieldsFor(part: PartRow): readonly { key: EditableAttributeField; label: string }[] {
+  return EDITABLE_ATTRIBUTE_FIELDS.filter((field) => {
+    if (field.categories === null) return true;
+    if (part.category && (field.categories as readonly string[]).includes(part.category)) return true;
+    const existing = (part.attributes as PartAttributes | null)?.[field.key];
+    return existing !== undefined && existing !== null && String(existing).trim() !== "";
+  });
+}
 
 export const PART_STATUSES: readonly PartStatus[] = ["active", "nrnd", "eol"];
 

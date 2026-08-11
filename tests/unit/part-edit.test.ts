@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { buildPartEdit, type PartEditInput } from "@/lib/part-events/edit";
+import { attributeFieldsFor, buildPartEdit, type PartEditInput } from "@/lib/part-events/edit";
 import { joinDistributor, splitDistributor } from "@/lib/part-events/distributor";
 import { buildPartSpecs } from "@/lib/part-events/specs";
 import type { PartAttributes, PartRow } from "@/types/db";
@@ -164,6 +164,39 @@ describe("buildPartEdit", () => {
     if (!built.ok) return;
     expect(built.result.changes).toHaveLength(3);
     expect(built.result.changes).toContain("MPN: — → CL05B104KO5NNNC");
+  });
+});
+
+describe("which attribute boxes a part gets", () => {
+  // The first version offered only sub-category and mount type, so the client
+  // could SEE a resistor's tolerance in the grid and had no way to correct it.
+  const keysFor = (category: string | null, attributes: Record<string, unknown> = {}) =>
+    attributeFieldsFor(makePart({ category, attributes: attributes as never })).map((f) => f.key);
+
+  test("a resistor can edit tolerance and power", () => {
+    expect(keysFor("Resistor")).toEqual(expect.arrayContaining(["tolerance_percent", "power_watts"]));
+  });
+
+  test("a capacitor does not get resistor fields", () => {
+    expect(keysFor("Capacitor")).not.toContain("tolerance_percent");
+    expect(keysFor("Capacitor")).toContain("color");
+  });
+
+  test("the material list gets its group and price tiers", () => {
+    expect(keysFor("Hardware")).toEqual(expect.arrayContaining(["group", "cp", "sp_moq100", "sp_moq25"]));
+  });
+
+  test("sub-category and mount type are offered on everything", () => {
+    for (const category of ["IC", "Resistor", "SMPS", null]) {
+      expect(keysFor(category)).toEqual(expect.arrayContaining(["sub_category", "mount_type"]));
+    }
+  });
+
+  test("a value the part already carries stays editable even out of category", () => {
+    // Otherwise a field could become permanently uneditable just because the
+    // category map does not mention it.
+    expect(keysFor("Capacitor")).not.toContain("diode_type");
+    expect(keysFor("Capacitor", { diode_type: "Schottky" })).toContain("diode_type");
   });
 });
 

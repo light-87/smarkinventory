@@ -6,6 +6,7 @@ import { DrawerCloseButton } from "@/components/ui/drawer";
 import { Field, Input } from "@/components/ui/input";
 import { updatePartDetails, type UpdatePartResult } from "@/lib/part-events/actions";
 import {
+  attributeFieldsFor,
   EDITABLE_ATTRIBUTE_FIELDS,
   EDITABLE_TEXT_FIELDS,
   PART_STATUSES,
@@ -76,6 +77,10 @@ export function EditPartDialog({ open, onClose, part, onSaved }: EditPartDialogP
     }
   }
 
+  // Which attribute boxes this part gets — its category's, plus anything it
+  // already carries. Recomputed per render; the list is ~20 entries.
+  const attributeFields = attributeFieldsFor(part);
+
   if (!open) return null;
 
   function submit() {
@@ -126,7 +131,7 @@ export function EditPartDialog({ open, onClose, part, onSaved }: EditPartDialogP
               </Field>
             ))}
 
-            {EDITABLE_ATTRIBUTE_FIELDS.map(({ key, label }) => (
+            {attributeFields.map(({ key, label }) => (
               <Field key={key} label={label}>
                 <Input
                   value={attributes[key] ?? ""}

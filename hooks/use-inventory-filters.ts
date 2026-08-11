@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 import {
   buildActiveChips,
   buildFacetGroups,
@@ -22,15 +22,36 @@ import type { InventoryPart } from "@/lib/inventory/types";
  */
 export function useInventoryFilters(parts: readonly InventoryPart[]) {
   const [search, setSearch] = useState("");
+  /**
+   * Filtering runs against a DEFERRED copy of the search term.
+   *
+   * The grid renders every matching part as a real row — 1,745 of them
+   * unfiltered — so each keystroke re-filters and re-reconciles the whole table
+   * and takes ~600ms to settle. Typing "AD7684" meant six of those back to
+   * back, which reads as a frozen input. React keeps the box itself on the
+   * urgent update (so characters appear immediately) and re-renders the table
+   * from the latest term once it has time, dropping the intermediate ones.
+   *
+   * Deliberately not a fixed debounce: this adapts to the machine, so a fast
+   * laptop still filters on every keystroke and a slow one skips frames instead
+   * of feeling laggy.
+   */
+  const appliedSearch = useDeferredValue(search);
   const [filters, setFilters] = useState<InventoryFilters>({});
   const [openGroups, setOpenGroups] = useState<Partial<Record<FacetGroupName, boolean>>>({});
 
-  const filteredParts = useMemo(() => filterInventoryParts(parts, search, filters), [parts, search, filters]);
-  const facetGroups = useMemo(() => buildFacetGroups(parts, search, filters), [parts, search, filters]);
+  const filteredParts = useMemo(
+    () => filterInventoryParts(parts, appliedSearch, filters),
+    [parts, appliedSearch, filters],
+  );
+  const facetGroups = useMemo(
+    () => buildFacetGroups(parts, appliedSearch, filters),
+    [parts, appliedSearch, filters],
+  );
   const activeChips = useMemo(() => buildActiveChips(filters), [filters]);
   const exportHref = useMemo(
-    () => `/inventory/export?${encodeFiltersToSearchParams(search, filters).toString()}`,
-    [search, filters],
+    () => `/inventory/export?${encodeFiltersToSearchParams(appliedSearch, filters).toString()}`,
+    [appliedSearch, filters],
   );
 
   function toggleValue(group: FacetGroupName, value: string) {
@@ -76,6 +97,8 @@ export function useInventoryFilters(parts: readonly InventoryPart[]) {
     facetGroups,
     activeChips,
     hasFilters: activeChips.length > 0 || search.trim().length > 0,
+    /** True while the table is still catching up with what has been typed. */
+    searchPending: search !== appliedSearch,
     exportHref,
     toggleValue,
     setRange,
