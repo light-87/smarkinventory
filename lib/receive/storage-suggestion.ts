@@ -26,6 +26,15 @@ export type StorageSuggestion =
 export const FALLBACK_SHELF_CODE = "U";
 export const FALLBACK_SHELF_NAME = "Unsorted";
 
+/**
+ * The staging box the real-stock import parks every part in
+ * (`scripts/import-formatted-csvs.ts`), on the fallback shelf. Declared here so
+ * the importer, the onboarding queue and the queue's UI all agree on one name —
+ * "is this part still in staging?" is the difference between "assign it" and
+ * "it's already put away", and the queue gets that wrong if the name drifts.
+ */
+export const IMPORT_STAGING_BOX_NAME = "U-IMPORT";
+
 function norm(value: string | null | undefined): string {
   return (value ?? "").trim().toLowerCase();
 }
