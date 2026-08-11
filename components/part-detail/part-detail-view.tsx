@@ -135,14 +135,19 @@ export function PartDetailView({ data, variant, onClose }: PartDetailViewProps) 
         <Button variant="primary" fullWidth onClick={() => router.push(`/cart?part_id=${data.part.id}`)}>
           Order more
         </Button>
+        {/* `whitespace-nowrap` on the two secondary actions: a third button made
+            the footer tight enough that "Edit details" and "Adjust qty" each
+            broke onto two lines. They keep their width and the primary action
+            gives up its share instead. */}
         {data.canWrite && (
-          <Button variant="outline" onClick={() => setEditOpen(true)}>
+          <Button variant="outline" className="whitespace-nowrap" onClick={() => setEditOpen(true)}>
             Edit details
           </Button>
         )}
         {data.canWrite && (
           <Button
             variant="outline"
+            className="whitespace-nowrap"
             onClick={() => setAdjustOpen(true)}
             disabled={data.locations.length === 0}
             title={data.locations.length === 0 ? "No physical location yet — send through Receive onboarding first." : undefined}
