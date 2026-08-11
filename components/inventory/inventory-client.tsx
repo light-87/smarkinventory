@@ -76,7 +76,7 @@ export function InventoryClient({ listResult, drawerPid, drawerResult }: Invento
               />
             </div>
           ) : (
-            <InventoryTable parts={filters.filteredParts} />
+            <InventoryTable parts={filters.filteredParts} selectedCategories={filters.filters.Category ?? []} />
           )}
         </div>
       </div>
