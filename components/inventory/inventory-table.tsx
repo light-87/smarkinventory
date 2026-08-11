@@ -1,10 +1,12 @@
 "use client";
 
+import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Chip, type ChipTone } from "@/components/ui/chip";
 import { TableBody, TableHead, TableShell, Td, Th, Tr } from "@/components/ui/table";
 import { cn } from "@/lib/cn";
 import { formatNumber } from "@/lib/format";
+import { minWidthFor, visibleColumns, type InventoryColumn } from "@/lib/inventory/columns";
 import type { StockState } from "@/lib/inventory/stock-state";
 import type { InventoryPart } from "@/lib/inventory/types";
 
@@ -23,18 +25,6 @@ const QTY_CHIP_TONE: Record<StockState, ChipTone> = {
   out: "danger",
 };
 
-/**
- * `attributes.sub_category` — the finer grain under Category that the real
- * stock import carries (ADC / MOSFET / LDO under IC, LCD vs OLED under
- * Display). For whole categories it is the only column that separates one row
- * from the next, which is why it earns a slot on the grid.
- */
-function subCategoryLabel(part: InventoryPart): string {
-  const value = part.attributes.sub_category;
-  if (typeof value === "number") return String(value);
-  return typeof value === "string" && value.trim() ? value.trim() : "—";
-}
-
 function locationLabel(part: InventoryPart): string {
   const first = part.locations[0];
   if (!first) return "—";
@@ -45,34 +35,32 @@ function locationLabel(part: InventoryPart): string {
 
 export interface InventoryTableProps {
   parts: InventoryPart[];
+  /** The Category facet's current selection — decides which columns apply. */
+  selectedCategories: readonly string[];
 }
 
 /**
  * The main inventory grid (tab-inventory.md §2 columns).
  *
- * Columns follow the real catalog rather than the demo one. Whole categories
- * imported from the client's stock list have no Value/V/Package at all, so
- * Description and Sub-category are what actually tell two rows apart; Status
- * and Price were near-uniform noise here ("Active" and "—" on every row) and
- * live on the part detail drawer instead, which shows both plus stock value.
+ * The header follows the category rather than being fixed — see
+ * `lib/inventory/columns.ts` for why and for the column definitions. Filtering
+ * to IC swaps Value/V for the columns `ic_smd.csv` actually has; filtering to
+ * Resistor brings in resistance, tolerance and power.
  */
-export function InventoryTable({ parts }: InventoryTableProps) {
+export function InventoryTable({ parts, selectedCategories }: InventoryTableProps) {
   const router = useRouter();
+  const columns = useMemo(() => visibleColumns(parts, selectedCategories), [parts, selectedCategories]);
+  const minWidth = useMemo(() => minWidthFor(columns), [columns]);
 
   return (
-    <TableShell minWidth={1000}>
+    <TableShell minWidth={minWidth}>
       <TableHead>
         <Tr>
-          <Th>PID</Th>
-          <Th>MPN</Th>
-          <Th>Description</Th>
-          <Th>Value</Th>
-          <Th>V</Th>
-          <Th>Package</Th>
-          <Th>Category</Th>
-          <Th>Sub-category</Th>
-          <Th align="right">Qty</Th>
-          <Th>Location</Th>
+          {columns.map((column) => (
+            <Th key={column.id} align={column.align}>
+              {column.label}
+            </Th>
+          ))}
         </Tr>
       </TableHead>
       <TableBody>
@@ -82,34 +70,56 @@ export function InventoryTable({ parts }: InventoryTableProps) {
             interactive
             onClick={() => router.push(`/inventory?pid=${encodeURIComponent(part.internal_pid)}`)}
           >
-            <Td mono className={cn("border-l-2", TICK_CLASS[part.stockState])}>
-              {part.internal_pid}
-            </Td>
-            <Td mono>{part.mpn ?? "—"}</Td>
-            {/* Descriptions run long ("TH-2P Phototransistors T-1.75 450 to
-                1080nm +/-20 deg"); clamp the column so one verbose row can't
-                set the width for the whole table, full text on hover. */}
-            <Td className="max-w-[22ch] truncate" title={part.description ?? undefined}>
-              {part.description ?? "—"}
-            </Td>
-            <Td>{part.value ?? "—"}</Td>
-            <Td mono>{part.voltage ?? "—"}</Td>
-            <Td mono>{part.package ?? "—"}</Td>
-            <Td>{part.category ?? "—"}</Td>
-            <Td className="text-smoke">{subCategoryLabel(part)}</Td>
-            <Td align="right">
-              <Chip tone={QTY_CHIP_TONE[part.stockState]} mono>
-                {formatNumber(part.total_qty)}
-              </Chip>
-            </Td>
-            <Td>
-              <Chip tone="default" mono>
-                {locationLabel(part)}
-              </Chip>
-            </Td>
+            {columns.map((column) => (
+              <Cell key={column.id} column={column} part={part} />
+            ))}
           </Tr>
         ))}
       </TableBody>
     </TableShell>
   );
+}
+
+function Cell({ column, part }: { column: InventoryColumn; part: InventoryPart }) {
+  switch (column.render) {
+    case "pid":
+      return (
+        <Td mono className={cn("border-l-2", TICK_CLASS[part.stockState])}>
+          {part.internal_pid}
+        </Td>
+      );
+    case "qty":
+      return (
+        <Td align="right">
+          <Chip tone={QTY_CHIP_TONE[part.stockState]} mono>
+            {formatNumber(part.total_qty)}
+          </Chip>
+        </Td>
+      );
+    case "location":
+      return (
+        <Td>
+          <Chip tone="default" mono>
+            {locationLabel(part)}
+          </Chip>
+        </Td>
+      );
+    case "description": {
+      // Descriptions run long ("TH-2P Phototransistors T-1.75 450 to 1080nm
+      // +/-20 deg"); clamp the column so one verbose row can't set the width
+      // for the whole table. Full text on hover, and in the part drawer.
+      const text = column.value(part);
+      return (
+        <Td className="max-w-[22ch] truncate" title={text ?? undefined}>
+          {text ?? "—"}
+        </Td>
+      );
+    }
+    default:
+      return (
+        <Td mono={column.mono} align={column.align}>
+          {column.value(part) ?? "—"}
+        </Td>
+      );
+  }
 }
