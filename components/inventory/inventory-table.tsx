@@ -161,25 +161,28 @@ export function InventoryTable({ parts, selectedCategories }: InventoryTableProp
     {/* Outside the horizontal scroller, so it stays put while the grid scrolls. */}
     <div ref={sentinelRef} aria-hidden className="h-px" />
     {renderCount < parts.length && (
-      // Buttons as well as scrolling. Scroll-to-grow is the invisible path, but
-      // it is only reachable if the list is tall enough to scroll at all, and a
-      // grid that appears to stop at 60 parts with no way forward is exactly
-      // the kind of thing that gets reported as broken.
-      <div className="flex flex-wrap items-center gap-3 px-3.5 py-3" role="status">
+      // Pinned to the bottom of the scroller, NOT parked after the last row.
+      //
+      // A button that sits below the rows cannot be clicked: scrolling far
+      // enough to reach it is exactly what appends the next slice, which shoves
+      // it another few thousand pixels down. It runs away from the pointer, and
+      // the click lands on whichever part row took its place. Sticky, it stays
+      // under the cursor and holds still.
+      //
+      // Scrolling is the ordinary way to see more, so this offers only the one
+      // thing scrolling cannot do — jump to the whole list at once. It also
+      // guarantees a way forward when the list is too short to scroll at all.
+      <div
+        role="status"
+        className="sticky bottom-0 flex flex-wrap items-center gap-3 border-t border-border-divider bg-surface/95 px-3.5 py-2.5 backdrop-blur-sm"
+      >
         <span className="text-caption text-smoke">
-          Showing {formatNumber(renderCount)} of {formatNumber(parts.length)}
+          Showing {formatNumber(renderCount)} of {formatNumber(parts.length)} — scroll for more
         </span>
         <button
           type="button"
-          onClick={() => growBy(ROWS_PER_STEP)}
-          className="cursor-pointer rounded-full border border-border-divider px-3 py-1 text-caption text-silver-mist transition-colors hover:bg-surface-raised hover:text-snow"
-        >
-          Show {formatNumber(Math.min(ROWS_PER_STEP, parts.length - renderCount))} more
-        </button>
-        <button
-          type="button"
           onClick={() => growBy(parts.length)}
-          className="cursor-pointer text-caption text-smark-orange hover:underline"
+          className="cursor-pointer rounded-full border border-border-divider px-3 py-1 text-caption text-silver-mist transition-colors hover:bg-surface-raised hover:text-snow"
         >
           Show all {formatNumber(parts.length)}
         </button>
