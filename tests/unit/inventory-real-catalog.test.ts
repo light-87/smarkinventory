@@ -90,9 +90,12 @@ describe("Inventory facets over the real catalog", () => {
     expect(stock.Out).toBe(1999 - 1855);
   });
 
-  test("Shelf shows the staging box every imported part starts in", () => {
-    const shelf = group("Shelf");
-    expect(shelf!.values).toEqual([{ value: "U", count: 1999, selected: false }]);
+  test("Shelf stays hidden while the whole catalog sits in one staging box", () => {
+    // Every imported part starts on shelf U (`U-IMPORT`), so the group would
+    // render exactly one option matching all 1,999 rows — a filter that cannot
+    // narrow anything. It reappears as soon as the onboarding queue puts stock
+    // on a second shelf.
+    expect(group("Shelf")).toBeUndefined();
   });
 
   test("Package facet collapses the sheet's spellings into one option per size", () => {

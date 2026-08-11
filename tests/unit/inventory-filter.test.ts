@@ -222,17 +222,17 @@ describe("buildFacetGroups", () => {
 
   test("OTHER groups still narrow to the active selection", () => {
     // The lists that should shrink are the ones in every group you did not tick.
-    // Unfiltered the fixture offers two packages; only the capacitor's remains.
+    // Unfiltered the fixture offers two packages; only the capacitor's remains —
+    // and because that leaves one option every capacitor in scope already has,
+    // the group then drops out entirely rather than offering a no-op filter.
     expect(buildFacetGroups(ALL_PARTS, "", {}).find((g) => g.name === "Package")!.values).toHaveLength(2);
-
-    const packages = buildFacetGroups(ALL_PARTS, "", { Category: ["Capacitor"] }).find((g) => g.name === "Package")!;
-    expect(packages.values.map((v) => v.value)).toEqual(["0603"]);
+    expect(buildFacetGroups(ALL_PARTS, "", { Category: ["Capacitor"] }).find((g) => g.name === "Package")).toBeUndefined();
   });
 
   test("zero-count options are not rendered at all", () => {
     const groups = buildFacetGroups(ALL_PARTS, "", { Category: ["Capacitor"] });
     for (const group of groups) {
-      if (group.name === "Stock" || group.name === "Status") continue; // fixed enums
+      if (group.name === "Stock") continue; // the one remaining fixed enum
       for (const value of group.values) expect(value.count).toBeGreaterThan(0);
     }
   });
@@ -246,10 +246,24 @@ describe("buildFacetGroups", () => {
     expect(buildFacetGroups(ALL_PARTS, "", { Category: ["Resistor"] }).find((g) => g.name === "Voltage")).toBeUndefined();
   });
 
-  test("Stock/Status keep every fixed value even when the scope has none", () => {
+  test("Stock keeps every fixed value even when the scope has none", () => {
     const groups = buildFacetGroups(ALL_PARTS, "", { Category: ["Capacitor"] });
-    const status = groups.find((g) => g.name === "Status")!;
-    expect(status.values.map((v) => v.value)).toEqual(["active", "nrnd", "eol"]);
+    const stock = groups.find((g) => g.name === "Stock")!;
+    expect(stock.values.map((v) => v.value)).toEqual(["In stock", "Low", "Out"]);
+  });
+
+  test("Status shows while statuses differ, and drops once they don't", () => {
+    // Status stopped being a fixed enum on 2026-08-11: on the real catalog every
+    // one of the 1,999 parts is `active`, so a permanently-rendered three-row
+    // group with two zeroes was pure decoration. The fixture is mixed, so the
+    // group is live here — but narrowing to the lone capacitor makes the scope
+    // uniformly Active and the group goes.
+    const mixed = buildFacetGroups(ALL_PARTS, "", {}).find((g) => g.name === "Status");
+    expect(mixed?.values.map((v) => v.value)).toEqual(["active", "nrnd"]);
+
+    expect(
+      buildFacetGroups(ALL_PARTS, "", { Category: ["Capacitor"] }).find((g) => g.name === "Status"),
+    ).toBeUndefined();
   });
 
   test("drops a group entirely when the full dataset has no values for it", () => {

@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { Chip, type ChipTone } from "@/components/ui/chip";
 import { TableBody, TableHead, TableShell, Td, Th, Tr } from "@/components/ui/table";
 import { cn } from "@/lib/cn";
-import { formatINR, formatNumber } from "@/lib/format";
+import { formatNumber } from "@/lib/format";
 import type { StockState } from "@/lib/inventory/stock-state";
 import type { InventoryPart } from "@/lib/inventory/types";
 
@@ -23,7 +23,17 @@ const QTY_CHIP_TONE: Record<StockState, ChipTone> = {
   out: "danger",
 };
 
-const STATUS_LABEL: Record<string, string> = { active: "Active", nrnd: "NRND", eol: "EOL" };
+/**
+ * `attributes.sub_category` — the finer grain under Category that the real
+ * stock import carries (ADC / MOSFET / LDO under IC, LCD vs OLED under
+ * Display). For whole categories it is the only column that separates one row
+ * from the next, which is why it earns a slot on the grid.
+ */
+function subCategoryLabel(part: InventoryPart): string {
+  const value = part.attributes.sub_category;
+  if (typeof value === "number") return String(value);
+  return typeof value === "string" && value.trim() ? value.trim() : "—";
+}
 
 function locationLabel(part: InventoryPart): string {
   const first = part.locations[0];
@@ -37,26 +47,32 @@ export interface InventoryTableProps {
   parts: InventoryPart[];
 }
 
-/** The main inventory grid (tab-inventory.md §2 columns + R2-11 optional Price column). */
+/**
+ * The main inventory grid (tab-inventory.md §2 columns).
+ *
+ * Columns follow the real catalog rather than the demo one. Whole categories
+ * imported from the client's stock list have no Value/V/Package at all, so
+ * Description and Sub-category are what actually tell two rows apart; Status
+ * and Price were near-uniform noise here ("Active" and "—" on every row) and
+ * live on the part detail drawer instead, which shows both plus stock value.
+ */
 export function InventoryTable({ parts }: InventoryTableProps) {
   const router = useRouter();
 
   return (
-    <TableShell minWidth={900}>
+    <TableShell minWidth={1000}>
       <TableHead>
         <Tr>
           <Th>PID</Th>
           <Th>MPN</Th>
+          <Th>Description</Th>
           <Th>Value</Th>
           <Th>V</Th>
           <Th>Package</Th>
           <Th>Category</Th>
+          <Th>Sub-category</Th>
           <Th align="right">Qty</Th>
           <Th>Location</Th>
-          <Th>Status</Th>
-          <Th align="right" className="hidden lg:table-cell">
-            Price
-          </Th>
         </Tr>
       </TableHead>
       <TableBody>
@@ -70,10 +86,17 @@ export function InventoryTable({ parts }: InventoryTableProps) {
               {part.internal_pid}
             </Td>
             <Td mono>{part.mpn ?? "—"}</Td>
+            {/* Descriptions run long ("TH-2P Phototransistors T-1.75 450 to
+                1080nm +/-20 deg"); clamp the column so one verbose row can't
+                set the width for the whole table, full text on hover. */}
+            <Td className="max-w-[22ch] truncate" title={part.description ?? undefined}>
+              {part.description ?? "—"}
+            </Td>
             <Td>{part.value ?? "—"}</Td>
             <Td mono>{part.voltage ?? "—"}</Td>
             <Td mono>{part.package ?? "—"}</Td>
             <Td>{part.category ?? "—"}</Td>
+            <Td className="text-smoke">{subCategoryLabel(part)}</Td>
             <Td align="right">
               <Chip tone={QTY_CHIP_TONE[part.stockState]} mono>
                 {formatNumber(part.total_qty)}
@@ -83,10 +106,6 @@ export function InventoryTable({ parts }: InventoryTableProps) {
               <Chip tone="default" mono>
                 {locationLabel(part)}
               </Chip>
-            </Td>
-            <Td className="text-smoke">{STATUS_LABEL[part.part_status] ?? part.part_status}</Td>
-            <Td align="right" mono className="hidden lg:table-cell">
-              {part.last_unit_price != null ? formatINR(part.last_unit_price, { decimals: 2 }) : "—"}
             </Td>
           </Tr>
         ))}
