@@ -58,3 +58,28 @@ export const OnboardingFormSchema = z.object({
   bank_name: z.string().trim().min(1, "Bank name is required").max(200),
 });
 export type OnboardingFormInput = z.infer<typeof OnboardingFormSchema>;
+
+export type OnboardingValidation =
+  | { ok: true; data: OnboardingFormInput }
+  | { ok: false; error: string };
+
+/**
+ * Validates a submitted form, returning the first problem as a sentence.
+ *
+ * This exists as a function rather than a bare `.parse()` at the call site
+ * because of what a throw does here. A ZodError raised inside a Server Action
+ * is not caught as a form error — it escapes to the nearest error boundary and
+ * replaces the entire screen with "Something went wrong", the real message
+ * hidden behind a digest. On 2026-08-11 that turned a mistyped IFSC into a dead
+ * screen: the FIRST page a new employee ever sees, killed by the first thing
+ * they type into it.
+ *
+ * Only the first issue is surfaced. The form is six fields shown together, and
+ * a list of every fault at once reads as an accusation; the first one is enough
+ * to act on.
+ */
+export function validateOnboardingInput(input: unknown): OnboardingValidation {
+  const result = OnboardingFormSchema.safeParse(input);
+  if (result.success) return { ok: true, data: result.data };
+  return { ok: false, error: result.error.issues[0]?.message ?? "Please check the details you entered." };
+}

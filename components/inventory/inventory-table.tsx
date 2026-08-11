@@ -59,6 +59,17 @@ export interface InventoryTableProps {
  */
 const INITIAL_ROWS = 60;
 const ROWS_PER_STEP = 120;
+/** How close to the bottom counts as "about to need more rows". */
+const GROW_MARGIN_PX = 800;
+
+/** Nearest ancestor that actually scrolls — the element whose scroll position drives growth. */
+function scrollParentOf(node: HTMLElement | null): HTMLElement | null {
+  for (let el = node?.parentElement ?? null; el; el = el.parentElement) {
+    const overflowY = getComputedStyle(el).overflowY;
+    if ((overflowY === "auto" || overflowY === "scroll") && el.scrollHeight > el.clientHeight) return el;
+  }
+  return null;
+}
 
 export function InventoryTable({ parts, selectedCategories }: InventoryTableProps) {
   const router = useRouter();
@@ -80,21 +91,21 @@ export function InventoryTable({ parts, selectedCategories }: InventoryTableProp
   }
 
   useEffect(() => {
-    const sentinel = sentinelRef.current;
-    if (!sentinel || renderCount >= parts.length) return;
+    if (renderCount >= parts.length) return;
+    const scroller = scrollParentOf(sentinelRef.current);
+    if (!scroller) return;
 
-    // rootMargin so the next slice is already in place by the time it would
-    // have been reached — the growth is never seen as a pause.
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) {
-          setRenderCount((current) => Math.min(current + ROWS_PER_STEP, parts.length));
-        }
-      },
-      { rootMargin: "800px" },
-    );
-    observer.observe(sentinel);
-    return () => observer.disconnect();
+    // Grown from the scroll position rather than an IntersectionObserver: the
+    // observer never delivers in a background tab, and a list that silently
+    // refuses to grow past 60 is worse than one that grows a fraction early.
+    // The margin means the next slice lands before the bottom is reached.
+    const onScroll = () => {
+      if (scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - GROW_MARGIN_PX) {
+        setRenderCount((current) => Math.min(current + ROWS_PER_STEP, parts.length));
+      }
+    };
+    scroller.addEventListener("scroll", onScroll, { passive: true });
+    return () => scroller.removeEventListener("scroll", onScroll);
   }, [renderCount, parts.length]);
 
   const visibleParts = renderCount >= parts.length ? parts : parts.slice(0, renderCount);
@@ -129,8 +140,28 @@ export function InventoryTable({ parts, selectedCategories }: InventoryTableProp
     {/* Outside the horizontal scroller, so it stays put while the grid scrolls. */}
     <div ref={sentinelRef} aria-hidden className="h-px" />
     {renderCount < parts.length && (
-      <div className="px-3.5 py-3 text-caption text-smoke" role="status">
-        Showing {formatNumber(renderCount)} of {formatNumber(parts.length)} — keep scrolling for more
+      // Buttons as well as scrolling. Scroll-to-grow is the invisible path, but
+      // it is only reachable if the list is tall enough to scroll at all, and a
+      // grid that appears to stop at 60 parts with no way forward is exactly
+      // the kind of thing that gets reported as broken.
+      <div className="flex flex-wrap items-center gap-3 px-3.5 py-3" role="status">
+        <span className="text-caption text-smoke">
+          Showing {formatNumber(renderCount)} of {formatNumber(parts.length)}
+        </span>
+        <button
+          type="button"
+          onClick={() => setRenderCount((current) => Math.min(current + ROWS_PER_STEP, parts.length))}
+          className="cursor-pointer rounded-full border border-border-divider px-3 py-1 text-caption text-silver-mist transition-colors hover:bg-surface-raised hover:text-snow"
+        >
+          Show {formatNumber(Math.min(ROWS_PER_STEP, parts.length - renderCount))} more
+        </button>
+        <button
+          type="button"
+          onClick={() => setRenderCount(parts.length)}
+          className="cursor-pointer text-caption text-smark-orange hover:underline"
+        >
+          Show all {formatNumber(parts.length)}
+        </button>
       </div>
     )}
     </>

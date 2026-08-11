@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/cn";
 import { formatNumber } from "@/lib/format";
@@ -9,10 +12,23 @@ export interface LiveContentsTableProps {
 }
 
 /**
+ * Rows drawn before the reader asks for more.
+ *
+ * The import's staging box holds the entire un-put-away catalog — ~1,750 rows
+ * on one page — and building that many links is a visible stall on a laptop.
+ * Every real box holds a handful, so this cap is invisible in normal use and
+ * only bites where it should.
+ */
+const INITIAL_ROWS = 100;
+
+/**
  * Right panel on box detail (prototype "Live contents"): PID · MPN · value ·
  * qty, low = orange, rows → part drawer.
  */
 export function LiveContentsTable({ items }: LiveContentsTableProps) {
+  const [shown, setShown] = useState(INITIAL_ROWS);
+  const visible = shown >= items.length ? items : items.slice(0, shown);
+
   return (
     <div className="overflow-hidden rounded-2xl border border-charcoal">
       <div className="flex items-center justify-between border-b border-border-divider px-[18px] py-3.5">
@@ -25,7 +41,7 @@ export function LiveContentsTable({ items }: LiveContentsTableProps) {
       {items.length === 0 ? (
         <div className="px-[18px] py-10 text-center text-[15px] text-smoke">Nothing in this box yet.</div>
       ) : (
-        items.map((item) => {
+        visible.map((item) => {
           const low = isLowState(stockStateForPart({ total_qty: item.totalQty, reorder_point: item.reorderPoint }));
           return (
             <Link
@@ -46,6 +62,16 @@ export function LiveContentsTable({ items }: LiveContentsTableProps) {
             </Link>
           );
         })
+      )}
+
+      {shown < items.length && (
+        <button
+          type="button"
+          onClick={() => setShown(items.length)}
+          className="w-full cursor-pointer border-t border-border-divider px-[18px] py-3 text-caption text-smark-orange transition-colors hover:bg-surface-hover"
+        >
+          Showing {formatNumber(shown)} of {formatNumber(items.length)} — show all
+        </button>
       )}
     </div>
   );
