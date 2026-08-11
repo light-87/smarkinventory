@@ -27,6 +27,24 @@ const VISIBLE_LIMIT = 8;
 const SEARCHABLE_FROM = 12;
 
 /**
+ * Height of an expanded option list, in rows, before it scrolls within itself
+ * (client report, 2026-08-11: "all 294 packages load in very long line - not
+ * user friendly… max say 10-15 should be shown at a time in a vertical
+ * scrollable window. This should be done for all filters").
+ *
+ * "Show N more" previously dumped every remaining option into the page, so
+ * expanding Package turned the sidebar into a 300-row column and pushed every
+ * group below it out of reach. Each list now keeps its own scrollbar, so the
+ * groups after it stay where they were however long the list is.
+ *
+ * Expressed in rows rather than pixels so it tracks the row height: 13 rows is
+ * the middle of the range asked for, and enough that the scrollbar reads as
+ * "there is more here" rather than as a cramped window.
+ */
+const MAX_VISIBLE_ROWS = 13;
+const ROW_HEIGHT_PX = 30;
+
+/**
  * Desktop-only facet sidebar (tab-inventory.md §2: "Mobile: sidebar hidden —
  * facets not reachable — accepted prototype gap"). Collapsible groups, live
  * counts against the current filtered set, checkbox rows per prototype.
@@ -142,9 +160,14 @@ function FacetGroup({ group, open, onToggleOpen, onToggleValue, onSetRange }: Fa
             />
           )}
 
-          {visible.rows.map((v) => (
-            <FacetRow key={v.value} group={group.name} value={v} onToggle={() => onToggleValue(v.value)} />
-          ))}
+          <div
+            className="flex flex-col gap-px overflow-y-auto overscroll-contain"
+            style={{ maxHeight: MAX_VISIBLE_ROWS * ROW_HEIGHT_PX }}
+          >
+            {visible.rows.map((v) => (
+              <FacetRow key={v.value} group={group.name} value={v} onToggle={() => onToggleValue(v.value)} />
+            ))}
+          </div>
 
           {visible.rows.length === 0 && <p className="px-1.5 py-1.5 text-[14px] text-faint">No match.</p>}
 

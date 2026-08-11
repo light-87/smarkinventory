@@ -16,14 +16,55 @@ const KNOWN_ATTRIBUTE_LABELS: Record<string, string> = {
   pin_count: "Pin count",
   esr: "ESR",
   inductance: "Inductance",
-  // The title-case fallback would render this "Sub Category", which reads as a
-  // different field from the "Sub-category" column on the inventory grid.
+  // The title-case fallback renders these "Sub Category", "Mount Type",
+  // "Tolerance Percent" — each reading as a different field from the column or
+  // facet of the same name elsewhere in the app. The importer writes all of
+  // them, so they show on most parts.
   sub_category: "Sub-category",
+  mount_type: "Mount type",
+  tolerance_percent: "Tolerance (%)",
+  power_watts: "Power rating",
+  current_rating: "Current rating",
+  diode_type: "Diode type",
+  contact_type: "Contact type",
+  package_size: "Package size",
+  cp: "Cost price (₹)",
+  sp_moq100: "Sell price @ MOQ 100 (₹)",
+  sp_moq25: "Sell price @ MOQ 25 (₹)",
 };
 
 function attributeLabel(key: string): string {
   return KNOWN_ATTRIBUTE_LABELS[key] ?? key.replace(/[_-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
+
+/**
+ * Attributes the Specifications grid must not render (client report, 2026-08-11:
+ * "these should be removed", pointing at Source Row and Source File).
+ *
+ * Two kinds, both noise to the person checking a part:
+ *
+ *   - **Provenance and QA.** `Filter_Specification.md` §1 is explicit that
+ *     `Source_Sheet`/`Source_Row` are "internal build/QA traceability only —
+ *     do not expose them as filters or as visible fields". They were already
+ *     excluded from filtering and search; the specs grid rendered every
+ *     attribute it found, so they leaked in here. `data_flag`/`qty_raw` are our
+ *     own import bookkeeping and belong with them.
+ *   - **Raw base-unit numbers.** `Import_Guide.md` §2: "Do not filter directly
+ *     against these raw numbers in the UI — 0.0000001 is unreadable… for
+ *     display use `Value_Display`." A row reading "Capacitance Farads 1e-7"
+ *     directly under "Value 100 nF" is the same number twice, once unreadably.
+ *     They stay on the part and still drive the range filters.
+ */
+const HIDDEN_SPEC_KEYS: ReadonlySet<string> = new Set([
+  "source_file",
+  "source_row",
+  "source_sheet",
+  "data_flag",
+  "qty_raw",
+  "resistance_ohms",
+  "capacitance_farads",
+  "inductance_henries",
+]);
 
 /** qty × last_unit_price — null when the part has never been priced (R2-11 honesty rule). */
 export function computeStockValue(part: PartRow): number | null {
@@ -52,6 +93,7 @@ export function buildPartSpecs(part: PartRow): SpecEntry[] {
   push("LCSC PN", part.lcsc_pn);
 
   for (const [key, value] of Object.entries(part.attributes)) {
+    if (HIDDEN_SPEC_KEYS.has(key)) continue;
     push(attributeLabel(key), value);
   }
 

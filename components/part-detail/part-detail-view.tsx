@@ -12,6 +12,7 @@ import { distinctEventTypes, distinctProjects, filterTimeline } from "@/lib/part
 import type { PartDetailData, TimelineFilterState } from "@/lib/part-events/types";
 import type { PartStatus } from "@/types/db";
 import { AdjustQtyDialog } from "./adjust-qty-dialog";
+import { EditPartDialog } from "./edit-part-dialog";
 import { ContestedStockStrip } from "./contested-stock-strip";
 import { LabelPreview } from "./label-preview";
 import { LocationsTable } from "./locations-table";
@@ -39,6 +40,7 @@ export function PartDetailView({ data, variant, onClose }: PartDetailViewProps) 
   const router = useRouter();
   const { push } = useToast();
   const [adjustOpen, setAdjustOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [printPending, startPrintTransition] = useTransition();
   const [timelineFilter, setTimelineFilter] = useState<TimelineFilterState>({ eventTypes: [], projectId: null });
 
@@ -134,6 +136,11 @@ export function PartDetailView({ data, variant, onClose }: PartDetailViewProps) 
           Order more
         </Button>
         {data.canWrite && (
+          <Button variant="outline" onClick={() => setEditOpen(true)}>
+            Edit details
+          </Button>
+        )}
+        {data.canWrite && (
           <Button
             variant="outline"
             onClick={() => setAdjustOpen(true)}
@@ -144,6 +151,17 @@ export function PartDetailView({ data, variant, onClose }: PartDetailViewProps) 
           </Button>
         )}
       </DrawerFooter>
+
+      <EditPartDialog
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        part={data.part}
+        onSaved={(result) => {
+          setEditOpen(false);
+          push({ msg: `${data.part.internal_pid} updated (${result.changed} ${result.changed === 1 ? "field" : "fields"})` });
+          router.refresh();
+        }}
+      />
 
       <AdjustQtyDialog
         open={adjustOpen}
