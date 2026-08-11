@@ -111,37 +111,60 @@ describe("inventoryPartToCsvRow", () => {
     };
   }
 
+  /**
+   * Look cells up BY HEADER, not by index. These assertions used to hardcode
+   * positions and every one of them broke when Description, Distributor,
+   * Sub-category and Mount type were added on 2026-08-11 — a column list that
+   * is meant to grow should not make its own tests fail.
+   */
+  const cell = (row: (string | number)[], header: (typeof INVENTORY_EXPORT_HEADERS)[number]) =>
+    row[INVENTORY_EXPORT_HEADERS.indexOf(header)];
+
   test("matches the documented column order and computes stock value", () => {
     const row = inventoryPartToCsvRow(makePart());
-    expect(row).toEqual([
-      "SMK-000101",
-      "GRM188R71H104KA93D",
-      "Murata",
-      "C1525",
-      "Capacitor",
-      "100nF",
-      "50V",
-      "0603",
-      1200,
-      100,
-      "active",
-      "Shelf B · B-12 (1200)",
-      2.5,
-      3000, // 1200 * 2.50
-      "https://example.com/ds.pdf",
-    ]);
     expect(row.length).toBe(INVENTORY_EXPORT_HEADERS.length);
+    expect(cell(row, "PID")).toBe("SMK-000101");
+    expect(cell(row, "MPN")).toBe("GRM188R71H104KA93D");
+    expect(cell(row, "Manufacturer")).toBe("Murata");
+    expect(cell(row, "LCSC PN")).toBe("C1525");
+    expect(cell(row, "Category")).toBe("Capacitor");
+    expect(cell(row, "Value")).toBe("100nF");
+    expect(cell(row, "Voltage")).toBe("50V");
+    expect(cell(row, "Package")).toBe("0603");
+    expect(cell(row, "Qty")).toBe(1200);
+    expect(cell(row, "Reorder point")).toBe(100);
+    expect(cell(row, "Status")).toBe("active");
+    expect(cell(row, "Location")).toBe("Shelf B · B-12 (1200)");
+    expect(cell(row, "Last unit price (INR)")).toBe(2.5);
+    expect(cell(row, "Stock value (INR)")).toBe(3000); // 1200 * 2.50
+    expect(cell(row, "Datasheet URL")).toBe("https://example.com/ds.pdf");
+  });
+
+  test("carries the fields the client asked to see on screen", () => {
+    // Description, Distributor and Sub-category are what he checks the export
+    // against his own spreadsheets with; omitting them made it unusable for that.
+    const row = inventoryPartToCsvRow(
+      makePart({
+        description: "0.1uF/100nF",
+        default_distributor: "LCSC",
+        attributes: { sub_category: "MLCC", mount_type: "SMD" } as never,
+      }),
+    );
+    expect(cell(row, "Description")).toBe("0.1uF/100nF");
+    expect(cell(row, "Distributor")).toBe("LCSC");
+    expect(cell(row, "Sub-category")).toBe("MLCC");
+    expect(cell(row, "Mount type")).toBe("SMD");
   });
 
   test("blanks the price/value columns for an unpriced part (R2-11 honesty rule)", () => {
     const row = inventoryPartToCsvRow(makePart({ last_unit_price: null }));
-    expect(row[12]).toBe("");
-    expect(row[13]).toBe("");
+    expect(cell(row, "Last unit price (INR)")).toBe("");
+    expect(cell(row, "Stock value (INR)")).toBe("");
   });
 
   test("renders '—' when the part has no physical location", () => {
     const row = inventoryPartToCsvRow(makePart({ locations: [] }));
-    expect(row[11]).toBe("—");
+    expect(cell(row, "Location")).toBe("—");
   });
 
   test("finding #1/#7 — free-text fields are sanitized at the row-array level (protects a future xlsx/aoa_to_sheet path)", () => {
@@ -156,12 +179,12 @@ describe("inventoryPartToCsvRow", () => {
         locations: [{ id: "l1", qty: 5, boxName: "=EVIL", shelfCode: "=A", lastCountedAt: null }],
       }),
     );
-    expect(row[1]).toBe('\'=HYPERLINK("http://evil")');
-    expect(row[2]).toBe("'=cmd");
-    expect(row[4]).toBe("'+1+1");
-    expect(row[5]).toBe("'-100nF");
-    expect(row[7]).toBe("'@SUM(1)");
-    expect(row[14]).toBe("'=B1");
-    expect(row[11]).toBe("Shelf '=A · '=EVIL (5)");
+    expect(cell(row, "MPN")).toBe('\'=HYPERLINK("http://evil")');
+    expect(cell(row, "Manufacturer")).toBe("'=cmd");
+    expect(cell(row, "Category")).toBe("'+1+1");
+    expect(cell(row, "Value")).toBe("'-100nF");
+    expect(cell(row, "Package")).toBe("'@SUM(1)");
+    expect(cell(row, "Datasheet URL")).toBe("'=B1");
+    expect(cell(row, "Location")).toBe("Shelf '=A · '=EVIL (5)");
   });
 });

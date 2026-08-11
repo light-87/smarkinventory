@@ -25,7 +25,10 @@ export function SpecsGrid({ specs, className }: SpecsGridProps) {
   return (
     <div
       className={cn(
-        "grid grid-cols-2 items-start gap-px overflow-hidden rounded-lg border border-border-divider bg-border-divider",
+        // One column on a phone. Two 170px cells at 360px was already tight and
+        // got worse once values wrapped instead of truncating; CLAUDE.md holds
+        // every screen to 360px, and this is a mobile-first app.
+        "grid grid-cols-1 items-start gap-px overflow-hidden rounded-lg border border-border-divider bg-border-divider sm:grid-cols-2",
         className,
       )}
     >

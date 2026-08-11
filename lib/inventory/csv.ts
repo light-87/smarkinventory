@@ -39,12 +39,20 @@ export function toCsv(rows: readonly (readonly unknown[])[]): string {
 export const INVENTORY_EXPORT_HEADERS = [
   "PID",
   "MPN",
+  // Description, Distributor, Sub-category and Mount type were added on
+  // 2026-08-11: each is a column or a facet the client asked for on screen, and
+  // an export that omits them cannot be checked against his own spreadsheets,
+  // which is the main thing he uses it for.
+  "Description",
   "Manufacturer",
   "LCSC PN",
+  "Distributor",
   "Category",
+  "Sub-category",
   "Value",
   "Voltage",
   "Package",
+  "Mount type",
   "Qty",
   "Reorder point",
   "Status",
@@ -53,6 +61,13 @@ export const INVENTORY_EXPORT_HEADERS = [
   "Stock value (INR)",
   "Datasheet URL",
 ] as const;
+
+/** A jsonb attribute as plain text, blank when unset. */
+function attributeText(part: InventoryPart, key: string): string {
+  const raw = part.attributes[key];
+  if (raw === null || raw === undefined || typeof raw === "boolean") return "";
+  return String(raw).trim();
+}
 
 function formatLocations(part: InventoryPart): string {
   if (part.locations.length === 0) return "—";
@@ -73,12 +88,16 @@ export function inventoryPartToCsvRow(part: InventoryPart): (string | number)[] 
   return [
     part.internal_pid,
     sanitizeForSpreadsheet(part.mpn ?? ""),
+    sanitizeForSpreadsheet(part.description ?? ""),
     sanitizeForSpreadsheet(part.manufacturer ?? ""),
     part.lcsc_pn ?? "",
+    sanitizeForSpreadsheet(part.default_distributor ?? ""),
     sanitizeForSpreadsheet(part.category ?? ""),
+    sanitizeForSpreadsheet(attributeText(part, "sub_category")),
     sanitizeForSpreadsheet(part.value ?? ""),
     part.voltage ?? "",
     sanitizeForSpreadsheet(part.package ?? ""),
+    sanitizeForSpreadsheet(attributeText(part, "mount_type")),
     part.total_qty,
     part.reorder_point ?? "",
     part.part_status,
