@@ -62,6 +62,21 @@ so the package filter no longer splits the same size into two options. Matching
 was never affected by it either way: the app already compared package sizes with
 the bracket ignored.
 
+**Sourcing runs will be faster from now on.** Until now a run priced every line
+on the sheet, including the ones already on your shelves. That made sense when
+the matching was weak — we couldn't trust "in stock" enough to skip anything. Now
+that it's accurate, the run only searches for what you actually need to buy. On
+this BOM that's **40 lines instead of 113**, so it should finish in roughly a
+third of the time. Lines marked do-not-populate are skipped too, since nothing is
+ever bought against them. If you ever want the old behaviour — to price
+everything regardless — tick **Re-source all** in the desktop app.
+
+Worth knowing how this fits together: the run never re-checks your inventory. The
+stock position is worked out beforehand, by the matching described below, which
+is what the **Re-check stock** button re-runs. During the run the app only talks
+to the distributors. That's exactly why better matching makes runs faster — every
+line it can resolve against your own shelves is a line nobody has to go and price.
+
 **One thing I couldn't do: PPM.** It's blank in every row of every file you've
 sent, so there is nothing to display. Where should it come from?
 
