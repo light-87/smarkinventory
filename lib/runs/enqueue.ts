@@ -60,6 +60,25 @@ interface LoadedBomContext {
   effectiveSequence: EffectiveDistributorRow[];
 }
 
+/**
+ * The lines a run should actually send to the distributors.
+ *
+ * Pure, and exported, so the rule that decides what an agent spends its time on
+ * is testable without a database — it is the difference between a run that
+ * prices 40 lines and one that prices 113.
+ *
+ * A DNP line is excluded for the same reason as an in-stock one: its need is
+ * zero, so nothing will ever be bought against it, and the agent looking it up
+ * is time spent on an answer nobody reads.
+ */
+export function sourceableLines<T extends { match_state: string; dnp: boolean }>(
+  allLines: readonly T[],
+  resourceAll: boolean,
+): T[] {
+  if (resourceAll) return [...allLines];
+  return allLines.filter((line) => line.match_state !== "in_stock" && !line.dnp);
+}
+
 async function loadBomContext(supabase: DB, bomId: string): Promise<LoadedBomContext | { error: string }> {
   const { data: bom, error: bomError } = await supabase.from(TABLES.boms).select("*").eq("id", bomId).maybeSingle();
   if (bomError) return { error: bomError.message };
@@ -481,11 +500,34 @@ export async function createDesktopRun(
   if ("error" in loaded) return { ok: false, error: loaded.error };
   const { bom, project, allLines, inStockLines, effectiveSequence } = loaded;
 
-  // Full-BOM desktop runs (user decision 2026-07-20): source EVERY line, in-stock
-  // included — stock is shown per line as context, never a filter. Only a genuinely
-  // empty BOM has nothing to do.
   if (allLines.length === 0) {
     return { ok: false, error: "This BOM has no lines to source." };
+  }
+
+  // Only what isn't already on a shelf.
+  //
+  // Desktop runs used to source EVERY line, in-stock included (decision of
+  // 2026-07-20), and that was right at the time: reconcile then resolved 46 of
+  // 217 real lines, so "in stock" was too unreliable to filter on — skipping a
+  // line because of a match you didn't trust risked not ordering something you
+  // needed.
+  //
+  // The matcher changed on 2026-08-13 and so has that trade-off: on the
+  // client's own BOM, 73 of 113 lines now resolve to stock. Sourcing them
+  // anyway means visiting four distributors to price a reel that is sitting on
+  // shelf A — roughly three times the work for no answer anyone will use. The
+  // agent never re-checks our inventory (it only talks to distributors), so a
+  // line included here is a line genuinely searched online.
+  //
+  // "Re-source all" (`resourceAll`) still sources everything, for when the
+  // stock figures themselves are in doubt.
+  const sourceable = sourceableLines(allLines, input.resourceAll ?? false);
+  if (sourceable.length === 0) {
+    return {
+      ok: false,
+      error:
+        "Every line on this BOM is already in stock — there is nothing to source. Tick “Re-source all” to price them anyway.",
+    };
   }
 
   // Resume + low-stock alternatives (no reinstall). On a re-run we look at the
@@ -533,9 +575,9 @@ export async function createDesktopRun(
     }
   }
 
-  // Full BOM minus any lines reused from a prior run (their results are cloned below).
-  // On a first run reusedLineIds is empty, so this is every line on the BOM.
-  const remainingToOrder = allLines.filter((l) => !reusedLineIds.has(l.id));
+  // The sourceable set minus any lines reused from a prior run (their results
+  // are cloned below). On a first run reusedLineIds is empty.
+  const remainingToOrder = sourceable.filter((l) => !reusedLineIds.has(l.id));
   if (remainingToOrder.length === 0) {
     return {
       ok: false,
