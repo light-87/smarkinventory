@@ -17,7 +17,7 @@ import type { StoragePort } from "@/lib/storage";
 import { getEffectiveBomColumns, saveBomTemplate } from "./template";
 import { parseUploadedBomBuffer, type UploadedBomLine } from "./parse-upload";
 import { getReconcileCatalog } from "./queries";
-import { reconcileLines } from "./reconcile";
+import { isManualMatch, reconcileLines } from "./reconcile";
 import { validateBomRows } from "./validate";
 import type { CreateBomRowInput } from "./types";
 
@@ -176,8 +176,10 @@ export async function runReconcile(supabase: DB, bomId: string): Promise<void> {
 
   const { data: lines, error: linesError } = await supabase
     .from(TABLES.bom_lines)
-    // value + footprint feed rung 3 (exact value+package) — see lib/bom/reconcile.ts.
-    .select("id, qty, mpn, lcsc_pn, dnp, value, footprint")
+    // value + footprint feed rung 3 (exact value+package); description feeds the
+    // voltage tie-breaker; the match_* trio identifies a hand-picked line so
+    // this pass doesn't undo it — see lib/bom/reconcile.ts.
+    .select("id, qty, mpn, lcsc_pn, dnp, value, footprint, description, matched_part_id, match_method, match_confidence")
     .eq("bom_id", bomId)
     // Deterministic order so reconcileLines' cross-sibling stock netting (P6) is stable.
     .order("line_no", { ascending: true, nullsFirst: false });
@@ -185,7 +187,14 @@ export async function runReconcile(supabase: DB, bomId: string): Promise<void> {
   if (!lines || lines.length === 0) return;
 
   const catalog = await getReconcileCatalog(supabase);
-  const outcomes = reconcileLines(lines, catalog, bom.build_qty);
+  const outcomes = reconcileLines(
+    lines.map((line) => ({
+      ...line,
+      pinnedPartId: isManualMatch(line.match_method, line.match_confidence) ? line.matched_part_id : null,
+    })),
+    catalog,
+    bom.build_qty,
+  );
 
   const CHUNK_SIZE = 25;
   for (let i = 0; i < outcomes.length; i += CHUNK_SIZE) {

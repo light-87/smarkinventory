@@ -52,10 +52,31 @@ export const NewPartFormSchema = z.object({
   value: z.string().trim().min(1, "Value is required"),
   /** [R2-24] own field, split out of the old combined "0.1µF/50V" string. */
   voltage: z.string().trim().nullish(),
-  package: z.string().trim().min(1, "Package is required"),
+  /**
+   * OPTIONAL since 2026-08-13. It was required, and the client's answer was
+   * blunt: "we don't want the packages to be mandatory, we only want the values
+   * and quantity". Plenty of real stock has no package worth typing — a relay,
+   * a cable assembly, a length of wire — and refusing to record it until
+   * someone invents one is worse than a blank field.
+   */
+  package: z.string().trim().nullish(),
   qty: z.coerce.number().int().positive("Quantity must be a positive whole number"),
   mpn: z.string().trim().nullish(),
   manufacturer: z.string().trim().nullish(),
+  /**
+   * A REAL field, not a custom one. The client added "description" himself
+   * through "+ add custom field", which wrote it into `attributes` — so the
+   * Inventory grid's own Description column stayed empty and he reported the
+   * value as missing. It is the only human-readable handle on most of the
+   * catalog; it belongs on the form.
+   */
+  description: z.string().trim().nullish(),
+  /** Where it was bought — same closed list as the part page (lib/part-events/distributor.ts). */
+  distributor: z.string().trim().nullish(),
+  /** Link to a photo of the part, for visual identification at the shelf. */
+  imageUrl: z.string().trim().nullish(),
+  /** Per-category attributes — the same set the part's edit dialog offers. */
+  attributes: z.record(z.string(), z.string()).default({}),
   /** Keyed by `field_key` (slugified label) — values land in `smark_parts.attributes` [R2-23]. */
   customFields: z.record(z.string(), CustomFieldValueSchema).default({}),
 });

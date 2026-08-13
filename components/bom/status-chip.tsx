@@ -46,6 +46,20 @@ export function DnpBadge() {
  * manual-test finding F-002 was hard to spot precisely because inferred links
  * looked identical to asserted ones. This is what makes them visible.
  */
+/**
+ * Marks a line a person chose between tied stock rows, rather than one the
+ * matcher inferred. Distinguished so an operator can see at a glance which
+ * links carry a human decision behind them — those are the ones that survive
+ * every later re-reconcile.
+ */
+export function ChosenMatchBadge() {
+  return (
+    <Chip tone="success" title="You picked this stock item for this line. It stays chosen through re-reconciles.">
+      chosen
+    </Chip>
+  );
+}
+
 export function ValuePackageMatchBadge() {
   return (
     <Chip tone="default" title="Matched on value + package, not a part number. Check it if the line looks wrong.">

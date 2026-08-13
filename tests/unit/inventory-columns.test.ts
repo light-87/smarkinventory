@@ -99,7 +99,24 @@ describe("the header follows the category", () => {
 
   test("a mixed view falls back to the general-purpose header", () => {
     const labels = labelsFor([]);
-    expect(labels).toEqual(["PID", "MPN", "Description", "Value", "V", "Package", "Category", "Sub-category", "Qty", "Location"]);
+    // Tolerance and Distributor joined this set on 2026-08-13 at the client's
+    // request ("as much data as possible on the main screen"). They appear only
+    // when some part in view actually carries one — `visibleColumns` drops a
+    // column nothing populates — so a fixture without them stays short.
+    expect(labels).toEqual([
+      "PID",
+      "MPN",
+      "Description",
+      "Value",
+      "V",
+      "Package",
+      "Category",
+      "Sub-category",
+      "Tolerance",
+      "Distributor",
+      "Qty",
+      "Location",
+    ]);
   });
 
   test("two categories at once show the union of their columns", () => {

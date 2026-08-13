@@ -17,6 +17,8 @@ import { createClient } from "@/lib/supabase/server";
 import { canWrite } from "@/lib/auth/roles";
 import { getStorageAdapter } from "@/lib/storage";
 import type { BomTemplateColumn } from "@/types/db";
+import { TABLES } from "@/types/db";
+import { MANUAL_MATCH_CONFIDENCE } from "@/lib/bom/reconcile";
 import {
   AddCustomColumnInputSchema,
   CreateBomInAppInputSchema,
@@ -165,6 +167,52 @@ export async function setBomArchivedAction(input: {
     return result;
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : "Could not archive that BOM." };
+  }
+}
+
+export type ChooseLinePartResult = { ok: true } | { ok: false; error: string };
+
+/**
+ * Records which stock row a tied BOM line actually is.
+ *
+ * The matcher refuses to guess between two rows that share a value and a
+ * package — charging a line's whole demand to an arbitrary half of the stock
+ * would corrupt the shortfall and to-order maths. So the choice is a human's,
+ * made once, and it sticks: it's written with the manual signature
+ * (`lib/bom/reconcile.ts`) that `runReconcile` treats as pinned, so changing
+ * the build quantity later re-does the arithmetic without undoing the decision.
+ *
+ * Reconcile is re-run straight afterwards so the line's in-stock/to-order state
+ * and the BOM's totals reflect the choice immediately.
+ */
+export async function chooseBomLinePartAction(input: {
+  bomId: string;
+  lineId: string;
+  partId: string;
+}): Promise<ChooseLinePartResult> {
+  const { supabase } = await requireProjectsWriter();
+  try {
+    const { data, error } = await supabase
+      .from(TABLES.bom_lines)
+      .update({
+        matched_part_id: input.partId,
+        match_method: "value_pkg",
+        match_confidence: MANUAL_MATCH_CONFIDENCE,
+      })
+      .eq("id", input.lineId)
+      .eq("bom_id", input.bomId)
+      .select("id");
+    if (error) throw error;
+    // PostgREST answers 200 with an empty body when RLS blocks an UPDATE.
+    if (!data || data.length === 0) {
+      return { ok: false, error: "That line could not be updated — you may not have permission." };
+    }
+
+    await runReconcile(supabase, input.bomId);
+    revalidatePath("/projects", "layout");
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Could not save that choice." };
   }
 }
 

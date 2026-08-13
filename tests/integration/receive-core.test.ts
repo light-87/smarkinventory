@@ -72,7 +72,7 @@ describeDb("lib/receive/core", () => {
       qty: 250,
       mpn: null,
       manufacturer: null,
-      customFields: { tolerance: "±5%" },
+      attributes: {}, customFields: { tolerance: "±5%" },
     });
 
     expect(result.ok).toBe(true);
@@ -113,7 +113,7 @@ describeDb("lib/receive/core", () => {
       qty: 100,
       mpn: null,
       manufacturer: null,
-      customFields: {},
+      attributes: {}, customFields: {},
     });
     expect(first.ok).toBe(true);
     if (!first.ok) return;
@@ -126,7 +126,7 @@ describeDb("lib/receive/core", () => {
       qty: 40,
       mpn: null,
       manufacturer: null,
-      customFields: {},
+      attributes: {}, customFields: {},
     });
     expect(second.ok).toBe(false);
     if (second.ok) return;
@@ -136,7 +136,7 @@ describeDb("lib/receive/core", () => {
     const forced = await createNewPart(
       service,
       actor.id,
-      { category: "Capacitor", value, voltage: null, package: "0402", qty: 40, mpn: null, manufacturer: null, customFields: {} },
+      { category: "Capacitor", value, voltage: null, package: "0402", qty: 40, mpn: null, manufacturer: null, attributes: {}, customFields: {} },
       { force: true },
     );
     expect(forced.ok).toBe(true);

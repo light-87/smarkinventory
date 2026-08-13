@@ -9,7 +9,10 @@ import { Input } from "@/components/ui/input";
 import { TableBody, TableHead, TableShell, Td, Th, Tr } from "@/components/ui/table";
 import { formatNumber } from "@/lib/format";
 import { updateBuildQtyAction } from "@/app/(app)/projects/[projectId]/boms/actions";
-import { DnpBadge, LineStatusChip, ValuePackageMatchBadge } from "./status-chip";
+import { ChosenMatchBadge, DnpBadge, LineStatusChip, ValuePackageMatchBadge } from "./status-chip";
+import { LinePartPicker } from "./line-part-picker";
+import { isManualMatch } from "@/lib/bom/reconcile";
+import type { BomLineOption } from "@/lib/bom/queries";
 import type { BomLineRow } from "@/types/db";
 import type { BomRow } from "@/types/db";
 
@@ -17,6 +20,8 @@ export interface ReconcileViewProps {
   bom: BomRow;
   lines: BomLineRow[];
   writable: boolean;
+  /** Stock rows an unresolved line ties against, keyed by line id — see `LinePartPicker`. */
+  optionsByLineId?: Record<string, BomLineOption[]>;
   /** Set when this BOM's most recent run is sitting in review — surfaces a "In review →" CTA. */
   reviewRunId?: string | null;
 }
@@ -54,7 +59,7 @@ function safePartLink(raw: string | null): string | null {
  * F-002 was hard to spot precisely because inferred links looked identical to
  * asserted ones. If a line looks wrong, fix its value or footprint and re-run.
  */
-export function ReconcileView({ bom, lines, writable, reviewRunId }: ReconcileViewProps) {
+export function ReconcileView({ bom, lines, writable, optionsByLineId = {}, reviewRunId }: ReconcileViewProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [buildQty, setBuildQty] = useState(String(bom.build_qty));
@@ -157,8 +162,24 @@ export function ReconcileView({ bom, lines, writable, reviewRunId }: ReconcileVi
               </Td>
               <Td>
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <LineStatusChip matchState={line.match_state} />
-                  {line.match_method === "value_pkg" && <ValuePackageMatchBadge />}
+                  {optionsByLineId[line.id]?.length ? (
+                    // Not "To order" — the stock is there, the line just ties
+                    // against more than one row of it.
+                    <LinePartPicker
+                      bomId={bom.id}
+                      lineId={line.id}
+                      options={optionsByLineId[line.id]!}
+                      writable={writable}
+                    />
+                  ) : (
+                    <LineStatusChip matchState={line.match_state} />
+                  )}
+                  {line.match_method === "value_pkg" &&
+                    (isManualMatch(line.match_method, line.match_confidence) ? (
+                      <ChosenMatchBadge />
+                    ) : (
+                      <ValuePackageMatchBadge />
+                    ))}
                 </div>
               </Td>
               <Td>{line.value ?? "—"}</Td>

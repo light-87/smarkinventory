@@ -73,6 +73,16 @@ export const INVENTORY_COLUMNS: readonly InventoryColumn[] = [
   { id: "package", label: "Package", scope: "default", mono: true, width: 120, value: (p) => p.package },
   { id: "category", label: "Category", scope: "default", width: 110, value: (p) => p.category },
   { id: "sub_category", label: "Sub-category", scope: "default", width: 120, value: (p) => attr(p, "sub_category") },
+  // Client request, 2026-08-13: "we need to see as much data as possible on the
+  // main screen… Tolerance, Distributor". Both are in the data for a good share
+  // of the catalog and both are things you buy on, so they earn a column in the
+  // mixed view rather than only inside a category. (PPM was asked for too, but
+  // every row of every file he sent has it blank — there is nothing to show.)
+  { id: "tolerance", label: "Tolerance", scope: "default", width: 100, value: (p) => {
+      const pct = attr(p, "tolerance_percent");
+      return pct === null ? attr(p, "tolerance") : `${pct}%`;
+    } },
+  { id: "distributor", label: "Distributor", scope: "default", width: 110, value: (p) => p.default_distributor },
 
   /* Resistors — resistors.csv / resistor_networks.csv */
   { id: "res_value", label: "Resistance", scope: RESISTIVE, width: 100, value: (p) => p.value },

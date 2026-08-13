@@ -193,6 +193,64 @@ export function packageKey(raw: string | null | undefined): string {
   return normalizePackage(withoutParenthetical);
 }
 
+/* ────────────────────────────────────────────────────────────────────────────
+ * Value / voltage splitting
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+/** A voltage token on its own: `100V`, `6.3V`, `2kV`, `50 V`. */
+const VOLTAGE_TOKEN = /^\s*(\d+(?:\.\d+)?)\s*(k|K)?\s*V\s*$/;
+/** A voltage anywhere inside free text: `CAP CER 100nF 25V X7R 0603`. */
+const VOLTAGE_IN_TEXT = /(?:^|[\s(/])(\d+(?:\.\d+)?\s*[kK]?V)(?:$|[\s),/])/;
+
+export interface ValueVoltageSplit {
+  /** The component value with any trailing qualifier removed. */
+  value: string;
+  /** The voltage found in the qualifier, if the qualifier WAS a voltage. */
+  voltage: string | null;
+}
+
+/**
+ * Splits a KiCad-style combined value into its parts: `"0.1uF/100V"` becomes
+ * `0.1uF` + `100V`.
+ *
+ * The client's BOMs write the voltage into the value field, and that single
+ * habit was the largest cause of unmatched lines on `XE-U6632_V1.1`: 24 of its
+ * 114 lines. `parseComponentValue("0.1uF/100V")` returns null, so those lines
+ * found no candidate AT ALL — not a wrong match, no match, while the part sat
+ * on the shelf.
+ *
+ * Non-voltage qualifiers are dropped rather than kept: `"0R/DNP"` is a 0Ω
+ * resistor whose line happens to be marked do-not-populate, and `24AA025E48T-E/OT`
+ * is an MPN whose suffix is part of its name, not a qualifier — the leading
+ * segment is still the best value to match on in both cases.
+ */
+export function splitValueVoltage(raw: string | null | undefined): ValueVoltageSplit {
+  const text = (raw ?? "").trim();
+  if (text === "" || !text.includes("/")) return { value: text, voltage: null };
+
+  const [head, ...rest] = text.split("/");
+  const value = (head ?? "").trim();
+  // Only split when the head is a component value in its own right. An MPN like
+  // `24AA025E48T-E/OT` has digits but does not parse as a quantity, and cutting
+  // it at the slash would hand the MPN rung a truncated part number.
+  if (value === "" || parseComponentValue(value) === null) return { value: text, voltage: null };
+
+  for (const segment of rest) {
+    if (VOLTAGE_TOKEN.test(segment)) return { value, voltage: segment.trim() };
+  }
+  return { value, voltage: null };
+}
+
+/**
+ * Pulls a voltage out of free text — the BOM's Description column, where the
+ * rating usually lives when it isn't in the value (`CAP CER 100nF 25V X7R 0603`).
+ * Used only as a tie-breaker, never to create a match on its own.
+ */
+export function extractVoltage(text: string | null | undefined): string | null {
+  const found = VOLTAGE_IN_TEXT.exec(text ?? "");
+  return found ? found[1]!.replace(/\s+/g, "") : null;
+}
+
 const MICRO_PATTERN = /[µμ]/g;
 const OHM_WORD_PATTERN = /ohms?/gi;
 const OHM_SYMBOL_PATTERN = /Ω/g;
@@ -420,60 +478,94 @@ function matchByLcsc<TPart extends MatchCatalogEntry>(
   return exact ? { part: exact, method: "lcsc", confidence: MATCH_CONFIDENCE.lcscExact } : null;
 }
 
+/**
+ * Every catalog row that clears the value+package bar, best first, with the
+ * ones tied for best flagged.
+ *
+ * Split out of `matchByValuePackage` so a caller can ask "what were the
+ * options?" rather than only "did exactly one win?". Reconcile needs that: a
+ * BOM line whose value and package match two stock rows is not out of stock,
+ * it is a decision waiting to be made, and showing the operator both rows is
+ * the honest answer.
+ */
+export interface ValuePackageCandidate<TPart extends MatchCatalogEntry> {
+  part: TPart;
+  score: number;
+  confidence: number;
+}
+
+export function valuePackageCandidates<TPart extends MatchCatalogEntry>(
+  input: MatchInput,
+  catalog: readonly TPart[],
+  options: MatcherOptions = {},
+): { best: ValuePackageCandidate<TPart> | null; tied: ValuePackageCandidate<TPart>[] } {
+  // `packageKey`, not `normalizePackage`: the catalog and the BOMs describe the
+  // same chip size in two different vocabularies (see packageKey's doc).
+  const targetPackage = packageKey(input.package);
+  // The value may arrive with the voltage folded into it ("0.1uF/100V"). Split
+  // first, and let the split voltage stand in when the caller has none of its
+  // own — otherwise the rating is simply lost and the rung matches on value
+  // alone, which is exactly what makes two rows tie.
+  const split = splitValueVoltage(input.value);
+  const effectiveValue = split.value;
+  const effectiveVoltage = input.voltage?.trim() ? input.voltage : split.voltage;
+
+  // Package is MANDATORY at this rung (CROSS-FEATURE A3) — no package, no fuzzy match.
+  if (targetPackage === "" || !effectiveValue.trim()) return { best: null, tied: [] };
+
+  const threshold = options.minValueSimilarity ?? DEFAULT_MIN_VALUE_SIMILARITY;
+  const scored: { part: TPart; score: number; rank: number }[] = [];
+
+  for (const part of catalog) {
+    if (packageKey(part.package) !== targetPackage) continue;
+
+    const valueScore = valueSimilarity(effectiveValue, part.value);
+    // The threshold gates on the VALUE alone. Voltage may only rank candidates,
+    // never disqualify one: under reconcile's `minValueSimilarity: 1`, blending
+    // a voltage mismatch into the score pushed an otherwise exact value match
+    // below the bar, so supplying a voltage could turn a working match into no
+    // match at all — the opposite of what it is here to do.
+    if (valueScore < threshold || valueScore <= 0) continue;
+
+    const bothHaveVoltage = Boolean(effectiveVoltage?.trim() && part.voltage?.trim());
+    const score = bothHaveVoltage
+      ? valueScore * 0.8 + valueSimilarity(effectiveVoltage, part.voltage) * 0.2
+      : valueScore;
+
+    scored.push({ part, score, rank: partStatusRank(part.part_status) });
+  }
+
+  if (scored.length === 0) return { best: null, tied: [] };
+
+  // Best = highest score, then best status rank. Stable: a candidate only wins
+  // on a STRICT improvement, so of several equally-good rows the first one in
+  // `catalog` order stays put.
+  let best = scored[0]!;
+  for (const candidate of scored.slice(1)) {
+    if (candidate.score > best.score || (candidate.score === best.score && candidate.rank < best.rank)) {
+      best = candidate;
+    }
+  }
+
+  const toCandidate = (entry: { part: TPart; score: number }): ValuePackageCandidate<TPart> => ({
+    part: entry.part,
+    score: entry.score,
+    confidence: Math.round(clamp01(entry.score) * MATCH_CONFIDENCE.valuePackageMax),
+  });
+
+  const tied = scored.filter((c) => c.score === best.score && c.rank === best.rank).map(toCandidate);
+  return { best: toCandidate(best), tied };
+}
+
 function matchByValuePackage<TPart extends MatchCatalogEntry>(
   input: MatchInput,
   catalog: readonly TPart[],
   options: MatcherOptions,
 ): MatchResult<TPart> | null {
-  // `packageKey`, not `normalizePackage`: the catalog and the BOMs describe the
-  // same chip size in two different vocabularies (see packageKey's doc).
-  const targetPackage = packageKey(input.package);
-  // Package is MANDATORY at this rung (CROSS-FEATURE A3) — no package, no fuzzy match.
-  if (targetPackage === "" || !input.value?.trim()) return null;
-
-  const threshold = options.minValueSimilarity ?? DEFAULT_MIN_VALUE_SIMILARITY;
-  let best: { part: TPart; score: number } | null = null;
-  // Counts only candidates that TIE the best score on an equal status rank —
-  // i.e. ones the tie-breaker below genuinely cannot separate.
-  let tiedWithBest = 0;
-
-  // Plain for-of (not .forEach/.reduce) so ties resolve deterministically:
-  // a candidate only replaces `best` on a STRICT improvement, so of several
-  // equally-good matches the first one encountered in `catalog` order wins.
-  for (const part of catalog) {
-    if (packageKey(part.package) !== targetPackage) continue;
-
-    const valueScore = valueSimilarity(input.value, part.value);
-    if (valueScore <= 0) continue;
-
-    const bothHaveVoltage = Boolean(input.voltage?.trim() && part.voltage?.trim());
-    const score = bothHaveVoltage
-      ? valueScore * 0.8 + valueSimilarity(input.voltage, part.voltage) * 0.2
-      : valueScore;
-
-    if (!best || score > best.score) {
-      best = { part, score };
-      tiedWithBest = 1;
-      continue;
-    }
-    if (score < best.score) continue;
-
-    // Same score: status breaks the tie, and only a genuinely inseparable
-    // candidate counts toward ambiguity.
-    const rank = partStatusRank(part.part_status);
-    const bestRank = partStatusRank(best.part.part_status);
-    if (rank < bestRank) {
-      best = { part, score };
-      tiedWithBest = 1;
-    } else if (rank === bestRank) {
-      tiedWithBest += 1;
-    }
-  }
-
-  if (!best || best.score < threshold) return null;
-  if (options.requireUnambiguous && tiedWithBest > 1) return null;
-  const confidence = Math.round(clamp01(best.score) * MATCH_CONFIDENCE.valuePackageMax);
-  return { part: best.part, method: "value_pkg", confidence };
+  const { best, tied } = valuePackageCandidates(input, catalog, options);
+  if (!best) return null;
+  if (options.requireUnambiguous && tied.length > 1) return null;
+  return { part: best.part, method: "value_pkg", confidence: best.confidence };
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
