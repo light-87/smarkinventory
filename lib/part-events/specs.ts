@@ -64,6 +64,13 @@ const HIDDEN_SPEC_KEYS: ReadonlySet<string> = new Set([
   "resistance_ohms",
   "capacitance_farads",
   "inductance_henries",
+  // Duplicates of real columns. The client created a custom "description" field
+  // before the Receive form had one, so parts saved then carry the text in
+  // `attributes` as well; rendering both puts two rows labelled Description on
+  // the same part, disagreeing with each other. The column is the source of
+  // truth and `buildPartSpecs` already shows it.
+  "description",
+  "distributor",
 ]);
 
 /** qty × last_unit_price — null when the part has never been priced (R2-11 honesty rule). */
