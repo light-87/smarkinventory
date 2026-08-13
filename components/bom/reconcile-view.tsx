@@ -194,6 +194,9 @@ export function ReconcileView({ bom, lines, writable, optionsByLineId = {}, revi
                       lineId={line.id}
                       options={optionsByLineId[line.id]!}
                       writable={writable}
+                      chosenPartId={
+                        isManualMatch(line.match_method, line.match_confidence) ? line.matched_part_id : null
+                      }
                     />
                   ) : (
                     <LineStatusChip matchState={line.match_state} />
