@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { TableBody, TableHead, TableShell, Td, Th, Tr } from "@/components/ui/table";
 import { formatNumber } from "@/lib/format";
-import { updateBuildQtyAction } from "@/app/(app)/projects/[projectId]/boms/actions";
+import { reconcileBomAction, updateBuildQtyAction } from "@/app/(app)/projects/[projectId]/boms/actions";
 import { ChosenMatchBadge, DnpBadge, LineStatusChip, ValuePackageMatchBadge } from "./status-chip";
 import { LinePartPicker } from "./line-part-picker";
 import { isManualMatch } from "@/lib/bom/reconcile";
@@ -64,6 +64,25 @@ export function ReconcileView({ bom, lines, writable, optionsByLineId = {}, revi
   const [isPending, startTransition] = useTransition();
   const [buildQty, setBuildQty] = useState(String(bom.build_qty));
   const [error, setError] = useState<string | null>(null);
+  const [isRechecking, startRecheck] = useTransition();
+
+  /**
+   * Re-runs the matcher against current stock.
+   *
+   * Reconcile only ran on upload and on a build-qty change, so a BOM's statuses
+   * were frozen at whatever the matcher knew that day. That matters twice: when
+   * stock arrives, and — the reason this button exists — when the MATCHER
+   * improves. Without it the accuracy work of 2026-08-13 would have been
+   * invisible on every BOM already in the system.
+   */
+  function recheck() {
+    setError(null);
+    startRecheck(async () => {
+      const result = await reconcileBomAction(bom.id);
+      if (result.ok) router.refresh();
+      else setError(result.error);
+    });
+  }
 
   const hasLcsc = lines.some((l) => l.lcsc_pn);
   const hasNotes = lines.some((l) => l.priority_note);
@@ -113,6 +132,11 @@ export function ReconcileView({ bom, lines, writable, optionsByLineId = {}, revi
             )}
           </div>
         </div>
+        {writable && (
+          <Button size="sm" variant="ghost" onClick={recheck} loading={isRechecking}>
+            Re-check stock
+          </Button>
+        )}
         <p className="text-[15px] text-smoke">
           {formatNumber(lines.length)} lines — every line&rsquo;s need = qty × build qty. The AI run reads this sheet
           as-is.

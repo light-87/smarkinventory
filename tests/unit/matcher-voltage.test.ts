@@ -72,6 +72,8 @@ describe("voltage as the tie-breaker", () => {
       {
         id: "l1",
         qty: 1,
+        mpn: null,
+        lcsc_pn: null,
         dnp: false,
         value: "100nF",
         footprint: "C0603",
@@ -85,7 +87,7 @@ describe("voltage as the tie-breaker", () => {
 
   test("a genuine tie is offered as a choice rather than reported missing", () => {
     const candidates = candidatesForLine(
-      { id: "l2", qty: 1, dnp: false, value: "100nF", footprint: "C0603", description: "CAP CER 100nF 0603" },
+      { id: "l2", qty: 1, mpn: null, lcsc_pn: null, dnp: false, value: "100nF", footprint: "C0603", description: "CAP CER 100nF 0603" },
       CATALOG,
     );
     expect(candidates.map((c) => c.id).sort()).toEqual(["p-25v", "p-50v"]);
