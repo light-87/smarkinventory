@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { Chip } from "@/components/ui/chip";
 import { useToast } from "@/components/ui/toast";
 import { formatNumber } from "@/lib/format";
-import { chooseBomLinePartAction } from "@/app/(app)/projects/[projectId]/boms/actions";
+import { chooseBomLinePartAction, clearBomLineChoiceAction } from "@/app/(app)/projects/[projectId]/boms/actions";
 import type { BomLineOption } from "@/lib/bom/queries";
 
 export interface LinePartPickerProps {
@@ -12,6 +12,8 @@ export interface LinePartPickerProps {
   lineId: string;
   options: readonly BomLineOption[];
   writable: boolean;
+  /** Set once someone has chosen — ticks the row and offers to undo it. */
+  chosenPartId?: string | null;
 }
 
 /**
@@ -29,7 +31,7 @@ export interface LinePartPickerProps {
  * building the board knows which one the design meant. Their answer is written
  * to the line and survives re-reconcile.
  */
-export function LinePartPicker({ bomId, lineId, options, writable }: LinePartPickerProps) {
+export function LinePartPicker({ bomId, lineId, options, writable, chosenPartId = null }: LinePartPickerProps) {
   const { push } = useToast();
   const [open, setOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -48,6 +50,18 @@ export function LinePartPicker({ bomId, lineId, options, writable }: LinePartPic
     });
   }
 
+  function clearChoice() {
+    startTransition(async () => {
+      const result = await clearBomLineChoiceAction({ bomId, lineId });
+      if (result.ok) {
+        setOpen(false);
+        push({ msg: "Choice cleared — back to the matcher" });
+      } else {
+        push({ msg: result.error });
+      }
+    });
+  }
+
   return (
     <div className="relative">
       <button
@@ -57,7 +71,11 @@ export function LinePartPicker({ bomId, lineId, options, writable }: LinePartPic
         className="cursor-pointer disabled:cursor-default"
         title={writable ? "Pick which stock item this line is" : "Read-only"}
       >
-        <Chip tone="warn">In stock · {options.length} options</Chip>
+        {chosenPartId ? (
+          <Chip tone="success">In stock · change</Chip>
+        ) : (
+          <Chip tone="warn">In stock · {options.length} options</Chip>
+        )}
       </button>
 
       {open && (
@@ -80,10 +98,24 @@ export function LinePartPicker({ bomId, lineId, options, writable }: LinePartPic
                 </span>
               </span>
               <span className="flex-none font-mono text-caption text-silver-mist">
+                {option.partId === chosenPartId ? "✓ " : ""}
                 {formatNumber(option.totalQty)} pcs
               </span>
             </button>
           ))}
+
+          {chosenPartId && (
+            // A pinned choice survives every re-reconcile by design, so nothing
+            // else can release it. Without this, the wrong pick is permanent.
+            <button
+              type="button"
+              onClick={clearChoice}
+              disabled={isPending}
+              className="mt-1 w-full cursor-pointer rounded-lg border-t border-border-divider px-2 py-2 text-left text-caption text-smoke transition-colors hover:bg-surface-raised hover:text-snow disabled:opacity-50"
+            >
+              Clear this choice
+            </button>
+          )}
         </div>
       )}
     </div>

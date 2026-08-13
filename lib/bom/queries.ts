@@ -11,7 +11,7 @@ import type { BomLineRow, BomRow, BomSourcingStatus, Database } from "@/types/db
 import { TABLES, VIEWS } from "@/types/db";
 import { fetchExistingPartIdentities } from "@/lib/import/existing-parts";
 import { selectByIds } from "@/lib/supabase/select-all";
-import { candidatesForLine, type ReconcileCatalogPart } from "./reconcile";
+import { candidatesForLine, isManualMatch, type ReconcileCatalogPart } from "./reconcile";
 
 type DB = SupabaseClient<Database>;
 
@@ -251,13 +251,19 @@ export async function getBomDetail(supabase: DB, bomId: string): Promise<BomDeta
   assertNoError(linesError, "smark_bom_lines");
 
   const rows = (lines ?? []) as BomLineRow[];
-  const unresolved = rows.filter((line) => line.matched_part_id === null);
+  // Unmatched lines AND ones a person already chose. A chosen line keeps its
+  // picker so the choice can be changed or cleared — without that, picking the
+  // wrong reel is permanent: the pin survives every re-reconcile by design, so
+  // nothing else would ever release it.
+  const choosable = rows.filter(
+    (line) => line.matched_part_id === null || isManualMatch(line.match_method, line.match_confidence),
+  );
 
   // Only pay for the catalog when there is something to offer a choice about.
   const optionsByLineId: Record<string, BomLineOption[]> = {};
-  if (unresolved.length > 0) {
+  if (choosable.length > 0) {
     const catalog = await getReconcileCatalog(supabase);
-    for (const line of unresolved) {
+    for (const line of choosable) {
       const candidates = candidatesForLine(line, catalog);
       if (candidates.length < 2) continue;
       // `getReconcileCatalog` selects internal_pid even though the reconcile

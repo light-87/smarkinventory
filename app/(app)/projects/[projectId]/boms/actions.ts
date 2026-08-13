@@ -229,3 +229,36 @@ export async function reconcileBomAction(bomId: string): Promise<ReconcileResult
     return { ok: false, error: error instanceof Error ? error.message : "Could not reconcile that BOM." };
   }
 }
+
+/**
+ * Releases a hand-picked line back to the matcher.
+ *
+ * The pin is what makes a choice survive re-reconcile, which also means nothing
+ * else can ever undo it — so without this, picking the wrong reel is permanent.
+ * Clearing wipes the match outright and re-runs the ladder, which will land the
+ * line back on "N options" if it still ties.
+ */
+export async function clearBomLineChoiceAction(input: {
+  bomId: string;
+  lineId: string;
+}): Promise<ChooseLinePartResult> {
+  const { supabase } = await requireProjectsWriter();
+  try {
+    const { data, error } = await supabase
+      .from(TABLES.bom_lines)
+      .update({ matched_part_id: null, match_method: null, match_confidence: null, match_state: "unresolved" })
+      .eq("id", input.lineId)
+      .eq("bom_id", input.bomId)
+      .select("id");
+    if (error) throw error;
+    if (!data || data.length === 0) {
+      return { ok: false, error: "That line could not be updated — you may not have permission." };
+    }
+
+    await runReconcile(supabase, input.bomId);
+    revalidatePath("/projects", "layout");
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: error instanceof Error ? error.message : "Could not clear that choice." };
+  }
+}
