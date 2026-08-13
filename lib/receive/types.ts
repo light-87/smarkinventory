@@ -35,6 +35,41 @@ export function categoryHasVoltage(category: string | null | undefined): boolean
   return Boolean(category) && VOLTAGE_CATEGORIES.has(category as string);
 }
 
+/**
+ * Custom-field keys that now collide with a real field, and must not be offered
+ * a second time.
+ *
+ * The client added "description" himself through "+ add custom field", back
+ * when the form had no Description box. That wrote into `attributes` instead of
+ * the `description` column, which is why the Inventory column stayed empty and
+ * he reported the value as missing. Giving Description a proper field fixed
+ * that — and left his template sitting there, so the form showed two boxes both
+ * labelled Description writing to two different places.
+ *
+ * The template is filtered rather than deleted: it is his row, it may hold data
+ * on parts already saved, and quietly destroying it to tidy a label would be
+ * worse than hiding it.
+ */
+const RESERVED_FIELD_KEYS: ReadonlySet<string> = new Set([
+  "description",
+  "distributor",
+  "default_distributor",
+  "image_url",
+  "value",
+  "voltage",
+  "package",
+  "mpn",
+  "manufacturer",
+  "category",
+  "qty",
+  "sub_category",
+  "mount_type",
+]);
+
+export function isReservedFieldKey(key: string): boolean {
+  return RESERVED_FIELD_KEYS.has(key);
+}
+
 /** `smark_part_field_templates.field_key` — slug key into `smark_parts.attributes` [R2-23]. */
 export function slugifyFieldKey(label: string): string {
   return label

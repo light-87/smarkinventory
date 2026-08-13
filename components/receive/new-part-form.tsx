@@ -9,7 +9,7 @@ import type { PartFieldTemplateRow } from "@/types/db";
 import { addCustomFieldTemplateAction, createNewPartAction } from "@/lib/receive/actions";
 import type { BoxOption } from "@/lib/receive/storage-suggestion";
 import { suggestStorageBox } from "@/lib/receive/storage-suggestion";
-import { PART_CATEGORY_OPTIONS, categoryHasVoltage, type NewPartFormInput } from "@/lib/receive/types";
+import { PART_CATEGORY_OPTIONS, categoryHasVoltage, isReservedFieldKey, type NewPartFormInput } from "@/lib/receive/types";
 import type { DuplicateHit } from "@/lib/receive/core";
 import { attributeFieldsForCategory, PART_IMAGE_ATTRIBUTE } from "@/lib/part-events/edit";
 import { DISTRIBUTOR_CHOICES, DISTRIBUTOR_OTHER } from "@/lib/part-events/distributor";
@@ -73,6 +73,13 @@ export function NewPartForm({ boxes, initialCustomFieldTemplates, presetBoxId, o
   // Same registry the Inventory columns and the part's edit dialog read, so a
   // field the grid shows for this category is one this form can actually fill.
   const attributeFields = useMemo(() => attributeFieldsForCategory(draft.category || null), [draft.category]);
+
+  // A custom field whose key now belongs to a real one would render a second
+  // box with the same label writing somewhere else — see `isReservedFieldKey`.
+  const visibleTemplates = useMemo(
+    () => templates.filter((template) => !isReservedFieldKey(template.field_key)),
+    [templates],
+  );
 
   function set<K extends keyof DraftState>(key: K, value: DraftState[K]) {
     setDraft((prev) => ({ ...prev, [key]: value }));
@@ -270,11 +277,11 @@ export function NewPartForm({ boxes, initialCustomFieldTemplates, presetBoxId, o
           </div>
         )}
 
-        {templates.length > 0 && (
+        {visibleTemplates.length > 0 && (
           <div>
             <SectionLabel className="mb-2">Custom fields</SectionLabel>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {templates.map((template) => (
+              {visibleTemplates.map((template) => (
                 <Field key={template.field_key} label={template.label}>
                   <Input
                     type={template.field_type === "number" ? "number" : "text"}
