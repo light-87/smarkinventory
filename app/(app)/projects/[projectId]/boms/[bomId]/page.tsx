@@ -40,7 +40,13 @@ export default async function BomDetailPage({ params }: BomDetailPageProps) {
         <span className="text-snow">{detail.bom.name}</span>
       </div>
 
-      <ReconcileView bom={detail.bom} lines={detail.lines} writable={writable} reviewRunId={reviewRunId} />
+      <ReconcileView
+        bom={detail.bom}
+        lines={detail.lines}
+        writable={writable}
+        optionsByLineId={detail.optionsByLineId}
+        reviewRunId={reviewRunId}
+      />
     </div>
   );
 }

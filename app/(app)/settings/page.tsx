@@ -40,6 +40,11 @@ export default async function SettingsPage() {
         rows={[
           { href: "/settings/users", title: "Users & roles", description: "Add employees/accountants, reset passwords, deactivate" },
           { href: "/settings/employees", title: "Employees", description: "Profiles + documents (DOB, DOJ, PAN, bank, uploads)" },
+          {
+            href: "/settings/categories",
+            title: "Categories",
+            description: "Rename categories and sub-categories across every part; remove one that shouldn't exist",
+          },
         ]}
       />
 

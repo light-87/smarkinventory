@@ -11,7 +11,10 @@ import type { BoxOption } from "@/lib/receive/storage-suggestion";
 import { suggestStorageBox } from "@/lib/receive/storage-suggestion";
 import { PART_CATEGORY_OPTIONS, categoryHasVoltage, type NewPartFormInput } from "@/lib/receive/types";
 import type { DuplicateHit } from "@/lib/receive/core";
+import { attributeFieldsForCategory, PART_IMAGE_ATTRIBUTE } from "@/lib/part-events/edit";
+import { DISTRIBUTOR_CHOICES, DISTRIBUTOR_OTHER } from "@/lib/part-events/distributor";
 import { CategoryChips } from "./category-chips";
+import { NativeSelect } from "./native-select";
 
 export interface NewPartFormProps {
   boxes: readonly BoxOption[];
@@ -29,6 +32,9 @@ interface DraftState {
   qty: string;
   mpn: string;
   manufacturer: string;
+  description: string;
+  distributorChoice: string;
+  distributorOther: string;
 }
 
 const DRAFT_DEFAULTS: DraftState = {
@@ -39,6 +45,9 @@ const DRAFT_DEFAULTS: DraftState = {
   qty: "",
   mpn: "",
   manufacturer: "",
+  description: "",
+  distributorChoice: "",
+  distributorOther: "",
 };
 
 /**
@@ -58,7 +67,12 @@ export function NewPartForm({ boxes, initialCustomFieldTemplates, presetBoxId, o
   const [newFieldType, setNewFieldType] = useState<"text" | "number">("text");
   const [duplicate, setDuplicate] = useState<DuplicateHit | null>(null);
   const [customFieldValues, setCustomFieldValues] = useState<Record<string, string>>({});
+  const [attributeValues, setAttributeValues] = useState<Record<string, string>>({});
   const [draft, setDraft] = useState<DraftState>(DRAFT_DEFAULTS);
+
+  // Same registry the Inventory columns and the part's edit dialog read, so a
+  // field the grid shows for this category is one this form can actually fill.
+  const attributeFields = useMemo(() => attributeFieldsForCategory(draft.category || null), [draft.category]);
 
   function set<K extends keyof DraftState>(key: K, value: DraftState[K]) {
     setDraft((prev) => ({ ...prev, [key]: value }));
@@ -90,22 +104,31 @@ export function NewPartForm({ boxes, initialCustomFieldTemplates, presetBoxId, o
       push({ msg: "Value is required" });
       return null;
     }
-    if (!draft.package.trim()) {
-      push({ msg: "Package is required" });
-      return null;
-    }
     if (!Number.isFinite(qty) || qty <= 0) {
       push({ msg: "Quantity must be a positive whole number" });
       return null;
     }
+    const distributor =
+      draft.distributorChoice === DISTRIBUTOR_OTHER
+        ? draft.distributorOther.trim() || null
+        : draft.distributorChoice || null;
+
     return {
       category: draft.category,
       value: draft.value.trim(),
       voltage: draft.voltage.trim() || null,
-      package: draft.package.trim(),
+      package: draft.package.trim() || null,
       qty,
       mpn: draft.mpn.trim() || null,
       manufacturer: draft.manufacturer.trim() || null,
+      description: draft.description.trim() || null,
+      distributor,
+      imageUrl: attributeValues[PART_IMAGE_ATTRIBUTE]?.trim() || null,
+      // Blank boxes are dropped rather than stored as empty strings, which
+      // would otherwise give every facet an empty option.
+      attributes: Object.fromEntries(
+        Object.entries(attributeValues).filter(([key, v]) => key !== PART_IMAGE_ATTRIBUTE && v.trim() !== ""),
+      ),
       customFields: customFieldValues,
     };
   }
@@ -120,6 +143,7 @@ export function NewPartForm({ boxes, initialCustomFieldTemplates, presetBoxId, o
         push({ msg: `Saved ${result.internalPid} — ${result.labelQueued ? "label queued" : "already labeled"}` });
         setDraft(DRAFT_DEFAULTS);
         setCustomFieldValues({});
+        setAttributeValues({});
       } else {
         setDuplicate(result.duplicate);
       }
@@ -153,28 +177,9 @@ export function NewPartForm({ boxes, initialCustomFieldTemplates, presetBoxId, o
   return (
     <Card padding="lg">
       <div className="mb-4 text-[15px] text-smoke">
-        Brand-new part — enter the essentials, we suggest a box and print one ESD label.
+        Brand-new part — value and quantity are all we need; everything else is optional. We suggest a box and
+        queue one ESD label.
       </div>
-
-      {duplicate && (
-        <div className="mb-5 rounded-xl border border-smark-orange bg-surface-accent p-4">
-          <div className="text-[15px] text-snow">
-            Looks like <span className="font-mono text-smark-orange">{duplicate.internalPid}</span> —{" "}
-            {duplicate.summary}. Top up instead?
-          </div>
-          <div className="mt-3 flex flex-wrap gap-3">
-            <Button size="sm" onClick={() => onSwitchToTopUp(duplicate.internalPid)}>
-              Top up instead
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => submit(true)} disabled={isPending}>
-              Create anyway
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => setDuplicate(null)}>
-              Cancel
-            </Button>
-          </div>
-        </div>
-      )}
 
       <form
         onSubmit={(e) => {
@@ -199,7 +204,7 @@ export function NewPartForm({ boxes, initialCustomFieldTemplates, presetBoxId, o
               <Input value={draft.voltage} onChange={(e) => set("voltage", e.target.value)} placeholder="50V" mono />
             </Field>
           )}
-          <Field label={<>Package <span className="text-smark-orange">*</span></>}>
+          <Field label={<>Package <span className="text-faint">optional</span></>}>
             <Input value={draft.package} onChange={(e) => set("package", e.target.value)} placeholder="0603" mono />
           </Field>
           <Field label={<>Quantity <span className="text-smark-orange">*</span></>}>
@@ -212,13 +217,58 @@ export function NewPartForm({ boxes, initialCustomFieldTemplates, presetBoxId, o
               mono
             />
           </Field>
+          <Field label={<>Description <span className="text-faint">optional</span></>} className="sm:col-span-2 lg:col-span-3">
+            <Input
+              value={draft.description}
+              onChange={(e) => set("description", e.target.value)}
+              placeholder="CAP CER 100nF 25V X7R 0603"
+            />
+          </Field>
           <Field label={<>MPN <span className="text-faint">optional</span></>}>
             <Input value={draft.mpn} onChange={(e) => set("mpn", e.target.value)} placeholder="CL10B104MB8NNNC" mono />
           </Field>
           <Field label={<>Manufacturer <span className="text-faint">optional</span></>}>
             <Input value={draft.manufacturer} onChange={(e) => set("manufacturer", e.target.value)} placeholder="Samsung" />
           </Field>
+          <Field label={<>Distributor <span className="text-faint">optional</span></>}>
+            <NativeSelect
+              options={[...DISTRIBUTOR_CHOICES, DISTRIBUTOR_OTHER].map((d) => ({ value: d, label: d }))}
+              value={draft.distributorChoice}
+              onChange={(e) => set("distributorChoice", e.target.value)}
+              placeholder="Where from…"
+            />
+          </Field>
+          {draft.distributorChoice === DISTRIBUTOR_OTHER && (
+            <Field label="Distributor name">
+              <Input
+                value={draft.distributorOther}
+                onChange={(e) => set("distributorOther", e.target.value)}
+                placeholder="RS Components"
+              />
+            </Field>
+          )}
         </div>
+
+        {attributeFields.length > 0 && (
+          // Per-category detail — the same fields this category shows as
+          // Inventory columns, so nothing on that grid is uncapturable here.
+          <div>
+            <SectionLabel className="mb-2">
+              {draft.category ? `${draft.category} details` : "Details"}
+            </SectionLabel>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {attributeFields.map((field) => (
+                <Field key={field.key} label={<>{field.label} <span className="text-faint">optional</span></>}>
+                  <Input
+                    value={attributeValues[field.key] ?? ""}
+                    onChange={(e) => setAttributeValues((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                    placeholder={field.key === PART_IMAGE_ATTRIBUTE ? "https://…" : undefined}
+                  />
+                </Field>
+              ))}
+            </div>
+          </div>
+        )}
 
         {templates.length > 0 && (
           <div>
@@ -279,9 +329,37 @@ export function NewPartForm({ boxes, initialCustomFieldTemplates, presetBoxId, o
           </span>
         </div>
 
+        {/* The duplicate prompt sits HERE, against the button that triggers it.
+            It used to render at the top of the card: with a full catalog the
+            guard fires often, and an operator watching the button they just
+            pressed saw nothing happen while the answer scrolled off above them
+            (client, 2026-08-13: "Save and Print ESD label not working"). */}
+        {duplicate && (
+          <div className="rounded-xl border border-smark-orange bg-surface-accent p-4">
+            <div className="text-[15px] text-snow">
+              Looks like <span className="font-mono text-smark-orange">{duplicate.internalPid}</span> —{" "}
+              {duplicate.summary}. Top up instead?
+            </div>
+            <div className="mt-3 flex flex-wrap gap-3">
+              <Button size="sm" onClick={() => onSwitchToTopUp(duplicate.internalPid)}>
+                Top up instead
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => submit(true)} disabled={isPending}>
+                Create anyway
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setDuplicate(null)}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
+
         <div>
+          {/* "Save", not "Save & print": nothing prints from here. The label is
+              queued and printed as a sheet from the Print queue card, so the
+              button no longer promises paper it never produced. */}
           <Button type="submit" size="lg" loading={isPending}>
-            Save &amp; print ESD label
+            Save
           </Button>
         </div>
       </form>

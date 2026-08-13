@@ -11,7 +11,7 @@ import type { BomLineRow, BomRow, BomSourcingStatus, Database } from "@/types/db
 import { TABLES, VIEWS } from "@/types/db";
 import { fetchExistingPartIdentities } from "@/lib/import/existing-parts";
 import { selectByIds } from "@/lib/supabase/select-all";
-import type { ReconcileCatalogPart } from "./reconcile";
+import { candidatesForLine, type ReconcileCatalogPart } from "./reconcile";
 
 type DB = SupabaseClient<Database>;
 
@@ -203,10 +203,30 @@ export async function getPrimaryLocationsByPartId(
  * BOM detail (sheet-mirror view)
  * ──────────────────────────────────────────────────────────────────────────── */
 
+/** One stock row a line could be, offered when the matcher found more than one. */
+export interface BomLineOption {
+  partId: string;
+  internalPid: string;
+  value: string | null;
+  package: string | null;
+  voltage: string | null;
+  totalQty: number;
+}
+
 export interface BomDetailData {
   bom: BomRow;
   project: ProjectHeader;
   lines: BomLineRow[];
+  /**
+   * Keyed by bom_line id — the stock rows an unresolved line ties against.
+   *
+   * A line here is NOT out of stock; it is a decision nobody has made yet.
+   * Reporting it as "not in stock" while 1,604 pieces sat on the shelf is the
+   * complaint that produced this (client, 2026-08-13), and picking one
+   * automatically is what the ambiguity rule exists to prevent — it would
+   * charge the line's whole demand to an arbitrary half of the stock.
+   */
+  optionsByLineId: Record<string, BomLineOption[]>;
 }
 
 /**
@@ -230,5 +250,28 @@ export async function getBomDetail(supabase: DB, bomId: string): Promise<BomDeta
     .order("line_no", { ascending: true, nullsFirst: false });
   assertNoError(linesError, "smark_bom_lines");
 
-  return { bom, project, lines: (lines ?? []) as BomLineRow[] };
+  const rows = (lines ?? []) as BomLineRow[];
+  const unresolved = rows.filter((line) => line.matched_part_id === null);
+
+  // Only pay for the catalog when there is something to offer a choice about.
+  const optionsByLineId: Record<string, BomLineOption[]> = {};
+  if (unresolved.length > 0) {
+    const catalog = await getReconcileCatalog(supabase);
+    for (const line of unresolved) {
+      const candidates = candidatesForLine(line, catalog);
+      if (candidates.length < 2) continue;
+      // `getReconcileCatalog` selects internal_pid even though the reconcile
+      // shape doesn't name it — it's what the operator recognises a row by.
+      optionsByLineId[line.id] = candidates.map((candidate) => ({
+        partId: candidate.id,
+        internalPid: (candidate as { internal_pid?: string }).internal_pid ?? "—",
+        value: candidate.value ?? null,
+        package: candidate.package ?? null,
+        voltage: candidate.voltage ?? null,
+        totalQty: candidate.total_qty,
+      }));
+    }
+  }
+
+  return { bom, project, lines: rows, optionsByLineId };
 }

@@ -27,6 +27,7 @@ import { TABLES } from "@/types/db";
 import { matchPart, type MatchMethod } from "@/lib/matcher";
 import { recordMovement } from "@/lib/movements";
 import { queueLabelForBigBox, queueLabelForPart } from "@/lib/labels/queue";
+import { PART_IMAGE_ATTRIBUTE } from "@/lib/part-events/edit";
 import { getBoxOptions, getMatchCatalog } from "./queries";
 import { slugifyFieldKey } from "./types";
 import type {
@@ -279,9 +280,15 @@ export async function createNewPart(
 ): Promise<CreateNewPartResult> {
   if (!options.force) {
     const catalog = await getMatchCatalog(supabase);
+    // EXACT value only, same bar reconcile uses. The default 0.6 similarity was
+    // tuned when the catalog held a handful of parts; against 1,746 rows it
+    // matched almost any new passive against some near neighbour, so every save
+    // came back as a suspected duplicate and the client reported the button as
+    // dead (2026-08-13). A guard that fires on everything guards nothing.
     const hit = matchPart(
       { mpn: input.mpn, value: input.value, package: input.package, voltage: input.voltage },
       catalog,
+      { minValueSimilarity: 1 },
     );
     if (hit) {
       return {
@@ -301,15 +308,24 @@ export async function createNewPart(
   const suggestion = suggestStorageBox(input.category, input.package, boxes);
   const boxId = await resolveBox(supabase, suggestion);
 
-  const attributes: PartAttributes = { ...input.customFields };
+  // Per-category attributes first, then the ad-hoc custom fields, so a template
+  // someone added by hand can't quietly shadow a first-class category field.
+  // The image link rides in `attributes` rather than a column of its own —
+  // `smark_parts` has no image column, and adding one means a migration
+  // hand-run against production before the code that writes it can deploy.
+  const attributes: PartAttributes = { ...input.attributes, ...input.customFields };
+  const imageUrl = input.imageUrl?.trim();
+  if (imageUrl) attributes[PART_IMAGE_ATTRIBUTE] = imageUrl;
 
   const part = await insertPartWithRetry(supabase, {
     mpn: input.mpn?.trim() || null,
     manufacturer: input.manufacturer?.trim() || null,
     category: input.category,
     value: input.value.trim(),
-    package: input.package.trim(),
+    package: input.package?.trim() || null,
     voltage: input.voltage?.trim() || null,
+    description: input.description?.trim() || null,
+    default_distributor: input.distributor?.trim() || null,
     attributes,
     needs_review: options.force ? true : false,
     created_by: actorId,

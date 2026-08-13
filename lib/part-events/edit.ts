@@ -22,6 +22,17 @@
 import { joinDistributor, splitDistributor, type DistributorSelection } from "./distributor";
 import type { PartAttributes, PartRow, PartStatus } from "@/types/db";
 
+/**
+ * Where a part's photo link lives.
+ *
+ * An attribute rather than a column: `smark_parts` has none, and adding one is
+ * a migration that has to be hand-run against production before the code that
+ * writes it can ship. A link is a string like every other attribute, and the
+ * specs grid, the edit form and Receive all read it through this one constant
+ * so they cannot disagree about the key.
+ */
+export const PART_IMAGE_ATTRIBUTE = "image_url";
+
 /** Columns on `smark_parts` this form can write, with their display labels. */
 export const EDITABLE_TEXT_FIELDS = [
   { key: "mpn", label: "MPN" },
@@ -57,6 +68,10 @@ export type EditableTextField = (typeof EDITABLE_TEXT_FIELDS)[number]["key"];
 export const EDITABLE_ATTRIBUTE_FIELDS = [
   { key: "sub_category", label: "Sub-category", categories: null },
   { key: "mount_type", label: "Mount type", categories: null },
+  // Client request, 2026-08-13: "text box to add image link to each part for
+  // ready reference" — a photo is the fastest way to confirm you have the right
+  // thing in your hand at the shelf.
+  { key: PART_IMAGE_ATTRIBUTE, label: "Image link", categories: null },
   { key: "tolerance_percent", label: "Tolerance (%)", categories: ["Resistor", "Resistor Network"] },
   { key: "power_watts", label: "Power rating", categories: ["Resistor", "Resistor Network"] },
   { key: "color", label: "Case size", categories: ["Capacitor"] },
@@ -87,6 +102,23 @@ export type EditableAttributeField = (typeof EDITABLE_ATTRIBUTE_FIELDS)[number][
  * to its category, and any it already carries a value for — so a field can
  * never become uneditable just because the category map does not mention it.
  */
+/**
+ * The attribute fields a category gets, with no part in hand.
+ *
+ * Receive needs exactly this: the operator has picked "Resistor" and nothing
+ * else exists yet, but the form should already be asking for tolerance and
+ * power rating. Sharing the registry with the grid columns and the edit dialog
+ * is the point — a field the Inventory table shows has to be one Receive can
+ * capture, or the column is born empty and someone reports it as missing.
+ */
+export function attributeFieldsForCategory(
+  category: string | null | undefined,
+): readonly { key: EditableAttributeField; label: string }[] {
+  return EDITABLE_ATTRIBUTE_FIELDS.filter(
+    (field) => field.categories === null || (category != null && (field.categories as readonly string[]).includes(category)),
+  );
+}
+
 export function attributeFieldsFor(part: PartRow): readonly { key: EditableAttributeField; label: string }[] {
   return EDITABLE_ATTRIBUTE_FIELDS.filter((field) => {
     if (field.categories === null) return true;

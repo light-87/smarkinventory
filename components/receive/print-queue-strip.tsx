@@ -40,6 +40,7 @@ export function PrintQueueStrip({ initialCount }: PrintQueueStripProps) {
   const { push } = useToast();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [isClearing, startClearing] = useTransition();
   // Server-owned, with a local override that lasts only until the next server
   // render — so a fresh count from a revalidated page always wins.
   const [printedCount, setPrintedCount] = useState<number | null>(null);
@@ -55,6 +56,24 @@ export function PrintQueueStrip({ initialCount }: PrintQueueStripProps) {
   }
 
   const count = printedCount ?? initialCount;
+
+  function handleClear() {
+    startClearing(async () => {
+      try {
+        const response = await fetch("/api/labels/clear-queue", { method: "POST" });
+        const body = (await response.json()) as { cleared?: number; error?: string };
+        if (!response.ok) {
+          push({ msg: body.error ?? "Could not clear the queue." });
+          return;
+        }
+        setPrintedCount(0);
+        push({ msg: `Cleared ${body.cleared ?? 0} label${body.cleared === 1 ? "" : "s"} from the queue` });
+        router.refresh();
+      } catch {
+        push({ msg: "Could not reach the server — check your connection and try again." });
+      }
+    });
+  }
 
   function handlePrint() {
     // Claimed while the click is still trusted. About:blank first, real URL
@@ -91,14 +110,13 @@ export function PrintQueueStrip({ initialCount }: PrintQueueStripProps) {
 
       const printed = body.count ?? 0;
       const left = body.remaining ?? 0;
-      setPrintedCount(left);
       push({
         msg:
           left > 0
-            ? `Printed ${printed} labels — ${left} still queued, click Print sheet again`
-            : `Printed ${printed} label${printed === 1 ? "" : "s"} — sheet opened in a new tab`,
+            ? `Sheet of ${printed} labels opened — ${left} more still queued`
+            : `Sheet of ${printed} label${printed === 1 ? "" : "s"} opened in a new tab`,
       });
-      // Pull the authoritative count back from the server.
+      // The queue is NOT emptied by viewing it — see the Clear button.
       router.refresh();
     });
   }
@@ -108,7 +126,7 @@ export function PrintQueueStrip({ initialCount }: PrintQueueStripProps) {
       <div>
         <div className="text-[15px] text-snow">Print queue</div>
         <div className="mt-0.5 text-caption text-smoke">
-          {count === 0 ? "Nothing queued" : `${count} label${count === 1 ? "" : "s"} queued`}
+          {count === 0 ? "Nothing queued" : `${count} label${count === 1 ? "" : "s"} queued — stays until you clear it`}
         </div>
         {fallbackUrl && (
           <a
@@ -121,9 +139,16 @@ export function PrintQueueStrip({ initialCount }: PrintQueueStripProps) {
           </a>
         )}
       </div>
-      <Button onClick={handlePrint} loading={isPending} disabled={count === 0} variant="accent-outline">
-        Print sheet
-      </Button>
+      <div className="flex items-center gap-2">
+        <Button onClick={handlePrint} loading={isPending} disabled={count === 0} variant="accent-outline">
+          Print sheet
+        </Button>
+        {/* Emptying the queue is its own act. Opening the sheet used to do it
+            silently, so checking what was waiting lost it. */}
+        <Button onClick={handleClear} loading={isClearing} disabled={count === 0} variant="ghost">
+          Clear queue
+        </Button>
+      </div>
     </Card>
   );
 }

@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useState, useTransition } from "react";
 import { Drawer, DrawerCloseButton, DrawerHeader } from "@/components/ui/drawer";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PartDetailView } from "@/components/part-detail/part-detail-view";
@@ -27,7 +26,6 @@ export function InventoryClient({
   drawerResult,
   defaultFiltersCollapsed = false,
 }: InventoryClientProps) {
-  const router = useRouter();
   const parts = listResult.ok ? listResult.parts : [];
   const filters = useInventoryFilters(parts);
   const [filtersCollapsed, setFiltersCollapsed] = useState(defaultFiltersCollapsed);
@@ -45,7 +43,39 @@ export function InventoryClient({
     });
   }
 
-  const closeDrawer = () => router.push("/inventory");
+  /**
+   * The drawer is client-side, NOT another trip through the route.
+   *
+   * `?pid=` is a search param, so navigating to it re-renders this whole page
+   * server-side and re-sends all 1,745 parts — 1.8 MB to show an 8 KB panel,
+   * and several seconds of it on the client's office machines. The part is
+   * fetched on its own now and the URL is rewritten in place, so a link to
+   * `?pid=` still opens the right part on a cold load (the server still renders
+   * that first one) without every subsequent click paying for the catalog again.
+   */
+  const [openPid, setOpenPid] = useState<string | null>(drawerPid);
+  const [detail, setDetail] = useState<PartDetailResult | null>(drawerResult);
+  const [isLoadingDetail, startLoadingDetail] = useTransition();
+
+  const openPart = useCallback((pid: string) => {
+    setOpenPid(pid);
+    setDetail(null);
+    window.history.replaceState(null, "", `/inventory?pid=${encodeURIComponent(pid)}`);
+    startLoadingDetail(async () => {
+      try {
+        const response = await fetch(`/api/parts/${encodeURIComponent(pid)}`);
+        setDetail((await response.json()) as PartDetailResult);
+      } catch {
+        setDetail({ ok: false, reason: "error", message: "Could not load this part — check your connection." });
+      }
+    });
+  }, []);
+
+  const closeDrawer = useCallback(() => {
+    setOpenPid(null);
+    setDetail(null);
+    window.history.replaceState(null, "", "/inventory");
+  }, []);
 
   if (!listResult.ok) {
     return (
@@ -62,8 +92,7 @@ export function InventoryClient({
   // Right after a row click, the URL's `pid` updates before the server
   // round-trip lands new `drawerResult` props — treat a stale/missing result
   // as "loading" rather than flashing an empty/error state.
-  const drawerIsLoading =
-    !!drawerPid && (!drawerResult || (drawerResult.ok && drawerResult.data.part.internal_pid !== drawerPid));
+  const drawerIsLoading = !!openPid && (isLoadingDetail || !detail);
 
   return (
     // Solid white surface: inventory is a full-bleed sidebar + table (no cards),
@@ -100,19 +129,23 @@ export function InventoryClient({
               />
             </div>
           ) : (
-            <InventoryTable parts={filters.filteredParts} selectedCategories={filters.filters.Category ?? []} />
+            <InventoryTable
+              parts={filters.filteredParts}
+              selectedCategories={filters.filters.Category ?? []}
+              onOpenPart={openPart}
+            />
           )}
         </div>
       </div>
 
-      {drawerPid && (
+      {openPid && (
         <Drawer open onClose={closeDrawer} aria-label="Part detail">
           {drawerIsLoading ? (
-            <DrawerLoading pid={drawerPid} onClose={closeDrawer} />
-          ) : drawerResult && !drawerResult.ok ? (
-            <DrawerError result={drawerResult} onClose={closeDrawer} />
-          ) : drawerResult && drawerResult.ok ? (
-            <PartDetailView data={drawerResult.data} variant="drawer" onClose={closeDrawer} />
+            <DrawerLoading pid={openPid} onClose={closeDrawer} />
+          ) : detail && !detail.ok ? (
+            <DrawerError result={detail} onClose={closeDrawer} />
+          ) : detail && detail.ok ? (
+            <PartDetailView data={detail.data} variant="drawer" onClose={closeDrawer} />
           ) : null}
         </Drawer>
       )}

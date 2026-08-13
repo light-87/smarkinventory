@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Chip, type ChipTone } from "@/components/ui/chip";
 import { TableBody, TableHead, TableShell, Td, Th, Tr } from "@/components/ui/table";
 import { cn } from "@/lib/cn";
@@ -37,6 +36,8 @@ export interface InventoryTableProps {
   parts: InventoryPart[];
   /** The Category facet's current selection — decides which columns apply. */
   selectedCategories: readonly string[];
+  /** Opens the detail drawer. Client-side — see InventoryClient for why. */
+  onOpenPart: (internalPid: string) => void;
 }
 
 /**
@@ -73,8 +74,7 @@ function scrollParentOf(node: HTMLElement | null): HTMLElement | null {
   return null;
 }
 
-export function InventoryTable({ parts, selectedCategories }: InventoryTableProps) {
-  const router = useRouter();
+export function InventoryTable({ parts, selectedCategories, onOpenPart }: InventoryTableProps) {
   const columns = useMemo(() => visibleColumns(parts, selectedCategories), [parts, selectedCategories]);
   const minWidth = useMemo(() => minWidthFor(columns), [columns]);
 
@@ -148,7 +148,7 @@ export function InventoryTable({ parts, selectedCategories }: InventoryTableProp
             className="group"
             onClick={() => {
               if (performance.now() - grewAtRef.current < GROW_CLICK_GUARD_MS) return;
-              router.push(`/inventory?pid=${encodeURIComponent(part.internal_pid)}`);
+              onOpenPart(part.internal_pid);
             }}
           >
             {columns.map((column) => (

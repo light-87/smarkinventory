@@ -34,7 +34,18 @@ export type PrintQueuedLabelsResult =
  */
 export const MAX_LABELS_PER_SHEET = 400;
 
-/** Renders the queued labels onto one Avery PDF, stores it, and flips those rows to `printed`. */
+/**
+ * Renders the queued labels onto one Avery PDF and stores it.
+ *
+ * It does NOT clear the queue. It used to: opening the sheet flipped every
+ * label to `printed`, so looking at what was waiting was enough to lose it
+ * (client, 2026-08-13: "print queue should not be auto cleaned unless cleaned
+ * manually — once we open for viewing it just gets lost"). Viewing and
+ * clearing are separate acts now; `clearPrintQueue` is the deliberate one.
+ *
+ * The batch id and PDF URL are still stamped on the rows so a label can be
+ * traced to the sheet it was drawn on, whether or not it is later cleared.
+ */
 export async function printQueuedLabels(supabase: DB, storage: StoragePort): Promise<PrintQueuedLabelsResult> {
   const { count: queuedCount, error: countError } = await supabase
     .from(TABLES.qr_labels)
@@ -62,16 +73,41 @@ export async function printQueuedLabels(supabase: DB, storage: StoragePort): Pro
   const putResult = await storage.put({ key, body: pdfBytes, contentType: "application/pdf" });
   const url = await storage.signedUrl(key).catch(() => putResult.url);
 
-  // Chunked: `.in()` rides in the URL, so flipping a few hundred ids in one
+  // Chunked: `.in()` rides in the URL, so stamping a few hundred ids in one
   // call is a query string long enough for PostgREST to reject outright.
-  const printedAt = new Date().toISOString();
+  // `print_status` is deliberately untouched — see this function's doc.
   for (const idChunk of chunk(queued.map((label) => label.id))) {
     const { error: updateError } = await supabase
       .from(TABLES.qr_labels)
-      .update({ print_status: "printed", printed_at: printedAt, batch_id: batchId, label_pdf_url: url })
+      .update({ batch_id: batchId, label_pdf_url: url })
       .in("id", idChunk);
     if (updateError) throw updateError;
   }
 
   return { ok: true, url, count: queued.length, remaining, batchId };
+}
+
+export type ClearPrintQueueResult = { ok: true; cleared: number } | { ok: false; error: string };
+
+/**
+ * Marks every queued label printed — the deliberate "I have the paper in my
+ * hand" step, separate from rendering the sheet.
+ */
+export async function clearPrintQueue(supabase: DB): Promise<ClearPrintQueueResult> {
+  const { data: queued, error } = await supabase
+    .from(TABLES.qr_labels)
+    .select("id")
+    .eq("print_status", "queued");
+  if (error) throw error;
+  if (!queued || queued.length === 0) return { ok: false, error: "Nothing queued to clear." };
+
+  const printedAt = new Date().toISOString();
+  for (const idChunk of chunk(queued.map((label) => label.id))) {
+    const { error: updateError } = await supabase
+      .from(TABLES.qr_labels)
+      .update({ print_status: "printed", printed_at: printedAt })
+      .in("id", idChunk);
+    if (updateError) throw updateError;
+  }
+  return { ok: true, cleared: queued.length };
 }

@@ -77,3 +77,73 @@ export async function printBigBoxLabel(boxId: string): Promise<PrintBigBoxLabelR
   revalidatePath(`/shelves/${boxId}`);
   return { status };
 }
+
+export type RenameBoxResult = { ok: true } | { ok: false; error: string };
+
+/**
+ * Renames a box and/or moves it to another shelf.
+ *
+ * Client request, 2026-08-13: "need option to change created box name and
+ * position". Boxes are created in passing during put-away — you type a name to
+ * get the stock off your desk — so the first name is often provisional, and
+ * until now there was no way back to it.
+ *
+ * The shelf is addressed by its human code ("A", "B", "U") and created if it
+ * doesn't exist yet, mirroring how put-away already invents shelves. The box's
+ * stock moves with it implicitly: locations point at the box, not the shelf.
+ */
+export async function renameBigBox(input: {
+  boxId: string;
+  name: string;
+  shelfCode: string;
+}): Promise<RenameBoxResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Not signed in." };
+
+  const name = input.name.trim();
+  const shelfCode = input.shelfCode.trim().toUpperCase();
+  if (!name) return { ok: false, error: "Box name is required." };
+  if (!shelfCode) return { ok: false, error: "Shelf is required." };
+
+  const { data: shelf, error: shelfError } = await supabase
+    .from(TABLES.shelves)
+    .select("id")
+    .eq("code", shelfCode)
+    .maybeSingle();
+  if (shelfError) return { ok: false, error: shelfError.message };
+
+  let shelfId = shelf?.id;
+  if (!shelfId) {
+    const { data: created, error: createError } = await supabase
+      .from(TABLES.shelves)
+      .insert({ code: shelfCode, name: null })
+      .select("id")
+      .single();
+    if (createError) return { ok: false, error: createError.message };
+    shelfId = created.id;
+  }
+
+  const { data: updated, error } = await supabase
+    .from(TABLES.big_boxes)
+    .update({ name, shelf_id: shelfId })
+    .eq("id", input.boxId)
+    .select("id");
+  if (error) {
+    // A box name is unique within its shelf — say so in words rather than
+    // leaking the constraint name.
+    if ((error as { code?: string }).code === "23505") {
+      return { ok: false, error: `Shelf ${shelfCode} already has a box called "${name}".` };
+    }
+    return { ok: false, error: error.message };
+  }
+  // PostgREST answers 200 with an empty body when RLS blocks an UPDATE.
+  if (!updated || updated.length === 0) {
+    return { ok: false, error: "That box could not be updated — you may not have permission." };
+  }
+
+  revalidatePath("/shelves", "layout");
+  return { ok: true };
+}

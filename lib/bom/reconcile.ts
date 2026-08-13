@@ -45,7 +45,14 @@
  * cross-project demand view about what a DNP line is worth.
  */
 
-import { matchPart, type MatchCatalogEntry, type MatchMethod } from "@/lib/matcher";
+import {
+  extractVoltage,
+  matchPart,
+  splitValueVoltage,
+  valuePackageCandidates,
+  type MatchCatalogEntry,
+  type MatchMethod,
+} from "@/lib/matcher";
 import type { BomLineMatchState } from "@/types/db";
 
 /** Minimal `smark_bom_lines` shape reconcile needs. */
@@ -59,6 +66,32 @@ export interface ReconcileLineInput {
   value?: string | null;
   /** The BOM's raw footprint string, e.g. `"SMARKKicadLib:C0805"`. */
   footprint?: string | null;
+  /**
+   * The BOM's own description text. Read ONLY for a voltage to break a tie —
+   * `CAP CER 100nF 25V X7R 0603` distinguishes the 25V row from the 50V one
+   * when the value column says nothing. Never used to create a match.
+   */
+  description?: string | null;
+  /**
+   * A part an operator picked by hand for this line. Survives re-reconcile:
+   * without it, changing build_qty would silently undo every choice they made.
+   */
+  pinnedPartId?: string | null;
+}
+
+/**
+ * The signature of a hand-picked line: the value+package rung, at a confidence
+ * the automatic path can never reach (`MATCH_CONFIDENCE.valuePackageMax` is 88).
+ *
+ * Encoded in the existing columns rather than a new `match_method: 'manual'`,
+ * because that column carries a CHECK constraint and adding a value means a
+ * migration hand-run against production before the code that writes it can ship.
+ * Not worth a schema change and a deploy-ordering hazard to say the same thing.
+ */
+export const MANUAL_MATCH_CONFIDENCE = 100;
+
+export function isManualMatch(method: string | null, confidence: number | null): boolean {
+  return method === "value_pkg" && confidence === MANUAL_MATCH_CONFIDENCE;
 }
 
 /**
@@ -67,9 +100,42 @@ export interface ReconcileLineInput {
  */
 const RECONCILE_MATCH_OPTIONS = { minValueSimilarity: 1, requireUnambiguous: true } as const;
 
-/** The descriptor handed to the matcher — keyed identity plus rung-3 inputs. */
+/**
+ * The descriptor handed to the matcher — keyed identity plus rung-3 inputs.
+ *
+ * Voltage is derived, not read from a column, because the BOMs never have one:
+ * the rating is written either into the value (`0.1uF/100V`) or into the
+ * description (`CAP CER 100nF 25V X7R 0603`). Supplying it does two things at
+ * once — it creates candidates where the combined value previously parsed to
+ * nothing, and it separates rows that are otherwise identical, which is what
+ * left 1,604 pieces of 100nF 0603 reading as out of stock.
+ */
 function matchInputFor(line: ReconcileLineInput) {
-  return { mpn: line.mpn, lcsc_pn: line.lcsc_pn, value: line.value ?? null, package: line.footprint ?? null };
+  const voltage = splitValueVoltage(line.value).voltage ?? extractVoltage(line.description);
+  return {
+    mpn: line.mpn,
+    lcsc_pn: line.lcsc_pn,
+    value: line.value ?? null,
+    package: line.footprint ?? null,
+    voltage,
+  };
+}
+
+/**
+ * Stock rows a line could plausibly be, when the automatic rung refused to pick.
+ *
+ * Returned so the UI can say "in stock — 2 options" and let a human decide,
+ * instead of "not in stock" while the shelf is full. Empty unless the tie is
+ * genuine: one candidate means the matcher already took it.
+ */
+export function candidatesForLine(
+  line: ReconcileLineInput,
+  catalog: readonly ReconcileCatalogPart[],
+): ReconcileCatalogPart[] {
+  // Keyed identity wins outright — never offer a choice against a part number.
+  if (matchPart({ mpn: line.mpn, lcsc_pn: line.lcsc_pn }, catalog)) return [];
+  const { tied } = valuePackageCandidates(matchInputFor(line), catalog, RECONCILE_MATCH_OPTIONS);
+  return tied.length > 1 ? tied.map((candidate) => candidate.part) : [];
 }
 
 /** Minimal `smark_parts` shape reconcile needs — any `PartRow` slice satisfies this. */
@@ -136,9 +202,16 @@ export function reconcileLines(
   buildQty: number,
 ): ReconcileLineOutcome[] {
   const remainingByPart = new Map<string, number>();
+  const byId = new Map(catalog.map((part) => [part.id, part]));
   return lines.map((line) => {
     const need = line.dnp ? 0 : (line.qty ?? 0) * buildQty;
-    const hit = matchPart(matchInputFor(line), catalog, RECONCILE_MATCH_OPTIONS);
+    // A hand-picked part outranks the ladder. Re-reconcile runs on every
+    // build-qty change; without this, one edit would quietly undo every choice
+    // the operator had made about which of two identical rows this line is.
+    const pinned = line.pinnedPartId ? byId.get(line.pinnedPartId) : undefined;
+    const hit = pinned
+      ? { part: pinned, method: "value_pkg" as const, confidence: MANUAL_MATCH_CONFIDENCE }
+      : matchPart(matchInputFor(line), catalog, RECONCILE_MATCH_OPTIONS);
     if (!hit) {
       return { id: line.id, matchedPartId: null, matchState: "unresolved", matchConfidence: null, matchMethod: null, need };
     }

@@ -1,10 +1,12 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Field, Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
 import { formatDate } from "@/lib/format";
-import { printBigBoxLabel } from "@/app/(app)/shelves/actions";
+import { printBigBoxLabel, renameBigBox } from "@/app/(app)/shelves/actions";
 
 export interface BoxDetailCardProps {
   boxId: string;
@@ -31,7 +33,25 @@ export function BoxDetailCard({
   canPrint,
 }: BoxDetailCardProps) {
   const { push } = useToast();
+  const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [editing, setEditing] = useState(false);
+  const [draftName, setDraftName] = useState(boxCode);
+  const [draftShelf, setDraftShelf] = useState(shelfCode);
+  const [isSaving, startSaving] = useTransition();
+
+  function handleRename() {
+    startSaving(async () => {
+      const result = await renameBigBox({ boxId, name: draftName, shelfCode: draftShelf });
+      if (result.ok) {
+        setEditing(false);
+        push({ msg: "Box updated" });
+        router.refresh();
+      } else {
+        push({ msg: result.error });
+      }
+    });
+  }
 
   function handlePrint() {
     startTransition(async () => {
@@ -56,6 +76,49 @@ export function BoxDetailCard({
       <div className="mt-1 text-caption text-smoke">
         {lastAuditedAt ? `Last audited ${formatDate(lastAuditedAt)}` : "Not yet audited"}
       </div>
+
+      {canPrint &&
+        (editing ? (
+          // Boxes get named in a hurry during put-away, so the first name is
+          // often provisional; until now there was no way back to it.
+          <div className="mt-4 flex flex-col gap-2.5 rounded-xl border border-border-divider p-3">
+            <Field label="Box name">
+              <Input value={draftName} onChange={(e) => setDraftName(e.target.value)} mono uiSize="sm" />
+            </Field>
+            <Field label="Shelf" hint="A shelf that doesn't exist yet is created">
+              <Input
+                value={draftShelf}
+                onChange={(e) => setDraftShelf(e.target.value.toUpperCase())}
+                mono
+                uiSize="sm"
+              />
+            </Field>
+            <div className="flex gap-2">
+              <Button size="sm" onClick={handleRename} loading={isSaving}>
+                Save
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setDraftName(boxCode);
+                  setDraftShelf(shelfCode);
+                  setEditing(false);
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="mt-2 cursor-pointer text-caption text-smark-orange hover:underline"
+          >
+            Rename or move box
+          </button>
+        ))}
 
       <div className="mt-4 inline-block rounded-[10px] bg-snow p-3">
         {/* eslint-disable-next-line @next/next/no-img-element -- data: URL, no next/image loader needed */}
