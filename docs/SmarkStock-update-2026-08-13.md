@@ -77,8 +77,37 @@ is what the **Re-check stock** button re-runs. During the run the app only talks
 to the distributors. That's exactly why better matching makes runs faster — every
 line it can resolve against your own shelves is a line nobody has to go and price.
 
-**One thing I couldn't do: PPM.** It's blank in every row of every file you've
-sent, so there is nothing to display. Where should it come from?
+**Everything below was re-checked against the current catalogue on 14 August**,
+after the data replacement — 1,746 parts, connectors still to come.
+
+### What the catalogue looks like today, and what it means for matching
+
+| | Parts | |
+|---|---:|---|
+| Total | 1,746 | |
+| No manufacturer part number | 741 | can only match on value + package |
+| No part number of any kind (no MPN, no LCSC) | 402 | same |
+| No package recorded | 447 | cannot match on value + package either |
+| No voltage recorded | 1,480 | limits the voltage tie-breaker |
+| No description | 988 | |
+| With a tolerance | **62** | |
+
+Two of these deserve a mention because they affect what you asked for:
+
+- **Tolerance** is now a column on the main screen as requested, but only 62 of
+  1,746 parts have one recorded, so it will read as blank for almost everything
+  until that data exists.
+- **Voltage** is missing on 1,480 parts. The new tie-breaker only works where
+  the shelf knows the rating, so filling this in for capacitors would directly
+  reduce how often you're asked to choose.
+
+**PPM: there is no such field in the data at all.** Not blank — absent. No file
+you've sent has ever carried it. If it should exist, where does it come from?
+
+**A small note on packages:** the metric notation is gone as you asked. 32 parts
+still carry a bracket for a different reason, such as `SMA (DO-214AC)`, where
+the bracket is a second industry name rather than a metric restatement. Say the
+word if you want those flattened too.
 
 Sections 2 and 3 below explain how the matching works now, and — more usefully —
 what makes a line match, in case it helps when you export the next BOM.
@@ -108,9 +137,10 @@ wins, and the ones above are more trustworthy than the ones below.
    be the same physical size (`C0603` in the BOM matches `0603 (1608 Metric)` in
    stock).
 
-Rung 3 carries most of your catalogue. **880 parts have no manufacturer part
-number and no LCSC number at all**, because generic passives never had one, so
-rungs 1 and 2 can never reach them.
+Rung 3 carries a large part of your catalogue. **402 of the 1,746 parts have no
+manufacturer part number and no LCSC number at all**, and 741 have no
+manufacturer part number, because generic passives never had one — so rungs 1
+and 2 can never reach them.
 
 ### Why 66 lines missed before
 
@@ -202,12 +232,59 @@ stale the moment anyone edits the library, and it would silently start producing
 wrong answers rather than obvious ones. The reliable fix is one character in the
 export settings, which is the next section.
 
+### The 30, line by line
+
+Re-checked against the current catalogue on 14 August, after the data
+replacement:
+
+| Group | Lines | Verdict |
+|---|---:|---|
+| Named semiconductors and modules genuinely not stocked | 15 | The app is right — these are purchases |
+| Connectors, headers, terminal blocks, a battery holder | 7 | Waiting on your connector file |
+| Blocked by package naming, **but in stock** | 4 | See below — worth fixing |
+| Passives genuinely not stocked | 3 | 2.7nF 0603, 1.96K 0603, 82pF 0603 |
+| A crystal we don't stock at that frequency | 1 | 32.768kHz — 17 other crystals on the shelf |
+
+On the first group I checked whether we hold them under a different name: we
+don't. For example the sheet asks for SS36, SS54, SMAJ58A and SMF6.0CA; the
+shelves hold four DO-214AC diodes (MURA160T3G, SMAJ12A, SMAJ14A, SMAJ160A) and
+none of them is those. Different parts, correctly reported as needing an order.
+
+One line is `MountingHole` — not a purchasable part at all, and it can simply be
+left off the ordering sheet.
+
+### The four that are in stock and still don't match
+
+This is the one genuinely fixable case left, and it needs a decision from both
+sides.
+
+| Line | Wants | On the shelf |
+|---|---|---|
+| 12 | 4.7µH, footprint `INDM6965X300N` | 5 different 4.7µH inductors |
+| 14 | 10µH, footprint `INDM6965X300N` | **17** different 10µH inductors, one with 380 pieces |
+| 26 | 2.2K, footprint `CAT16-1206_8L` | 2 resistor networks at 2.2K |
+| 32 | 10K, footprint `CAT16-1206_8L` | 5 resistor networks at 10K |
+
+Neither side is written in a form the other can read. The BOM gives a KiCad
+library name; the stock sheet gives physical dimensions — `7.3x6.6 mm`,
+`4x4x1.2`, `6x6mm`, `0603x4` — in a different format almost every time.
+
+So for these categories, correcting only the BOM footprint would not be enough:
+there is no package code on the stock side to match it against. Two ways
+forward, and it's worth picking one:
+
+- **Put an LCSC or manufacturer part number on these lines.** They then match on
+  rung 1 or 2 and the package never matters. This is the smaller job and the
+  more reliable outcome.
+- **Or agree a package convention** for inductors, resistor networks and
+  crystals, and use it on both the BOM and the stock sheet.
+
 ### And one thing that's on us, not you
 
 **Connectors, headers and terminal blocks cannot match at all right now** —
 there are **zero connector rows in stock**, since they were removed pending your
-corrected file. That's roughly half of what's still unmatched. Once that data
-lands, those lines should resolve like everything else.
+corrected file. Once that data lands, those seven lines should resolve like
+everything else.
 
 ---
 
