@@ -12,8 +12,55 @@
  * built yet, so this module is the only layout for now.
  */
 
-import { PDFDocument, StandardFonts, rgb, type PDFFont } from "pdf-lib";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { PDFDocument, rgb, type PDFFont } from "pdf-lib";
+import fontkit from "@pdf-lib/fontkit";
 import { renderQrPngBuffer } from "./qr";
+
+/**
+ * An embedded font, not a PDF standard one.
+ *
+ * The standard fonts are WinAnsi-encoded, which cannot represent `Ω`. The
+ * catalogue writes resistance as `0 Ω` / `10 kΩ`, so the first resistor label
+ * anyone queued threw `WinAnsi cannot encode "Ω"` and took the WHOLE sheet with
+ * it (client, 2026-08-20: "a new tab opens and automatically closes, no file is
+ * downloaded"). Since the queue survives printing now, that one label would have
+ * jammed every future print too — it could never drain.
+ *
+ * Same Noto Sans the order-review PDF embeds for `₹` (lib/runs/review-pdf.ts).
+ */
+const FONT_PATH = () => path.join(process.cwd(), "lib", "runs", "fonts", "NotoSans-Regular.ttf");
+
+/**
+ * Last-resort transliteration for a glyph even Noto lacks.
+ *
+ * Belt and braces: a label is operator-entered free text, and one unprintable
+ * character must never again be able to stop a whole sheet — the queue no
+ * longer clears itself, so a poisoned label would block printing indefinitely
+ * rather than for one attempt.
+ */
+function asciiFallback(text: string): string {
+  return text
+    .replace(/[Ωω]/g, "ohm")
+    .replace(/[µμ]/g, "u")
+    .replace(/±/g, "+/-")
+    .replace(/[–—]/g, "-")
+    .replace(/[^ -~]/g, ""); // anything left that is not plain ASCII
+}
+
+/** Draws `text`, falling back to a transliterated version if the font can't encode it. */
+function drawTextSafely(
+  page: { drawText: (t: string, o: Record<string, unknown>) => void },
+  text: string,
+  options: Record<string, unknown>,
+): void {
+  try {
+    page.drawText(text, options);
+  } catch {
+    page.drawText(asciiFallback(text), options);
+  }
+}
 
 const MM_TO_PT = 2.834645669; // 1mm in PDF points (72dpi)
 
@@ -52,7 +99,8 @@ function truncateToWidth(font: PDFFont, text: string, maxWidth: number, fontSize
  */
 export async function buildAveryPdf(labels: readonly AveryLabelInput[]): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
-  const font = await doc.embedFont(StandardFonts.Helvetica);
+  doc.registerFontkit(fontkit);
+  const font = await doc.embedFont(readFileSync(FONT_PATH()), { subset: true });
 
   const pageWidth = PAGE_WIDTH_MM * MM_TO_PT;
   const pageHeight = PAGE_HEIGHT_MM * MM_TO_PT;
@@ -102,7 +150,7 @@ export async function buildAveryPdf(labels: readonly AveryLabelInput[]): Promise
       let textY = cellBottom + (labelHeight + blockHeight) / 2 - fontSize;
 
       for (const line of lines) {
-        page.drawText(truncateToWidth(font, line, maxTextWidth, fontSize), {
+        drawTextSafely(page, truncateToWidth(font, line, maxTextWidth, fontSize), {
           x: textX,
           y: textY,
           size: fontSize,
