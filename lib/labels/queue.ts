@@ -16,6 +16,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/db";
 import { TABLES } from "@/types/db";
+import {
+  boxLabelLines,
+  partLabelLines,
+  type LabelBoxInput as LabelBoxContent,
+  type LabelPartInput as LabelPartContent,
+} from "./content";
 
 type DB = SupabaseClient<Database>;
 
@@ -26,30 +32,27 @@ export function isUniqueViolation(error: unknown): boolean {
   );
 }
 
-export interface LabelPartInput {
-  id: string;
-  internal_pid: string;
-  mpn?: string | null;
-  value?: string | null;
-  package?: string | null;
-}
+/** What the label SAYS (lib/labels/content.ts) plus the row it points at. */
+export type LabelPartInput = LabelPartContent & { id: string };
+export type LabelBoxInput = LabelBoxContent & { id: string };
 
-/** ESD-plastic label body — PID on its own line so it reads first when scanned/printed small. */
+/**
+ * ESD-plastic label body — one line per fact, PID first so it reads first when
+ * printed small. Which facts depends on the part's category; see
+ * `lib/labels/content.ts`.
+ *
+ * This is a SNAPSHOT written at queue time. The print sheet re-derives the same
+ * text from the live part instead of trusting it (lib/labels/print.ts), so a
+ * part edited after its label was queued still prints correctly; the stored
+ * copy is the fallback for a label whose target row is gone.
+ */
 export function buildPartHumanText(part: LabelPartInput): string {
-  const specs = [part.value, part.package].filter(Boolean).join(" · ");
-  return [part.internal_pid, part.mpn ?? undefined, specs || undefined].filter(Boolean).join("\n");
-}
-
-export interface LabelBoxInput {
-  id: string;
-  name: string;
-  category?: string | null;
-  shelfCode: string;
+  return partLabelLines(part).join("\n");
 }
 
 /** Big-Box label body (FEATURES §8: "encodes box id → live contents"). */
 export function buildBigBoxHumanText(box: LabelBoxInput): string {
-  return [`BOX ${box.name}`, box.category ?? undefined, `Shelf ${box.shelfCode}`].filter(Boolean).join(" · ");
+  return boxLabelLines(box).join("\n");
 }
 
 /**

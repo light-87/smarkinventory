@@ -15,15 +15,19 @@ describe("buildPartHumanText", () => {
   });
 });
 
+// One fact per line since 2026-08-21. The old single line, joined with " · ",
+// could not fit the text space beside the QR, so the renderer cut it — the client
+// photographed a box label reading "BOX Conne…". Per-line content is covered in
+// tests/unit/labels-content.test.ts; this just pins the newline join.
 describe("buildBigBoxHumanText", () => {
-  test("renders BOX <name> · category · Shelf <code>", () => {
+  test("puts the box name, category and shelf on their own lines", () => {
     const text = buildBigBoxHumanText({ id: "b1", name: "C-04", category: "Capacitors", shelfCode: "B" });
-    expect(text).toBe("BOX C-04 · Capacitors · Shelf B");
+    expect(text).toBe("BOX C-04\nCapacitors\nShelf B");
   });
 
   test("omits a missing category", () => {
     const text = buildBigBoxHumanText({ id: "b2", name: "A-01", category: null, shelfCode: "A" });
-    expect(text).toBe("BOX A-01 · Shelf A");
+    expect(text).toBe("BOX A-01\nShelf A");
   });
 });
 

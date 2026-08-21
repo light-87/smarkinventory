@@ -79,17 +79,105 @@ export const MARGIN_Y_MM = (PAGE_HEIGHT_MM - GRID_ROWS * LABEL_HEIGHT_MM) / 2;
 export interface AveryLabelInput {
   /** QR payload — the label's short code (PID or box name). */
   codeValue: string;
-  /** Plain-text lines rendered beside the QR; falls back to the code itself. */
+  /** Newline-separated lines rendered beside the QR; falls back to the code itself. */
   humanText: string | null;
 }
 
-function truncateToWidth(font: PDFFont, text: string, maxWidth: number, fontSize: number): string {
-  if (font.widthOfTextAtSize(text, fontSize) <= maxWidth) return text;
-  let out = text;
-  while (out.length > 1 && font.widthOfTextAtSize(`${out}…`, fontSize) > maxWidth) {
-    out = out.slice(0, -1);
+/**
+ * Cap on the QR square, so the text column gets the rest of the label.
+ *
+ * It used to take the full label height (~18.7mm of a 38mm-wide label), leaving
+ * ~15mm for text — about eleven characters at 6.5pt. That is why the client
+ * photographed a box label reading "BOX Conne…". Every code we encode is short
+ * (`SMK-001477`, `Resistor 1206`), which is QR version 1 — 21 modules across,
+ * so 14mm is 0.67mm per module and still scans comfortably from a phone.
+ */
+const QR_MAX_MM = 14;
+
+/** Tried largest-first; the first size whose wrapped block fits the label wins. */
+const FONT_SIZES = [6.5, 6, 5.5, 5, 4.5, 4] as const;
+const LINE_HEIGHT_RATIO = 1.22;
+
+/** Text width, transliterating first if the font can't measure the string as-is. */
+function widthOf(font: PDFFont, text: string, fontSize: number): number {
+  try {
+    return font.widthOfTextAtSize(text, fontSize);
+  } catch {
+    return font.widthOfTextAtSize(asciiFallback(text), fontSize);
   }
-  return out.length < text.length ? `${out}…` : out;
+}
+
+/**
+ * Splits one line into as many as it takes to stay inside `maxWidth`.
+ *
+ * Replaces the old truncate-with-an-ellipsis, which silently dropped whatever
+ * did not fit — including, on a box label, the box's own name. The client's
+ * instruction was simply "it can be wrapped down".
+ */
+export function wrapToWidth(font: PDFFont, text: string, maxWidth: number, fontSize: number): string[] {
+  if (widthOf(font, text, fontSize) <= maxWidth) return [text];
+
+  const out: string[] = [];
+  let current = "";
+
+  for (const word of text.split(/\s+/).filter(Boolean)) {
+    const candidate = current ? `${current} ${word}` : word;
+    if (widthOf(font, candidate, fontSize) <= maxWidth) {
+      current = candidate;
+      continue;
+    }
+    if (current) {
+      out.push(current);
+      current = "";
+    }
+    if (widthOf(font, word, fontSize) <= maxWidth) {
+      current = word;
+      continue;
+    }
+    // One unbroken token wider than the label — a long MPN like
+    // IHLP4040DZER150M5A. Break it by character; a part number split across two
+    // lines is still readable, a part number cut short is not.
+    let chunk = "";
+    for (const char of word) {
+      if (chunk && widthOf(font, chunk + char, fontSize) > maxWidth) {
+        out.push(chunk);
+        chunk = char;
+      } else {
+        chunk += char;
+      }
+    }
+    current = chunk;
+  }
+
+  if (current) out.push(current);
+  return out.length > 0 ? out : [text];
+}
+
+export interface TextLayout {
+  fontSize: number;
+  lines: string[];
+}
+
+/**
+ * Largest font size at which the wrapped block fits the label's text box.
+ *
+ * Shrinking beats clipping: a resistor now carries five facts and an IC's
+ * description can run to thirty characters, so a fixed 6.5pt would put the
+ * label back where it started. Only if even 4pt overflows does it drop whole
+ * trailing lines, which keeps a label inside its own cut guide instead of
+ * printing over its neighbour.
+ */
+export function layoutLabelText(font: PDFFont, lines: readonly string[], maxWidth: number, maxHeight: number): TextLayout {
+  let layout: TextLayout = { fontSize: FONT_SIZES[FONT_SIZES.length - 1]!, lines: [...lines] };
+
+  for (const fontSize of FONT_SIZES) {
+    const wrapped = lines.flatMap((line) => wrapToWidth(font, line, maxWidth, fontSize));
+    layout = { fontSize, lines: wrapped };
+    if (wrapped.length * fontSize * LINE_HEIGHT_RATIO <= maxHeight) return layout;
+  }
+
+  const maxLines = Math.max(1, Math.floor(maxHeight / (layout.fontSize * LINE_HEIGHT_RATIO)));
+  return { fontSize: layout.fontSize, lines: layout.lines.slice(0, maxLines) };
 }
 
 /**
@@ -108,8 +196,6 @@ export async function buildAveryPdf(labels: readonly AveryLabelInput[]): Promise
   const labelHeight = LABEL_HEIGHT_MM * MM_TO_PT;
   const marginX = MARGIN_X_MM * MM_TO_PT;
   const marginY = MARGIN_Y_MM * MM_TO_PT;
-  const fontSize = 6.5;
-  const lineGap = fontSize + 1.5;
 
   for (let sheetStart = 0; sheetStart < labels.length; sheetStart += LABELS_PER_SHEET) {
     const page = doc.addPage([pageWidth, pageHeight]);
@@ -135,7 +221,7 @@ export async function buildAveryPdf(labels: readonly AveryLabelInput[]): Promise
 
       const qrPng = await renderQrPngBuffer(label.codeValue, 220);
       const qrImage = await doc.embedPng(qrPng);
-      const qrSize = labelHeight - 8;
+      const qrSize = Math.min(labelHeight - 8, QR_MAX_MM * MM_TO_PT);
       page.drawImage(qrImage, {
         x: cellX + 4,
         y: cellBottom + (labelHeight - qrSize) / 2,
@@ -143,17 +229,21 @@ export async function buildAveryPdf(labels: readonly AveryLabelInput[]): Promise
         height: qrSize,
       });
 
-      const textX = cellX + qrSize + 10;
-      const maxTextWidth = labelWidth - (qrSize + 14);
-      const lines = (label.humanText ?? label.codeValue).split("\n").filter(Boolean);
-      const blockHeight = lines.length * lineGap;
-      let textY = cellBottom + (labelHeight + blockHeight) / 2 - fontSize;
+      const textX = cellX + 4 + qrSize + 5;
+      const maxTextWidth = cellX + labelWidth - 4 - textX;
+      const maxTextHeight = labelHeight - 6;
+      const sourceLines = (label.humanText ?? label.codeValue).split("\n").filter(Boolean);
+      const layout = layoutLabelText(font, sourceLines, maxTextWidth, maxTextHeight);
 
-      for (const line of lines) {
-        drawTextSafely(page, truncateToWidth(font, line, maxTextWidth, fontSize), {
+      const lineGap = layout.fontSize * LINE_HEIGHT_RATIO;
+      const blockHeight = layout.lines.length * lineGap;
+      let textY = cellBottom + (labelHeight + blockHeight) / 2 - layout.fontSize;
+
+      for (const line of layout.lines) {
+        drawTextSafely(page, line, {
           x: textX,
           y: textY,
-          size: fontSize,
+          size: layout.fontSize,
           font,
           color: rgb(0.1, 0.1, 0.1),
         });

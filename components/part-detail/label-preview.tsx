@@ -21,7 +21,7 @@ export function LabelPreview({ part, label, canWrite, printing, onPrint, classNa
         <div className="flex-none rounded-lg bg-snow p-2">
           <PartQrCode value={part.internal_pid} size={72} />
         </div>
-        <div className="min-w-0 font-mono text-xs leading-relaxed break-words text-snow">{label.humanText}</div>
+        <div className="min-w-0 font-mono text-xs leading-relaxed break-words whitespace-pre-line text-snow">{label.humanText}</div>
       </div>
       {canWrite && (
         <Button variant="outline" fullWidth className="mt-3.5" onClick={onPrint} loading={printing}>
