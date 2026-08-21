@@ -147,7 +147,11 @@ export async function getPartDetailData(pid: string): Promise<PartDetailResult> 
       specs: buildPartSpecs(part),
       stockValue: computeStockValue(part),
       label: {
-        humanText: label?.human_text ?? buildPartHumanText(part),
+        // Composed from the LIVE part, never from the stored snapshot: the preview
+        // has to show what the sheet will actually print, and print.ts re-derives
+        // it the same way. A label queued before the part was corrected would
+        // otherwise show the old text here and give no clue why.
+        humanText: buildPartHumanText(part),
         printStatus: label?.print_status ?? null,
       },
       timeline,

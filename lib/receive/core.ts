@@ -344,6 +344,10 @@ export async function createNewPart(
     mpn: part.mpn,
     value: part.value,
     package: part.package,
+    voltage: part.voltage,
+    description: part.description,
+    category: part.category,
+    attributes: part.attributes,
   });
 
   return {
@@ -543,6 +547,10 @@ export async function putAwayArrivalLine(supabase: DB, actorId: string, input: P
       mpn: part.mpn,
       value: part.value,
       package: part.package,
+      voltage: part.voltage,
+      description: part.description,
+      category: part.category,
+      attributes: part.attributes,
     });
     labelQueued = label !== null;
   }
@@ -586,7 +594,7 @@ export async function assignOnboardingLocation(
 ): Promise<OnboardingAssignResult> {
   const { data: part, error } = await supabase
     .from(TABLES.parts)
-    .select("id, internal_pid, mpn, value, package, category, total_qty")
+    .select("id, internal_pid, mpn, value, package, voltage, description, category, attributes, total_qty")
     .eq("id", input.partId)
     .maybeSingle();
   if (error) throw error;
@@ -655,6 +663,10 @@ export async function assignOnboardingLocation(
     mpn: part.mpn,
     value: part.value,
     package: part.package,
+    voltage: part.voltage,
+    description: part.description,
+    category: part.category,
+    attributes: part.attributes,
   });
 
   return { ok: true, partId: part.id, internalPid: part.internal_pid, labelQueued: label !== null };

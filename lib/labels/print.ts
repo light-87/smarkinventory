@@ -13,10 +13,69 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/db";
 import { TABLES } from "@/types/db";
 import type { StoragePort } from "@/lib/storage";
-import { chunk } from "@/lib/supabase/select-all";
+import { chunk, selectByIds } from "@/lib/supabase/select-all";
 import { buildAveryPdf } from "./avery";
+import { boxLabelLines, partLabelLines } from "./content";
 
 type DB = SupabaseClient<Database>;
+
+interface QueuedLabelRow {
+  id: string;
+  code_value: string;
+  human_text: string | null;
+  target_type: string;
+  target_id: string;
+}
+
+/**
+ * Rebuilds every queued label's text from the part or box it points at.
+ *
+ * `smark_qr_labels.human_text` is a snapshot taken when the label was queued,
+ * and the live queue proves how quickly that goes stale: SMK-001751 was queued
+ * carrying its neighbour's MPN and still printed it after the part was
+ * corrected, SMK-001754 printed the single character "2" because that was its
+ * `value` at the time, and a capacitor still printed "0603 (1608 Metric)" after
+ * the metric notation had been stripped from the catalogue. None of those are
+ * fixable by editing the part, which is exactly what someone would try.
+ *
+ * So the snapshot is now the fallback, used only when the target row is gone.
+ */
+async function labelTextByLabelId(supabase: DB, labels: readonly QueuedLabelRow[]): Promise<Map<string, string>> {
+  const idsOf = (type: string) => [...new Set(labels.filter((l) => l.target_type === type).map((l) => l.target_id))];
+
+  const parts = await selectByIds(idsOf("part"), (ids) =>
+    supabase
+      .from(TABLES.parts)
+      .select("id, internal_pid, mpn, value, package, voltage, description, category, attributes")
+      .in("id", ids),
+  );
+  const partsById = new Map(parts.map((part) => [part.id, part]));
+
+  const boxes = await selectByIds(idsOf("big_box"), (ids) =>
+    supabase.from(TABLES.big_boxes).select("id, name, category, shelf_id").in("id", ids),
+  );
+  const shelves = await selectByIds([...new Set(boxes.map((box) => box.shelf_id))], (ids) =>
+    supabase.from(TABLES.shelves).select("id, code").in("id", ids),
+  );
+  const shelfCodeById = new Map(shelves.map((shelf) => [shelf.id, shelf.code]));
+
+  const text = new Map<string, string>();
+  for (const label of labels) {
+    const part = partsById.get(label.target_id);
+    if (part) {
+      text.set(label.id, partLabelLines(part).join("\n"));
+      continue;
+    }
+    const box = boxes.find((candidate) => candidate.id === label.target_id);
+    if (box) {
+      const lines = boxLabelLines({ ...box, shelfCode: shelfCodeById.get(box.shelf_id) ?? "?" });
+      text.set(label.id, lines.join("\n"));
+      continue;
+    }
+    if (label.human_text) text.set(label.id, label.human_text);
+  }
+  return text;
+}
 
 export type PrintQueuedLabelsResult =
   | { ok: true; url: string; count: number; remaining: number; batchId: string }
@@ -55,7 +114,7 @@ export async function printQueuedLabels(supabase: DB, storage: StoragePort): Pro
 
   const { data: queued, error } = await supabase
     .from(TABLES.qr_labels)
-    .select("id, code_value, human_text")
+    .select("id, code_value, human_text, target_type, target_id")
     .eq("print_status", "queued")
     .order("created_at", { ascending: true })
     .limit(MAX_LABELS_PER_SHEET);
@@ -64,8 +123,12 @@ export async function printQueuedLabels(supabase: DB, storage: StoragePort): Pro
 
   const remaining = Math.max(0, (queuedCount ?? queued.length) - queued.length);
 
+  const liveText = await labelTextByLabelId(supabase, queued);
   const pdfBytes = await buildAveryPdf(
-    queued.map((label) => ({ codeValue: label.code_value, humanText: label.human_text })),
+    queued.map((label) => ({
+      codeValue: label.code_value,
+      humanText: liveText.get(label.id) ?? label.human_text,
+    })),
   );
 
   const batchId = randomUUID();

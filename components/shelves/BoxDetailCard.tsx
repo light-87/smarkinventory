@@ -125,7 +125,7 @@ export function BoxDetailCard({
         <img src={qrDataUrl} alt={`Box ${boxCode} QR code`} width={160} height={160} className="block" />
       </div>
 
-      <div className="mt-3.5 font-mono text-caption leading-relaxed break-words text-silver-mist">{labelText}</div>
+      <div className="mt-3.5 font-mono text-caption leading-relaxed break-words whitespace-pre-line text-silver-mist">{labelText}</div>
 
       {canPrint && (
         <Button variant="outline" fullWidth className="mt-4" loading={isPending} onClick={handlePrint}>
