@@ -225,6 +225,13 @@ Two smart labels (QR + human text): **ESD-plastic label** encodes short PID (`SM
 top-up, never reprint; new part → exactly one label.** All label creation **queues**; batch prints
 one Avery-layout PDF (size from Settings) → R2. Scan resolves PID → part / box id → contents.
 
+**Label text is per-category and never truncated** (client, 2026-08-21). Resistor/Capacitor carry
+value, package, voltage, power and the PID; IC carries MPN, description and the PID; every other
+category carries whatever it has. Lines wrap and the type auto-shrinks to fit rather than being cut
+(`lib/labels/content.ts` for the field table, `lib/labels/avery.ts` for the fitting). The sheet
+re-derives each label's text from the **live** part or box — `smark_qr_labels.human_text` is only a
+snapshot from queue time and is used solely when the target row is gone.
+
 ## 9. Movements, undo, audit
 
 Every stock mutation writes `smark_movements` (actor, reason: pick/receive/adjust/bulk_pick/undo/
